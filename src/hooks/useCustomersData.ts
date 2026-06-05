@@ -83,6 +83,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
               city: c['CITY'] || '-',
               province: c['PROVINCE'] || c['REGION'] || '-',
               status: c['STATUS'] || '',
+              salesmanId: c['SALES REP ID'] || '',
               volume: c.volume || 0,
               netValue: c.netValue || 0,
               gsr: c.gsr || 0,
