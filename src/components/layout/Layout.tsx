@@ -1,14 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { LayoutDashboard, ShoppingCart, Target, Users, Database, Settings, LogOut, Menu, X, BarChart2 } from 'lucide-react';
 import { logout } from '../../firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import PerformancePanel from './PerformancePanel';
 
 const Layout: React.FC = () => {
   const { role, currentUser, name } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isPerformanceModalOpen, setIsPerformanceModalOpen] = useState(false);
+  const [cobDate, setCobDate] = useState<string>('');
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
+      if (docSnap.exists() && docSnap.data().cobDate) {
+        setCobDate(docSnap.data().cobDate);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -64,6 +76,7 @@ const Layout: React.FC = () => {
             <h2 style={{ color: 'var(--accent-primary)', fontSize: '20px', margin: 0 }}>Sales Monitoring</h2>
             {name && <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', marginTop: '8px' }}>{name}</div>}
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>Role: {role || 'Guest'}</div>
+            {cobDate && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>COB Date: <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>{cobDate}</span></div>}
           </div>
           
           {navLinks}
@@ -88,6 +101,7 @@ const Layout: React.FC = () => {
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
             Role: {role || 'Guest'}
           </div>
+          {cobDate && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>COB Date: <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>{cobDate}</span></div>}
         </div>
         
         {navLinks}

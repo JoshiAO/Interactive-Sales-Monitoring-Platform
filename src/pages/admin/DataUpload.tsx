@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { collection, writeBatch, doc, getDocs } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 
 const uploadCategories = [
@@ -70,6 +70,7 @@ const DataUpload: React.FC = () => {
   const [progress, setProgress] = useState<{ step: string; current: number; total: number } | null>(null);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [cobDate, setCobDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const processAndUpload = async (file: File, category: string) => {
     return new Promise<void>((resolve, reject) => {
@@ -272,6 +273,9 @@ const DataUpload: React.FC = () => {
               }, { merge: true });
             });
             await metricsBatch.commit();
+            
+            // Save COB Date globally
+            await setDoc(doc(db, 'settings', 'global'), { cobDate }, { merge: true });
           } 
           else if (category === 'CML (Customer Master List)') {
             setProgress({ step: 'Aggregating CML Baseline...', current: 0, total: 100 });
@@ -449,6 +453,27 @@ const DataUpload: React.FC = () => {
                 style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: uploading ? 'not-allowed' : 'pointer', top: 0, left: 0 }} 
               />
             </div>
+
+            {activeCategory === 'Net Invoiced' && (
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: 'var(--text-muted)' }}>COB Date (Closing of Business)</label>
+                <input 
+                  type="date" 
+                  value={cobDate}
+                  onChange={(e) => setCobDate(e.target.value)}
+                  disabled={uploading}
+                  style={{ 
+                    width: '100%', 
+                    padding: '12px', 
+                    background: 'rgba(0,0,0,0.2)', 
+                    border: '1px solid var(--border)', 
+                    borderRadius: '8px', 
+                    color: 'white',
+                    colorScheme: 'dark'
+                  }}
+                />
+              </div>
+            )}
 
             {progress && (
               <div style={{ marginBottom: '24px' }}>
