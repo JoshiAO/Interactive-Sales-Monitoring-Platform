@@ -22,7 +22,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
         const cobDate = globalDoc.exists() ? globalDoc.data().cobDate : '';
 
-        const cacheKey = `customers_cache_${currentUser.uid}_${selectedTeam}`;
+        const cacheKey = `customers_cache_v2_${currentUser.uid}_${selectedTeam}`;
         const cachedData = localStorage.getItem(cacheKey);
         const cachedCobDate = localStorage.getItem('customers_cobDate');
 
@@ -83,7 +83,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
               city: c['CITY'] || '-',
               province: c['PROVINCE'] || c['REGION'] || '-',
               status: c['STATUS'] || '',
-              salesmanId: c['SALES REP ID'] || '',
+              salesmanId: String(c['SALES REP ID'] || ''),
               volume: c.volume || 0,
               netValue: c.netValue || 0,
               gsr: c.gsr || 0,
