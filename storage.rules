@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    function isSalesman() {
+      return isAuthenticated() && request.auth.token.role == 'salesman';
+    }
+
+    match /profile_pictures/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || (isSalesman() && request.auth.uid == userId);
+    }
+    
+    match /data_uploads/{fileName} {
+      allow read, write: if isAdmin() && fileName.matches('.*\\.xlsx$');
+    }
+  }
+}

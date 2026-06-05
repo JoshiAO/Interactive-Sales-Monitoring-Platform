@@ -1,0 +1,177 @@
+{
+  "KENEA Net Invoiced_June 3, 2026.xlsx": {
+    "headers": [],
+    "sample": [
+      "RD Name",
+      "Date",
+      "Week",
+      "Branch Name",
+      "Employee Code",
+      "Employee Name",
+      "Channel",
+      "Sold To Customer number",
+      "Sold To Customer Name",
+      "Category",
+      "Product Code",
+      "Product Description",
+      "Volume",
+      "Net Value",
+      "Good Stock Returns",
+      "Bad Stock Returns",
+      "Channel_Classification",
+      "Brgy",
+      "Town",
+      "Province",
+      "FS",
+      "RTM Model",
+      "GT Channel"
+    ]
+  },
+  "KENEA CML_June 3, 2026.xlsx": {
+    "headers": [],
+    "sample": [
+      "BRANCH NAME",
+      "CDAM",
+      "FS",
+      "CHANNEL",
+      "SALES REP ID",
+      "SALES REP NAME",
+      "CUSTOMER CODE",
+      "CUSTOMER NAME",
+      "BARANGAY",
+      "CITY",
+      "PROVINCE",
+      "STATUS",
+      "RETAIL ENVIRONMENT",
+      "PARTY CLASSIFICATION DESCRIPTION",
+      "COVERAGE DAY",
+      "WKLY COVERAGE",
+      "FREQ COUNT",
+      "FREQ"
+    ]
+  },
+  "VD30 Target.xlsx": {
+    "headers": [
+      "salesman_code",
+      "F01_2403",
+      "F02_64480",
+      "F03_6801",
+      "F04_67791",
+      "F05_67180",
+      "F06_11054",
+      "F07_11053",
+      "F08_7637",
+      "F09_64202",
+      "F10_30401",
+      "F11_2225",
+      "F12_1984",
+      "F13_66100",
+      "F14_78107",
+      "F15_65203",
+      "F16_63378",
+      "F17_62253",
+      "F18_7506",
+      "F19_56278",
+      "F20_55211",
+      "F21_55984",
+      "F22_55210",
+      "F23_55983",
+      "F24_64100",
+      "F25_10574",
+      "F26_47501",
+      "F27_7524",
+      "F28_8406",
+      "F29_62726",
+      "F30_62727"
+    ],
+    "sample": [
+      "KNE0015",
+      57.34185022026431,
+      123.97444933920706,
+      124.7568281938326,
+      118.26960352422907,
+      113.73832599118943,
+      85.44229074889867,
+      81.56299559471366,
+      101.80704845814978,
+      66.24140969162995,
+      102.29603524229076,
+      27.05726872246696,
+      102.36123348017621,
+      87.7568281938326,
+      68.00176211453744,
+      66.14361233480176,
+      54.799118942731276,
+      86.87665198237886,
+      48.93127753303965,
+      78.20528634361233,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "Salesman Target STT and UBA.xlsx": {
+    "headers": [
+      "salesman_code",
+      "stt_target",
+      "uba target"
+    ],
+    "sample": [
+      "KNE0001",
+      0,
+      0
+    ]
+  },
+  "Category Reference.xlsx": {
+    "headers": [
+      "category"
+    ],
+    "sample": [
+      "Snacks"
+    ]
+  },
+  "Customer Class.xlsx": {
+    "headers": [
+      "party_classification_description",
+      "key_account"
+    ],
+    "sample": [
+      "Supermarket - Retailer Large",
+      "Supermarkets"
+    ]
+  },
+  "Geo Hierarchy Data.xlsx": {
+    "headers": [
+      "Province",
+      "City",
+      "Barangay"
+    ],
+    "sample": [
+      "AURORA",
+      "BALER (CAPITAL)",
+      "BARANGAY I (POB.)"
+    ]
+  },
+  "VD30 Reference.xlsx": {
+    "headers": [
+      "product_code",
+      "product_description",
+      "vd30_code",
+      "vd30_description"
+    ],
+    "sample": [
+      "2403",
+      "GREAT TASTE WHITE 3 IN 1 TWIN PACK",
+      "F01_2403",
+      "GT White Twin"
+    ]
+  }
+}
