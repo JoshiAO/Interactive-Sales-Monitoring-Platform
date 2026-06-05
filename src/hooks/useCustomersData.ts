@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, getDocs, doc, getDoc, query, where } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { get, set } from 'idb-keyval';
 
 export const useCustomersData = (selectedTeam: string = 'all') => {
   const { currentUser, role } = useAuth();
@@ -22,12 +23,12 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
         const cobDate = globalDoc.exists() ? globalDoc.data().cobDate : '';
 
-        const cacheKey = `customers_cache_v2_${currentUser.uid}_${selectedTeam}`;
-        const cachedData = localStorage.getItem(cacheKey);
-        const cachedCobDate = localStorage.getItem('customers_cobDate');
+        const cacheKey = `customers_cache_v3_${currentUser.uid}_${selectedTeam}`;
+        const cachedData = await get(cacheKey);
+        const cachedCobDate = await get('customers_cobDate');
 
         if (cachedData && cachedCobDate === cobDate) {
-          setCustomers(JSON.parse(cachedData));
+          setCustomers(cachedData);
           setLoading(false);
           return;
         }
@@ -98,12 +99,12 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         
         // Save to cache
         try {
-          localStorage.setItem(cacheKey, JSON.stringify(customerList));
+          await set(cacheKey, customerList);
           if (cobDate) {
-            localStorage.setItem('customers_cobDate', cobDate);
+            await set('customers_cobDate', cobDate);
           }
         } catch (e) {
-          console.warn("Could not save customers to localStorage (might be too large)");
+          console.warn("Could not save customers to IndexedDB:", e);
         }
         
         setCustomers(customerList);
