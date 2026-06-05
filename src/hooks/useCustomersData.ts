@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, doc, getDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, documentId } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { get, set } from 'idb-keyval';
@@ -23,7 +23,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
         const cobDate = globalDoc.exists() ? globalDoc.data().cobDate : '';
 
-        const cacheKey = `customers_cache_v3_${currentUser.uid}_${selectedTeam}`;
+        const cacheKey = `customers_cache_v4_${currentUser.uid}_${selectedTeam}`;
         const cachedData = await get(cacheKey);
         const cachedCobDate = await get('customers_cobDate');
 
@@ -69,27 +69,32 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
 
         // Use Promise.all to fetch chunks concurrently
         const fetchPromises = chunks.map(chunk => 
-          getDocs(query(collection(db, 'customers'), where('SALES REP ID', 'in', chunk)))
+          getDocs(query(collection(db, 'customer_data'), where(documentId(), 'in', chunk)))
         );
 
         const snapshots = await Promise.all(fetchPromises);
         
         snapshots.forEach(snap => {
           snap.forEach(d => {
-            const c = d.data();
-            customerList.push({
-              id: c['CUSTOMER CODE'] || d.id,
-              name: c['STORE NAME / OWNER'] || c['STORE NAME'] || c['CUSTOMER NAME'] || 'Unknown Store',
-              barangay: c['BARANGAY'] || '-',
-              city: c['CITY'] || '-',
-              province: c['PROVINCE'] || c['REGION'] || '-',
-              status: c['STATUS'] || '',
-              salesmanId: String(c['SALES REP ID'] || ''),
-              volume: c.volume || 0,
-              netValue: c.netValue || 0,
-              gsr: c.gsr || 0,
-              bsr: c.bsr || 0,
-              isBuying: c.isBuying || false
+            const data = d.data();
+            if (!data.customers) return;
+            
+            const parsed = JSON.parse(data.customers);
+            parsed.forEach((c: any) => {
+              customerList.push({
+                id: c['CUSTOMER CODE'],
+                name: c['STORE NAME / OWNER'] || c['STORE NAME'] || c['CUSTOMER NAME'] || 'Unknown Store',
+                barangay: c['BARANGAY'] || '-',
+                city: c['CITY'] || '-',
+                province: c['PROVINCE'] || c['REGION'] || '-',
+                status: c['STATUS'] || '',
+                salesmanId: String(c['SALES REP ID'] || ''),
+                volume: c.volume || 0,
+                netValue: c.netValue || 0,
+                gsr: c.gsr || 0,
+                bsr: c.bsr || 0,
+                isBuying: c.isBuying || false
+              });
             });
           });
         });

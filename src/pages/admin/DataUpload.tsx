@@ -196,35 +196,40 @@ const DataUpload: React.FC = () => {
             });
 
             // 3. Save Aggregated Metrics to Firestore
-            setProgress({ step: 'Resetting Customer Metrics...', current: 40, total: 100 });
-            const allCustSnap = await getDocs(collection(db, 'customers'));
-            const resetChunks: any[][] = [];
-            let currentResetChunk: any[] = [];
+            setProgress({ step: 'Updating Customer Performances...', current: 50, total: 100 });
+            
+            const allCustSnap = await getDocs(collection(db, 'customer_data'));
+            const chunkBatch = writeBatch(db);
+            
             allCustSnap.forEach(d => {
-              currentResetChunk.push(d.ref);
-              if (currentResetChunk.length === 450) {
-                resetChunks.push(currentResetChunk);
-                currentResetChunk = [];
-              }
-            });
-            if (currentResetChunk.length > 0) resetChunks.push(currentResetChunk);
-
-            for (const ch of resetChunks) {
-              const b = writeBatch(db);
-              ch.forEach(ref => b.set(ref, { volume: 0, netValue: 0, gsr: 0, bsr: 0, isBuying: false }, { merge: true }));
-              await b.commit();
-            }
-
-            setProgress({ step: 'Saving Customer Performance...', current: 60, total: 100 });
-            const custKeys = Object.keys(customerMetrics);
-            for (let i = 0; i < custKeys.length; i += 450) {
-              const b = writeBatch(db);
-              const chunk = custKeys.slice(i, i + 450);
-              chunk.forEach(k => {
-                b.set(doc(collection(db, 'customers'), k), customerMetrics[k], { merge: true });
+              const data = d.data();
+              if (!data.customers) return;
+              
+              const parsedCustomers = JSON.parse(data.customers);
+              
+              parsedCustomers.forEach((c: any) => {
+                const safeId = String(c['CUSTOMER CODE']).replace(/[^a-zA-Z0-9_]/g, '');
+                const metrics = customerMetrics[safeId];
+                
+                if (metrics) {
+                   c.volume = metrics.volume;
+                   c.netValue = metrics.netValue;
+                   c.gsr = metrics.gsr;
+                   c.bsr = metrics.bsr;
+                   c.isBuying = metrics.isBuying;
+                } else {
+                   c.volume = 0;
+                   c.netValue = 0;
+                   c.gsr = 0;
+                   c.bsr = 0;
+                   c.isBuying = false;
+                }
               });
-              await b.commit();
-            }
+              
+              chunkBatch.set(d.ref, { customers: JSON.stringify(parsedCustomers) }, { merge: true });
+            });
+            
+            await chunkBatch.commit();
 
             setProgress({ step: 'Saving Aggregated Dashboards...', current: 80, total: 100 });
             const metricsBatch = writeBatch(db);
@@ -278,17 +283,31 @@ const DataUpload: React.FC = () => {
             await setDoc(doc(db, 'settings', 'global'), { cobDate }, { merge: true });
           } 
           else if (category === 'CML (Customer Master List)') {
-            setProgress({ step: 'Aggregating CML Baseline...', current: 0, total: 100 });
-            // Calculate active customers per salesman
+            setProgress({ step: 'Aggregating CML Baseline & Chunking...', current: 0, total: 100 });
+            // Calculate active customers per salesman and group them
             const cmlCounts: Record<string, number> = {};
+            const salesmanGroups: Record<string, any[]> = {};
+            
             json.forEach((row: any) => {
-              const salesmanCode = row['SALES REP ID'];
-              const status = String(row['STATUS'] || '').toLowerCase();
+              const cleanRow = JSON.parse(JSON.stringify(row));
+              const salesmanCode = String(cleanRow['SALES REP ID'] || '');
+              const status = String(cleanRow['STATUS'] || '').toLowerCase();
+              
               if (salesmanCode && (status === 'active/approved' || status === 'active' || status === 'approved')) {
                 cmlCounts[salesmanCode] = (cmlCounts[salesmanCode] || 0) + 1;
+                
+                if (!salesmanGroups[salesmanCode]) salesmanGroups[salesmanCode] = [];
+                // Ensure initial metrics are present
+                cleanRow.volume = 0;
+                cleanRow.netValue = 0;
+                cleanRow.gsr = 0;
+                cleanRow.bsr = 0;
+                cleanRow.isBuying = false;
+                salesmanGroups[salesmanCode].push(cleanRow);
               }
             });
 
+            // Save metrics
             const cmlBatch = writeBatch(db);
             Object.keys(cmlCounts).forEach(salesmanCode => {
               const docRef = doc(collection(db, 'dashboard_metrics'), salesmanCode);
@@ -298,6 +317,16 @@ const DataUpload: React.FC = () => {
               }, { merge: true });
             });
             await cmlBatch.commit();
+            
+            // Save Chunks
+            setProgress({ step: 'Saving Customer Chunks...', current: 50, total: 100 });
+            const cBatch = writeBatch(db);
+            Object.keys(salesmanGroups).forEach(salesmanCode => {
+              const safeId = String(salesmanCode).replace(/[^a-zA-Z0-9_]/g, '');
+              const docRef = doc(collection(db, 'customer_data'), safeId);
+              cBatch.set(docRef, { customers: JSON.stringify(salesmanGroups[salesmanCode]) }, { merge: true });
+            });
+            await cBatch.commit();
           }
 
           // === RAW DATA UPLOAD ===
@@ -312,14 +341,7 @@ const DataUpload: React.FC = () => {
                 const cleanRow = JSON.parse(JSON.stringify(row));
 
                 if (category === 'CML (Customer Master List)') {
-                  const customerCode = cleanRow['CUSTOMER CODE'];
-                  const status = String(cleanRow['STATUS'] || '').toLowerCase();
-                  
-                  if (customerCode && (status === 'active/approved' || status === 'active' || status === 'approved')) {
-                    const safeId = String(customerCode).replace(/[^a-zA-Z0-9_]/g, '');
-                    const docRef = doc(collection(db, 'customers'), safeId);
-                    batch.set(docRef, cleanRow, { merge: true });
-                  }
+                  // Customer chunks are handled entirely in the aggregation block above
                 }
                 else if (category === 'VD30 Target' || category === 'STT & UBA Target' || category === 'Team & Service Model Reference') {
                   const salesmanCode = cleanRow['salesman_code'];
