@@ -152,6 +152,8 @@ const DataUpload: React.FC = () => {
               
               if (custNum) {
                 const cNumStr = String(custNum).replace(/[^a-zA-Z0-9_]/g, '');
+                m.uba_customers.add(cNumStr); // Track all customers seen for this salesman
+
                 if (!customerMetrics[cNumStr]) {
                   customerMetrics[cNumStr] = { volume: 0, netValue: 0, gsr: 0, bsr: 0, isBuying: false };
                 }
@@ -167,10 +169,8 @@ const DataUpload: React.FC = () => {
               m.brgy[brgy] = (m.brgy[brgy] || 0) + netValue;
               m.town[town] = (m.town[town] || 0) + netValue;
 
-              // UBA Condition (Net Value >= 1)
+              // UBA Condition (Net Value >= 1) - Kept only for VD30 placements now
               if (netValue >= 1 && custNum) {
-                m.uba_customers.add(String(custNum));
-
                 const vd30Bucket = vd30Map[String(prodCode)];
                 if (vd30Bucket) {
                   // VD30 is only for Sari-Sari Stores
@@ -250,13 +250,14 @@ const DataUpload: React.FC = () => {
               let f1 = 0, f2 = 0, f3 = 0, f4 = 0;
               let finalUba = 0;
 
-              Object.keys(m.customer_weekly_net).forEach(custId => {
+              m.uba_customers.forEach((custId: string) => {
                 const cMet = customerMetrics[custId];
                 // Only count as UBA and Frequency if their total month netValue >= 1
                 if (cMet && cMet.netValue >= 1) {
                   finalUba++;
                   let activeWeeks = 0;
-                  Object.values(m.customer_weekly_net[custId]).forEach((weekNet: any) => {
+                  const weeklyData = m.customer_weekly_net[custId] || {};
+                  Object.values(weeklyData).forEach((weekNet: any) => {
                     if (weekNet > 0) activeWeeks++;
                   });
                   
