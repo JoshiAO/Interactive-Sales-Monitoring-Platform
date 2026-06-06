@@ -108,24 +108,38 @@ const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) 
       </div>
       
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '8px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '8px', overflowX: 'auto' }}>
         <button 
           onClick={() => setActiveTab('STT')}
-          style={{ flex: 1, padding: '8px', borderRadius: '4px', border: 'none', cursor: 'pointer', background: activeTab === 'STT' ? 'var(--accent-primary)' : 'transparent', color: activeTab === 'STT' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s', fontSize: '13px' }}
+          style={{ flex: 1, padding: '8px', borderRadius: '4px', border: 'none', cursor: 'pointer', background: activeTab === 'STT' ? 'var(--accent-primary)' : 'transparent', color: activeTab === 'STT' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s', fontSize: '13px', whiteSpace: 'nowrap' }}
         >
           STT Index
         </button>
         <button 
           onClick={() => setActiveTab('UBA')}
-          style={{ flex: 1, padding: '8px', borderRadius: '4px', border: 'none', cursor: 'pointer', background: activeTab === 'UBA' ? 'var(--accent-primary)' : 'transparent', color: activeTab === 'UBA' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s', fontSize: '13px' }}
+          style={{ flex: 1, padding: '8px', borderRadius: '4px', border: 'none', cursor: 'pointer', background: activeTab === 'UBA' ? 'var(--accent-primary)' : 'transparent', color: activeTab === 'UBA' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s', fontSize: '13px', whiteSpace: 'nowrap' }}
         >
           UBA Index
         </button>
         <button 
           onClick={() => setActiveTab('VD30')}
-          style={{ flex: 1, padding: '8px', borderRadius: '4px', border: 'none', cursor: 'pointer', background: activeTab === 'VD30' ? 'var(--accent-primary)' : 'transparent', color: activeTab === 'VD30' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s', fontSize: '13px' }}
+          style={{ flex: 1, padding: '8px', borderRadius: '4px', border: 'none', cursor: 'pointer', background: activeTab === 'VD30' ? 'var(--accent-primary)' : 'transparent', color: activeTab === 'VD30' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s', fontSize: '13px', whiteSpace: 'nowrap' }}
         >
           VD30 Index
+        </button>
+        <button 
+          disabled
+          style={{ flex: 1, padding: '8px', borderRadius: '4px', border: 'none', cursor: 'not-allowed', background: 'transparent', color: 'rgba(255,255,255,0.2)', transition: 'all 0.2s', fontSize: '13px', whiteSpace: 'nowrap' }}
+          title="Under Development"
+        >
+          NPD Index
+        </button>
+        <button 
+          disabled
+          style={{ flex: 1, padding: '8px', borderRadius: '4px', border: 'none', cursor: 'not-allowed', background: 'transparent', color: 'rgba(255,255,255,0.2)', transition: 'all 0.2s', fontSize: '13px', whiteSpace: 'nowrap' }}
+          title="Under Development"
+        >
+          Promo Packs
         </button>
       </div>
 

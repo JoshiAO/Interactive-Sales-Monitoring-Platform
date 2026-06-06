@@ -40,6 +40,20 @@ const Layout: React.FC = () => {
       <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/customers" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
         <Users size={18} /> Customers
       </NavLink>
+
+      {/* Under Development Tabs */}
+      <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
+        <Target size={18} /> NPD
+      </div>
+      <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
+        <Target size={18} /> Promo Packs
+      </div>
+      <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
+        <Target size={18} /> Ageing
+      </div>
+      <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
+        <Target size={18} /> B.O.
+      </div>
       
       {role === 'admin' && (
         <>
