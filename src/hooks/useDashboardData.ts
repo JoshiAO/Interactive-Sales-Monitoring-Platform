@@ -58,13 +58,14 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         const salesmanId = userData?.salesmanId;
         const team = userData?.team;
 
-        // Fetch COB Date for cache validation
+        // Fetch COB Date and lastUpload for cache validation
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
-        const cobDate = globalDoc.exists() ? globalDoc.data().cobDate : '';
+        const globalData = globalDoc.exists() ? globalDoc.data() : null;
+        const lastDataUpload = globalData?.lastDataUpload || 0;
 
         const cacheKey = 'dashboard_raw_data_v1';
         const cachedRawData = await get(cacheKey);
-        const cachedCobDate = await get('dashboard_cobDate');
+        const cachedLastUpload = await get('dashboard_lastUpload');
 
         let metricsData: any[] = [];
         let sttData: any[] = [];
@@ -72,7 +73,7 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         let teamData: any[] = [];
         let refVd30Data: any[] = [];
 
-        if (cachedRawData && cachedCobDate === cobDate) {
+        if (cachedRawData && cachedLastUpload === lastDataUpload) {
           metricsData = cachedRawData.metricsData;
           sttData = cachedRawData.sttData;
           vd30Data = cachedRawData.vd30Data;
@@ -94,7 +95,7 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
           refVd30Data = refVd30Snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
           await set(cacheKey, { metricsData, sttData, vd30Data, teamData, refVd30Data });
-          await set('dashboard_cobDate', cobDate);
+          await set('dashboard_lastUpload', lastDataUpload);
         }
 
         // Fetch non-cached data (Users and Settings can change independently)

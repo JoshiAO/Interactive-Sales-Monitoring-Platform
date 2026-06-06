@@ -291,7 +291,7 @@ const DataUpload: React.FC = () => {
             await metricsBatch.commit();
             
             // Save COB Date globally
-            await setDoc(doc(db, 'settings', 'global'), { cobDate }, { merge: true });
+            await setDoc(doc(db, 'settings', 'global'), { cobDate, lastDataUpload: Date.now() }, { merge: true });
           } 
           else if (category === 'CML (Customer Master List)') {
             setProgress({ step: 'Aggregating CML Baseline & Chunking...', current: 0, total: 100 });

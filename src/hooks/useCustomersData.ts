@@ -19,15 +19,16 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const salesmanId = userData?.salesmanId;
         const team = userData?.team;
 
-        // Fetch COB Date for cache validation
+        // Fetch COB Date and lastUpload for cache validation
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
-        const cobDate = globalDoc.exists() ? globalDoc.data().cobDate : '';
+        const globalData = globalDoc.exists() ? globalDoc.data() : null;
+        const lastDataUpload = globalData?.lastDataUpload || 0;
 
         const cacheKey = `customers_cache_v5_${currentUser.uid}_${selectedTeam}`;
         const cachedData = await get(cacheKey);
-        const cachedCobDate = await get('customers_cobDate');
+        const cachedLastUpload = await get('customers_lastUpload');
 
-        if (cachedData && cachedCobDate === cobDate) {
+        if (cachedData && cachedLastUpload === lastDataUpload) {
           setCustomers(cachedData);
           setLoading(false);
           return;
@@ -106,8 +107,8 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         // Save to cache
         try {
           await set(cacheKey, customerList);
-          if (cobDate) {
-            await set('customers_cobDate', cobDate);
+          if (lastDataUpload) {
+            await set('customers_lastUpload', lastDataUpload);
           }
         } catch (e) {
           console.warn("Could not save customers to IndexedDB:", e);
