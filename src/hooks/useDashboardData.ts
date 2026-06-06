@@ -62,10 +62,16 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
         const globalData = globalDoc.exists() ? globalDoc.data() : null;
         const lastDataUpload = globalData?.lastDataUpload || 0;
+        const lastReferenceUpload = globalData?.lastReferenceUpload || 0;
 
-        const cacheKey = 'dashboard_raw_data_v1';
-        const cachedRawData = await get(cacheKey);
-        const cachedLastUpload = await get('dashboard_lastUpload');
+        const metricsCacheKey = 'dashboard_metrics_cache_v2';
+        const referenceCacheKey = 'dashboard_reference_cache_v2';
+        
+        const cachedMetrics = await get(metricsCacheKey);
+        const cachedReference = await get(referenceCacheKey);
+        
+        const cachedMetricsUpload = await get('dashboard_lastDataUpload');
+        const cachedRefUpload = await get('dashboard_lastReferenceUpload');
 
         let metricsData: any[] = [];
         let sttData: any[] = [];
@@ -73,29 +79,37 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         let teamData: any[] = [];
         let refVd30Data: any[] = [];
 
-        if (cachedRawData && cachedLastUpload === lastDataUpload) {
-          metricsData = cachedRawData.metricsData;
-          sttData = cachedRawData.sttData;
-          vd30Data = cachedRawData.vd30Data;
-          teamData = cachedRawData.teamData;
-          refVd30Data = cachedRawData.refVd30Data;
+        // 1. Fast Cache: Dashboard Metrics (Hourly updates)
+        if (cachedMetrics && cachedMetricsUpload === lastDataUpload) {
+          metricsData = cachedMetrics;
         } else {
-          const [metricsSnap, sttSnap, vd30Snap, teamSnap, refVd30Snap] = await Promise.all([
-            getDocs(collection(db, 'dashboard_metrics')),
+          const metricsSnap = await getDocs(collection(db, 'dashboard_metrics'));
+          metricsData = metricsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          await set(metricsCacheKey, metricsData);
+          await set('dashboard_lastDataUpload', lastDataUpload);
+        }
+
+        // 2. Deep Cache: Targets and References (Monthly updates)
+        if (cachedReference && cachedRefUpload === lastReferenceUpload) {
+          sttData = cachedReference.sttData;
+          vd30Data = cachedReference.vd30Data;
+          teamData = cachedReference.teamData;
+          refVd30Data = cachedReference.refVd30Data;
+        } else {
+          const [sttSnap, vd30Snap, teamSnap, refVd30Snap] = await Promise.all([
             getDocs(collection(db, 'salesman_targets')),
             getDocs(collection(db, 'vd30_targets')),
             getDocs(collection(db, 'reference_team_service')),
             getDocs(collection(db, 'reference_vd30'))
           ]);
 
-          metricsData = metricsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
           sttData = sttSnap.docs.map(d => ({ id: d.id, ...d.data() }));
           vd30Data = vd30Snap.docs.map(d => ({ id: d.id, ...d.data() }));
           teamData = teamSnap.docs.map(d => ({ id: d.id, ...d.data() }));
           refVd30Data = refVd30Snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-          await set(cacheKey, { metricsData, sttData, vd30Data, teamData, refVd30Data });
-          await set('dashboard_lastUpload', lastDataUpload);
+          await set(referenceCacheKey, { sttData, vd30Data, teamData, refVd30Data });
+          await set('dashboard_lastReferenceUpload', lastReferenceUpload);
         }
 
         // Fetch non-cached data (Users and Settings can change independently)

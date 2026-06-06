@@ -384,6 +384,9 @@ const DataUpload: React.FC = () => {
               await batch.commit();
               setProgress({ step: 'Uploading Raw Data to Firestore...', current: Math.min(i + BATCH_SIZE, json.length), total: json.length });
             }
+
+            // Save reference update timestamp globally (CML and all other references)
+            await setDoc(doc(db, 'settings', 'global'), { lastReferenceUpload: Date.now() }, { merge: true });
           }
 
           resolve();

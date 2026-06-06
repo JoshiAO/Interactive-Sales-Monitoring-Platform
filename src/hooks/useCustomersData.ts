@@ -23,6 +23,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
         const globalData = globalDoc.exists() ? globalDoc.data() : null;
         const lastDataUpload = globalData?.lastDataUpload || 0;
+        const lastReferenceUpload = globalData?.lastReferenceUpload || 0;
 
         const cacheKey = `customers_cache_v5_${currentUser.uid}_${selectedTeam}`;
         const cachedData = await get(cacheKey);
@@ -34,19 +35,31 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
           return;
         }
 
-        const teamSnap = await getDocs(collection(db, 'reference_team_service'));
+        const teamCacheKey = 'customers_team_ref_cache_v1';
+        const cachedTeamRef = await get(teamCacheKey);
+        const cachedRefUpload = await get('customers_lastReferenceUpload');
+
+        let teamSnapDocs: any[] = [];
+        if (cachedTeamRef && cachedRefUpload === lastReferenceUpload) {
+          teamSnapDocs = cachedTeamRef;
+        } else {
+          const teamSnap = await getDocs(collection(db, 'reference_team_service'));
+          teamSnapDocs = teamSnap.docs.map(d => d.data());
+          await set(teamCacheKey, teamSnapDocs);
+          await set('customers_lastReferenceUpload', lastReferenceUpload);
+        }
+
         let allowedSalesmen = new Set<string>();
 
         if (role === 'salesman' && salesmanId) {
           allowedSalesmen.add(String(salesmanId));
         } else if (role === 'supervisor' && team) {
           const supervisorTeams = team.split(',').map((t: string) => t.trim());
-          teamSnap.forEach(d => {
-            if (supervisorTeams.includes(d.data().team)) allowedSalesmen.add(String(d.data().salesman_code));
+          teamSnapDocs.forEach(row => {
+            if (supervisorTeams.includes(row.team)) allowedSalesmen.add(String(row.salesman_code));
           });
         } else if (role === 'manager' || role === 'admin') {
-          teamSnap.forEach(d => {
-            const row = d.data();
+          teamSnapDocs.forEach(row => {
             if (selectedTeam === 'all' || row.team === selectedTeam) {
               allowedSalesmen.add(String(row.salesman_code));
             }
