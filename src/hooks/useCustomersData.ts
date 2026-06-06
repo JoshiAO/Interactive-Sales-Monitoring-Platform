@@ -23,7 +23,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
         const cobDate = globalDoc.exists() ? globalDoc.data().cobDate : '';
 
-        const cacheKey = `customers_cache_v4_${currentUser.uid}_${selectedTeam}`;
+        const cacheKey = `customers_cache_v5_${currentUser.uid}_${selectedTeam}`;
         const cachedData = await get(cacheKey);
         const cachedCobDate = await get('customers_cobDate');
 
@@ -68,9 +68,10 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         }
 
         // Use Promise.all to fetch chunks concurrently
-        const fetchPromises = chunks.map(chunk => 
-          getDocs(query(collection(db, 'customer_data'), where(documentId(), 'in', chunk)))
-        );
+        const fetchPromises = chunks.map(chunk => {
+          const safeChunk = chunk.map(id => String(id).replace(/[^a-zA-Z0-9_]/g, ''));
+          return getDocs(query(collection(db, 'customer_data'), where(documentId(), 'in', safeChunk)));
+        });
 
         const snapshots = await Promise.all(fetchPromises);
         
