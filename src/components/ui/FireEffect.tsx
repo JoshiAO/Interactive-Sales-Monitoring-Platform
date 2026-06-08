@@ -9,9 +9,9 @@ const FireEffect: React.FC<FireEffectProps> = ({ type }) => {
 
   const getFilter = () => {
     switch(type) {
-      case 'fire-red': return 'saturate(2) hue-rotate(-20deg)';
-      case 'fire-orange': return 'saturate(1.5)';
-      case 'fire-blue': return 'saturate(1.5) hue-rotate(180deg)';
+      case 'fire-red': return 'brightness(1.1) sepia(1) saturate(5) hue-rotate(-50deg)';
+      case 'fire-orange': return 'brightness(1.1) sepia(1) saturate(5) hue-rotate(5deg)';
+      case 'fire-blue': return 'brightness(1.1) sepia(1) saturate(5) hue-rotate(180deg)';
       default: return 'none';
     }
   };
