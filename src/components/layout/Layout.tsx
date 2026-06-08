@@ -27,45 +27,47 @@ const Layout: React.FC = () => {
   };
 
   const navLinks = (
-    <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-      <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-        <LayoutDashboard size={18} /> Home
-      </NavLink>
-      <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/sales" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-        <ShoppingCart size={18} /> Sales
-      </NavLink>
-      <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/vd30" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-        <Target size={18} /> VD30
-      </NavLink>
-      <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/customers" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-        <Users size={18} /> Customers
-      </NavLink>
+    <nav style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', paddingRight: '4px', paddingBottom: '8px' }}>
+        <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+          <LayoutDashboard size={18} /> Home
+        </NavLink>
+        <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/sales" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+          <ShoppingCart size={18} /> Sales
+        </NavLink>
+        <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/vd30" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+          <Target size={18} /> VD30
+        </NavLink>
+        <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/customers" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+          <Users size={18} /> Customers
+        </NavLink>
 
-      {/* Under Development Tabs */}
-      <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
-        <Target size={18} /> NPD
-      </div>
-      <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
-        <Target size={18} /> Promo Packs
-      </div>
-      <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
-        <Target size={18} /> Ageing
-      </div>
-      <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
-        <Target size={18} /> B.O.
+        {/* Under Development Tabs */}
+        <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
+          <Target size={18} /> NPD
+        </div>
+        <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
+          <Target size={18} /> Promo Packs
+        </div>
+        <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
+          <Target size={18} /> Ageing
+        </div>
+        <div className="btn" style={{ justifyContent: 'flex-start', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }} title="Under Development">
+          <Target size={18} /> B.O.
+        </div>
       </div>
       
       {role === 'admin' && (
-        <>
-          <div style={{ margin: '16px 0', height: '1px', background: 'var(--border)' }} />
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', paddingLeft: '12px' }}>ADMIN</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+          <div style={{ margin: '8px 0', height: '1px', background: 'var(--border)' }} />
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', paddingLeft: '12px' }}>ADMIN</div>
           <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/data" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
             <Database size={18} /> Data Upload
           </NavLink>
           <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/users" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
             <Settings size={18} /> Users
           </NavLink>
-        </>
+        </div>
       )}
     </nav>
   );
