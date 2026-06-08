@@ -150,31 +150,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
         </button>
       </div>
 
-      {(role === 'admin' || role === 'manager') && (
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'var(--bg-dark)', border: '1px solid var(--border)', padding: '4px', borderRadius: '12px', overflowX: 'auto', justifyContent: 'center' }}>
-          {['Ex-Truck', 'All', 'Booking'].map(filter => (
-            <button
-              key={filter}
-              onClick={() => setServiceModelFilter(filter as any)}
-              style={{
-                flex: 1,
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: 'none',
-                cursor: 'pointer',
-                background: serviceModelFilter === filter ? 'var(--accent-primary)' : 'transparent',
-                color: serviceModelFilter === filter ? 'white' : 'var(--text-muted)',
-                transition: 'all 0.2s',
-                fontSize: '12px',
-                fontWeight: 600,
-                whiteSpace: 'nowrap'
-              }}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
-      )}
+
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {sortedSalesmen.length === 0 && (
@@ -296,7 +272,30 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
         )}
       </div>
 
-
+      {(role === 'admin' || role === 'manager') && !showSettings && (
+        <div style={{ position: 'sticky', bottom: '-24px', marginTop: '24px', paddingTop: '16px', paddingBottom: '24px', background: 'linear-gradient(to top, var(--bg-panel) 80%, transparent)', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+          <div style={{ display: 'flex', background: 'var(--bg-dark)', padding: '4px', borderRadius: '12px', width: 'fit-content', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+            <button 
+              onClick={() => setServiceModelFilter('Ex-Truck')}
+              style={{ padding: '6px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: serviceModelFilter === 'Ex-Truck' ? 'var(--accent-primary)' : 'transparent', color: serviceModelFilter === 'Ex-Truck' ? 'white' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}
+            >
+              Ex-Truck
+            </button>
+            <button 
+              onClick={() => setServiceModelFilter('All')}
+              style={{ padding: '6px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: serviceModelFilter === 'All' ? 'var(--accent-primary)' : 'transparent', color: serviceModelFilter === 'All' ? 'white' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}
+            >
+              All
+            </button>
+            <button 
+              onClick={() => setServiceModelFilter('Booking')}
+              style={{ padding: '6px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: serviceModelFilter === 'Booking' ? 'var(--accent-primary)' : 'transparent', color: serviceModelFilter === 'Booking' ? 'white' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}
+            >
+              Booking
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Settings Modal */}
       {showSettings && (
