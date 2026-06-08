@@ -111,29 +111,6 @@ const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) 
         </div>
       </div>
       
-      {(role === 'admin' || role === 'manager') && (
-        <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '12px', marginBottom: '16px', width: 'fit-content' }}>
-          <button 
-            onClick={() => setServiceModelFilter('Ex-Truck')}
-            style={{ padding: '4px 12px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: serviceModelFilter === 'Ex-Truck' ? 'var(--accent-primary)' : 'transparent', color: serviceModelFilter === 'Ex-Truck' ? 'white' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}
-          >
-            Ex-Truck
-          </button>
-          <button 
-            onClick={() => setServiceModelFilter('All')}
-            style={{ padding: '4px 12px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: serviceModelFilter === 'All' ? 'var(--accent-primary)' : 'transparent', color: serviceModelFilter === 'All' ? 'white' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}
-          >
-            All
-          </button>
-          <button 
-            onClick={() => setServiceModelFilter('Booking')}
-            style={{ padding: '4px 12px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: serviceModelFilter === 'Booking' ? 'var(--accent-primary)' : 'transparent', color: serviceModelFilter === 'Booking' ? 'white' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}
-          >
-            Booking
-          </button>
-        </div>
-      )}
-      
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '8px', overflowX: 'auto' }}>
         <button 
@@ -254,6 +231,31 @@ const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) 
           </div>
         )}
       </div>
+
+      {(role === 'admin' || role === 'manager') && !showSettings && (
+        <div style={{ position: 'sticky', bottom: '-24px', marginTop: '24px', paddingTop: '16px', paddingBottom: '24px', background: 'linear-gradient(to top, var(--bg-panel) 80%, transparent)', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+          <div style={{ display: 'flex', background: 'var(--bg-dark)', padding: '4px', borderRadius: '12px', width: 'fit-content', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+            <button 
+              onClick={() => setServiceModelFilter('Ex-Truck')}
+              style={{ padding: '6px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: serviceModelFilter === 'Ex-Truck' ? 'var(--accent-primary)' : 'transparent', color: serviceModelFilter === 'Ex-Truck' ? 'white' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}
+            >
+              Ex-Truck
+            </button>
+            <button 
+              onClick={() => setServiceModelFilter('All')}
+              style={{ padding: '6px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: serviceModelFilter === 'All' ? 'var(--accent-primary)' : 'transparent', color: serviceModelFilter === 'All' ? 'white' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}
+            >
+              All
+            </button>
+            <button 
+              onClick={() => setServiceModelFilter('Booking')}
+              style={{ padding: '6px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: serviceModelFilter === 'Booking' ? 'var(--accent-primary)' : 'transparent', color: serviceModelFilter === 'Booking' ? 'white' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}
+            >
+              Booking
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Settings Modal */}
       {showSettings && (
