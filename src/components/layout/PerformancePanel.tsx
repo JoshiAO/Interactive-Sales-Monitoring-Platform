@@ -273,7 +273,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
       </div>
 
       {(role === 'admin' || role === 'manager') && !showSettings && (
-        <div style={{ position: 'sticky', bottom: '-24px', marginTop: '24px', paddingTop: '16px', paddingBottom: '24px', background: 'linear-gradient(to top, var(--bg-panel) 80%, transparent)', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+        <div style={{ position: 'sticky', bottom: '0px', marginTop: '24px', paddingTop: '16px', paddingBottom: '24px', background: 'linear-gradient(to top, var(--bg-panel) 80%, transparent)', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
           <div style={{ display: 'flex', background: 'var(--bg-dark)', padding: '4px', borderRadius: '12px', width: 'fit-content', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
             <button 
               onClick={() => setServiceModelFilter('Ex-Truck')}

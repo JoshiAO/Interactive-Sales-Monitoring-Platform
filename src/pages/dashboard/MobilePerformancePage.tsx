@@ -7,7 +7,7 @@ const MobilePerformancePage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-dark)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--bg-dark)', overflow: 'hidden' }}>
       {/* Header */}
       <header className="glass-panel" style={{ padding: '0 16px', height: '60px', display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', borderRadius: 0, zIndex: 50, flexShrink: 0 }}>
         <button onClick={() => navigate(-1)} style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>

@@ -78,7 +78,7 @@ const Layout: React.FC = () => {
   );
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', position: 'relative' }}>
       
       {/* Mobile Top Header */}
       <header className="glass-panel desktop-hidden" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60px', padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 50, borderBottom: '1px solid var(--border)', borderRadius: 0 }}>
