@@ -168,131 +168,89 @@ const Customers: React.FC = () => {
           </select>
         </div>
 
-        {/* Team Slicer */}
-        {(role === 'manager' || role === 'admin') && availableTeams.length > 0 && (
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', width: '100%', marginTop: '16px' }}>
-            {availableTeams.map(t => (
-              <button
-                key={t}
-                onClick={() => { setSelectedTeam(t); setDisplayCount(20); }}
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: '16px',
-                  border: '1px solid',
-                  borderColor: selectedTeam === t ? 'var(--accent-primary)' : 'var(--border)',
-                  backgroundColor: selectedTeam === t ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
-                  color: selectedTeam === t ? '#fff' : 'var(--text-muted)',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {t}
-              </button>
-            ))}
-            {selectedTeam !== 'all' && (
-              <button
-                onClick={() => { setSelectedTeam('all'); setDisplayCount(20); }}
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: '16px',
-                  border: 'none',
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  color: 'var(--accent-danger)',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  marginLeft: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                Clear
-              </button>
-            )}
+        {/* Slicer Group Row */}
+        <div style={{ display: 'flex', width: '100%', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px', gap: '16px', overflowX: 'auto', paddingBottom: '8px' }}>
+          
+          {/* Team Slicer */}
+          {(role === 'manager' || role === 'admin') && availableTeams.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', paddingRight: '16px', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                {availableTeams.map(t => (
+                  <button
+                    key={t}
+                    onClick={() => { setSelectedTeam(selectedTeam === t ? 'all' : t); setDisplayCount(20); }}
+                    style={{
+                      padding: '4px 12px',
+                      borderRadius: '16px',
+                      border: '1px solid',
+                      borderColor: selectedTeam === t ? 'var(--accent-primary)' : 'var(--border)',
+                      backgroundColor: selectedTeam === t ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
+                      color: selectedTeam === t ? '#fff' : 'var(--text-muted)',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>Team</div>
+            </div>
+          )}
+
+          {/* Coverage Day Slicer */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', paddingRight: '16px', borderRight: '1px solid rgba(255,255,255,0.05)', backgroundColor: 'rgba(255,255,255,0.01)', padding: '0 8px', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {availableCoverageDays.map(d => (
+                <button
+                  key={d}
+                  onClick={() => { setCoverageDay(coverageDay === d ? 'all' : d); setDisplayCount(20); }}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '16px',
+                    border: '1px solid',
+                    borderColor: coverageDay === d ? 'var(--accent-primary)' : 'var(--border)',
+                    backgroundColor: coverageDay === d ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
+                    color: coverageDay === d ? '#fff' : 'var(--text-muted)',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>Coverage Day</div>
           </div>
-        )}
 
-        {/* Coverage Day Slicer */}
-        <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '8px', width: '90px' }}>Coverage Day:</span>
-          {availableCoverageDays.map(d => (
-            <button
-              key={d}
-              onClick={() => { setCoverageDay(d); setDisplayCount(20); }}
-              style={{
-                padding: '4px 12px',
-                borderRadius: '16px',
-                border: '1px solid',
-                borderColor: coverageDay === d ? 'var(--accent-primary)' : 'var(--border)',
-                backgroundColor: coverageDay === d ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
-                color: coverageDay === d ? '#fff' : 'var(--text-muted)',
-                fontSize: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              {d}
-            </button>
-          ))}
-          {coverageDay !== 'all' && (
-            <button
-              onClick={() => { setCoverageDay('all'); setDisplayCount(20); }}
-              style={{
-                padding: '4px 12px',
-                borderRadius: '16px',
-                border: 'none',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                color: 'var(--accent-danger)',
-                fontSize: '12px',
-                cursor: 'pointer',
-                marginLeft: '4px',
-              }}
-            >
-              Clear
-            </button>
-          )}
-        </div>
+          {/* Wkly Coverage Slicer */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.02)', padding: '0 8px', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {availableWklyCoverage.map(w => (
+                <button
+                  key={w}
+                  onClick={() => { setWklyCoverage(wklyCoverage === w ? 'all' : w); setDisplayCount(20); }}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '16px',
+                    border: '1px solid',
+                    borderColor: wklyCoverage === w ? 'var(--accent-primary)' : 'var(--border)',
+                    backgroundColor: wklyCoverage === w ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
+                    color: wklyCoverage === w ? '#fff' : 'var(--text-muted)',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {w}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>Weekly Coverage</div>
+          </div>
 
-        {/* Wkly Coverage Slicer */}
-        <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '8px', width: '90px' }}>Wkly Coverage:</span>
-          {availableWklyCoverage.map(w => (
-            <button
-              key={w}
-              onClick={() => { setWklyCoverage(w); setDisplayCount(20); }}
-              style={{
-                padding: '4px 12px',
-                borderRadius: '16px',
-                border: '1px solid',
-                borderColor: wklyCoverage === w ? 'var(--accent-primary)' : 'var(--border)',
-                backgroundColor: wklyCoverage === w ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
-                color: wklyCoverage === w ? '#fff' : 'var(--text-muted)',
-                fontSize: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              {w}
-            </button>
-          ))}
-          {wklyCoverage !== 'all' && (
-            <button
-              onClick={() => { setWklyCoverage('all'); setDisplayCount(20); }}
-              style={{
-                padding: '4px 12px',
-                borderRadius: '16px',
-                border: 'none',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                color: 'var(--accent-danger)',
-                fontSize: '12px',
-                cursor: 'pointer',
-                marginLeft: '4px',
-              }}
-            >
-              Clear
-            </button>
-          )}
         </div>
       </div>
 
