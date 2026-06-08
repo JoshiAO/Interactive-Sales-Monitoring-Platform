@@ -25,7 +25,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const lastDataUpload = globalData?.lastDataUpload || 0;
         const lastReferenceUpload = globalData?.lastReferenceUpload || 0;
 
-        const cacheKey = `customers_cache_v5_${currentUser.uid}_${selectedTeam}`;
+        const cacheKey = `customers_cache_v6_${currentUser.uid}_${selectedTeam}`;
         const cachedData = await get(cacheKey);
         const cachedLastUpload = await get('customers_lastUpload');
 
@@ -108,7 +108,10 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
                 netValue: c.netValue || 0,
                 gsr: c.gsr || 0,
                 bsr: c.bsr || 0,
-                isBuying: c.isBuying || false
+                isBuying: c.isBuying || false,
+                newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
+                coverageDay: String(c['COVERAGE DAY'] || '').trim().toUpperCase(),
+                wklyCoverage: String(c['WKLY COVERAGE'] || '').trim().toUpperCase()
               });
             });
           });

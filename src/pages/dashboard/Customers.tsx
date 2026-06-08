@@ -18,10 +18,16 @@ const Customers: React.FC = () => {
   const [selectedSalesmen, setSelectedSalesmen] = useState<string[]>([]);
   const [isSalesmanModalOpen, setIsSalesmanModalOpen] = useState(false);
   const [salesmanSearch, setSalesmanSearch] = useState('');
+  const [newCustomerOnly, setNewCustomerOnly] = useState(false);
+  const [coverageDay, setCoverageDay] = useState('all');
+  const [wklyCoverage, setWklyCoverage] = useState('all');
   const availableTeams = useTeams();
   
   const { loading, customers } = useCustomersData(selectedTeam);
   const { salesmen } = useSalesmenList(selectedTeam);
+
+  const availableCoverageDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const availableWklyCoverage = ['W1&W3', 'W2&W4', 'WKLY'];
 
   const provinces = useMemo(() => Array.from(new Set(customers.map(c => c.province))).filter(Boolean).sort(), [customers]);
   const cities = useMemo(() => Array.from(new Set(customers.filter(c => selectedProvince === 'all' || c.province === selectedProvince).map(c => c.city))).filter(Boolean).sort(), [customers, selectedProvince]);
@@ -37,10 +43,13 @@ const Customers: React.FC = () => {
       const matchesCity = selectedCity === 'all' || c.city === selectedCity;
       const matchesBarangay = selectedBarangay === 'all' || c.barangay === selectedBarangay;
       const matchesSalesman = selectedSalesmen.length === 0 || selectedSalesmen.includes(c.salesmanId);
+      const matchesNewCustomer = newCustomerOnly ? c.newCustomer : true;
+      const matchesCoverageDay = coverageDay === 'all' || c.coverageDay === coverageDay;
+      const matchesWklyCoverage = wklyCoverage === 'all' || c.wklyCoverage === wklyCoverage;
       
-      return matchesSearch && matchesTag && matchesProvince && matchesCity && matchesBarangay && matchesSalesman;
+      return matchesSearch && matchesTag && matchesProvince && matchesCity && matchesBarangay && matchesSalesman && matchesNewCustomer && matchesCoverageDay && matchesWklyCoverage;
     });
-  }, [customers, search, filterTag, selectedProvince, selectedCity, selectedBarangay, selectedSalesmen]);
+  }, [customers, search, filterTag, selectedProvince, selectedCity, selectedBarangay, selectedSalesmen, newCustomerOnly, coverageDay, wklyCoverage]);
 
   const totalBuying = useMemo(() => filteredCustomers.filter(c => c.isBuying).length, [filteredCustomers]);
   const totalNonBuying = useMemo(() => filteredCustomers.filter(c => !c.isBuying).length, [filteredCustomers]);
@@ -67,15 +76,26 @@ const Customers: React.FC = () => {
           </div>
         </div>
         
-        {role !== 'salesman' && (
-          <button 
-            className="btn btn-primary"
-            onClick={() => setIsSalesmanModalOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px' }}
-          >
-            <Search size={16} /> Filter by Salesman {selectedSalesmen.length > 0 ? `(${selectedSalesmen.length})` : ''}
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>New Customers</span>
+            <div 
+              onClick={() => { setNewCustomerOnly(!newCustomerOnly); setDisplayCount(20); }}
+              style={{ width: '36px', height: '20px', borderRadius: '10px', background: newCustomerOnly ? 'var(--accent-success)' : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', transition: 'background 0.2s' }}
+            >
+              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: newCustomerOnly ? '18px' : '2px', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+            </div>
+          </div>
+          {role !== 'salesman' && (
+            <button 
+              className="btn btn-primary"
+              onClick={() => setIsSalesmanModalOpen(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px' }}
+            >
+              <Search size={16} /> Filter by Salesman {selectedSalesmen.length > 0 ? `(${selectedSalesmen.length})` : ''}
+            </button>
+          )}
+        </div>
         
         <div className="filters-grid" style={{ width: '100%' }}>
           {/* Search Code/Name */}
@@ -192,6 +212,88 @@ const Customers: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* Coverage Day Slicer */}
+        <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '8px', width: '90px' }}>Coverage Day:</span>
+          {availableCoverageDays.map(d => (
+            <button
+              key={d}
+              onClick={() => { setCoverageDay(d); setDisplayCount(20); }}
+              style={{
+                padding: '4px 12px',
+                borderRadius: '16px',
+                border: '1px solid',
+                borderColor: coverageDay === d ? 'var(--accent-primary)' : 'var(--border)',
+                backgroundColor: coverageDay === d ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
+                color: coverageDay === d ? '#fff' : 'var(--text-muted)',
+                fontSize: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {d}
+            </button>
+          ))}
+          {coverageDay !== 'all' && (
+            <button
+              onClick={() => { setCoverageDay('all'); setDisplayCount(20); }}
+              style={{
+                padding: '4px 12px',
+                borderRadius: '16px',
+                border: 'none',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                color: 'var(--accent-danger)',
+                fontSize: '12px',
+                cursor: 'pointer',
+                marginLeft: '4px',
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* Wkly Coverage Slicer */}
+        <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '8px', width: '90px' }}>Wkly Coverage:</span>
+          {availableWklyCoverage.map(w => (
+            <button
+              key={w}
+              onClick={() => { setWklyCoverage(w); setDisplayCount(20); }}
+              style={{
+                padding: '4px 12px',
+                borderRadius: '16px',
+                border: '1px solid',
+                borderColor: wklyCoverage === w ? 'var(--accent-primary)' : 'var(--border)',
+                backgroundColor: wklyCoverage === w ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
+                color: wklyCoverage === w ? '#fff' : 'var(--text-muted)',
+                fontSize: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {w}
+            </button>
+          ))}
+          {wklyCoverage !== 'all' && (
+            <button
+              onClick={() => { setWklyCoverage('all'); setDisplayCount(20); }}
+              style={{
+                padding: '4px 12px',
+                borderRadius: '16px',
+                border: 'none',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                color: 'var(--accent-danger)',
+                fontSize: '12px',
+                cursor: 'pointer',
+                marginLeft: '4px',
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -218,6 +320,19 @@ const Customers: React.FC = () => {
                   <span>{customer.barangay}, {customer.city}</span>
                 </div>
               </div>
+              {customer.newCustomer && (
+                <div style={{ 
+                  backgroundColor: 'var(--accent-success)', 
+                  color: 'white', 
+                  fontSize: '10px', 
+                  fontWeight: 'bold', 
+                  padding: '4px 12px', 
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                }}>
+                  NEW
+                </div>
+              )}
             </div>
 
             <div style={{ 
