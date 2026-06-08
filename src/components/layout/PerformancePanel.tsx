@@ -151,15 +151,15 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
       </div>
 
       {(role === 'admin' || role === 'manager') && (
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '8px', overflowX: 'auto', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'var(--bg-dark)', border: '1px solid var(--border)', padding: '4px', borderRadius: '12px', overflowX: 'auto', justifyContent: 'center' }}>
           {['Ex-Truck', 'All', 'Booking'].map(filter => (
             <button
               key={filter}
               onClick={() => setServiceModelFilter(filter as any)}
               style={{
                 flex: 1,
-                padding: '4px 12px',
-                borderRadius: '4px',
+                padding: '6px 12px',
+                borderRadius: '8px',
                 border: 'none',
                 cursor: 'pointer',
                 background: serviceModelFilter === filter ? 'var(--accent-primary)' : 'transparent',

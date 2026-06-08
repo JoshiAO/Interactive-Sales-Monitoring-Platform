@@ -17,7 +17,7 @@ const MobilePerformancePage: React.FC = () => {
       </header>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
         <PerformancePanel className="" style={{ maxWidth: '100%', borderLeft: 'none' }} />
       </div>
     </div>
