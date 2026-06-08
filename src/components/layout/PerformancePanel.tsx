@@ -184,9 +184,9 @@ const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) 
               
               <div style={{ position: 'relative', zIndex: 1 }}>
                 {salesman.photoURL ? (
-                  <img src={salesman.photoURL} alt={salesman.name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${borderColor}` }} />
+                  <img src={salesman.photoURL} alt={salesman.name} className={salesman.achievements?.points >= 15 ? 'fire-blue' : salesman.achievements?.points >= 10 ? 'fire-orange' : salesman.achievements?.points >= 5 ? 'fire-red' : ''} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${borderColor}` }} />
                 ) : (
-                  <div style={{ 
+                  <div className={salesman.achievements?.points >= 15 ? 'fire-blue' : salesman.achievements?.points >= 10 ? 'fire-orange' : salesman.achievements?.points >= 5 ? 'fire-red' : ''} style={{ 
                     width: '56px', height: '56px', borderRadius: '50%', flexShrink: 0,
                     background: idx < 3 ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)', 
                     display: 'flex', alignItems: 'center', justifyContent: 'center', 
@@ -222,6 +222,35 @@ const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) 
                   </div>
                 </div>
               </div>
+              {/* Right Vertical Badge */}
+              {salesman.achievements?.points > 0 && (
+                <div style={{ 
+                  position: 'absolute', right: 0, top: 0, bottom: 0, 
+                  width: '24px', background: 'rgba(0,0,0,0.3)', 
+                  borderLeft: '1px solid rgba(255,255,255,0.05)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  zIndex: 2, padding: '4px 0'
+                }}>
+                  {salesman.achievements.gold > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <Medal size={12} fill="#FFD700" color="#B8860B" />
+                      <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#FFD700' }}>{salesman.achievements.gold}</span>
+                    </div>
+                  )}
+                  {salesman.achievements.silver > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <Medal size={12} fill="#C0C0C0" color="#808080" />
+                      <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#C0C0C0' }}>{salesman.achievements.silver}</span>
+                    </div>
+                  )}
+                  {salesman.achievements.bronze > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <Medal size={12} fill="#CD7F32" color="#8B4513" />
+                      <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#CD7F32' }}>{salesman.achievements.bronze}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}

@@ -8,10 +8,14 @@ import { db } from '../../firebase/config';
 import PerformancePanel from './PerformancePanel';
 
 const Layout: React.FC = () => {
-  const { role, currentUser, name, photoURL } = useAuth();
+  const { role, currentUser, name, photoURL, salesmanId } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isPerformanceModalOpen, setIsPerformanceModalOpen] = useState(false);
   const [cobDate, setCobDate] = useState<string>('');
+
+  const savedAchievements = localStorage.getItem('salesman_achievements');
+  const points = savedAchievements && salesmanId ? JSON.parse(savedAchievements)[salesmanId]?.points || 0 : 0;
+  const fireClass = points >= 15 ? 'fire-blue' : points >= 10 ? 'fire-orange' : points >= 5 ? 'fire-red' : '';
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
@@ -89,10 +93,21 @@ const Layout: React.FC = () => {
       <div className={`desktop-hidden mobile-overlay ${isMobileMenuOpen ? 'open' : ''}`} onClick={() => setIsMobileMenuOpen(false)}>
         <aside className={`mobile-sidebar ${isMobileMenuOpen ? 'open' : ''}`} onClick={e => e.stopPropagation()}>
           <div style={{ marginBottom: '32px' }}>
-            <h2 style={{ color: 'var(--accent-primary)', fontSize: '20px', margin: 0 }}>Sales Monitoring</h2>
-            {name && <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', marginTop: '8px' }}>{name}</div>}
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>Role: {role || 'Guest'}</div>
-            {cobDate && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>COB Date: <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>{cobDate}</span></div>}
+            <h2 style={{ color: 'var(--accent-primary)', fontSize: '20px', margin: '0 0 16px 0' }}>Sales Monitoring</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {photoURL ? (
+                <img src={photoURL} alt="Avatar" className={fireClass} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-primary)' }} />
+              ) : (
+                <div className={fireClass} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '18px' }}>
+                  {name ? name.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
+              <div>
+                {name && <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{name}</div>}
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>Role: {role || 'Guest'}</div>
+                {cobDate && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>COB Date: <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>{cobDate}</span></div>}
+              </div>
+            </div>
           </div>
           
           {navLinks}
@@ -115,9 +130,9 @@ const Layout: React.FC = () => {
           <h2 style={{ color: 'var(--accent-primary)', fontSize: '20px', margin: '0 0 16px 0' }}>Sales Monitoring</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {photoURL ? (
-              <img src={photoURL} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-primary)' }} />
+              <img src={photoURL} alt="Avatar" className={fireClass} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-primary)' }} />
             ) : (
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '18px' }}>
+              <div className={fireClass} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '18px' }}>
                 {name ? name.charAt(0).toUpperCase() : 'U'}
               </div>
             )}
