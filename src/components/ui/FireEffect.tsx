@@ -30,9 +30,9 @@ const FireEffect: React.FC<FireEffectProps> = ({ type }) => {
     filter: getFilter()
   };
 
-  // Low Tier (Red) -> Tier1.gif
+  // Low Tier (Red) -> Tier1_2.gif
   if (type === 'fire-red') {
-    return <img src="/animations/Tier1.gif" alt="fire" style={{...style, objectPosition: 'right bottom'}} />;
+    return <img src="/animations/Tier1_2.gif" alt="fire" style={{...style, bottom: 0, height: '100%', objectPosition: 'right bottom'}} />;
   }
 
   // Mid Tier (Orange) -> Tier2.gif
