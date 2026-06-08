@@ -167,8 +167,10 @@ const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) 
           else if (idx === 1) borderColor = '#9CA3AF'; // Silver
           else if (idx === 2) borderColor = '#B45309'; // Bronze
 
+          const fireClass = salesman.achievements?.points >= 15 ? 'fire-blue' : salesman.achievements?.points >= 10 ? 'fire-orange' : salesman.achievements?.points >= 5 ? 'fire-red' : '';
+
           return (
-            <div key={salesman.id} className="glass-panel interactive" style={{ 
+            <div key={salesman.id} className={`glass-panel interactive ${fireClass}`} style={{ 
               padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', 
               border: `1px solid ${borderColor}`,
               position: 'relative',
@@ -184,9 +186,9 @@ const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) 
               
               <div style={{ position: 'relative', zIndex: 1 }}>
                 {salesman.photoURL ? (
-                  <img src={salesman.photoURL} alt={salesman.name} className={salesman.achievements?.points >= 15 ? 'fire-blue' : salesman.achievements?.points >= 10 ? 'fire-orange' : salesman.achievements?.points >= 5 ? 'fire-red' : ''} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${borderColor}` }} />
+                  <img src={salesman.photoURL} alt={salesman.name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${borderColor}` }} />
                 ) : (
-                  <div className={salesman.achievements?.points >= 15 ? 'fire-blue' : salesman.achievements?.points >= 10 ? 'fire-orange' : salesman.achievements?.points >= 5 ? 'fire-red' : ''} style={{ 
+                  <div style={{ 
                     width: '56px', height: '56px', borderRadius: '50%', flexShrink: 0,
                     background: idx < 3 ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)', 
                     display: 'flex', alignItems: 'center', justifyContent: 'center', 
