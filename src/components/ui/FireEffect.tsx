@@ -8,7 +8,7 @@ const FireEffect: React.FC<FireEffectProps> = ({ type }) => {
   if (!type) return null;
 
   const getFilter = () => {
-    switch(type) {
+    switch (type) {
       case 'fire-red': return 'brightness(1.1) sepia(1) saturate(5) hue-rotate(-50deg)';
       case 'fire-orange': return 'brightness(1.1) sepia(1) saturate(5) hue-rotate(5deg)';
       case 'fire-blue': return 'brightness(1.1) sepia(1) saturate(5) hue-rotate(180deg)';
@@ -32,7 +32,7 @@ const FireEffect: React.FC<FireEffectProps> = ({ type }) => {
 
   // Low Tier (Red) -> Tier1_2.gif
   if (type === 'fire-red') {
-    return <img src="/animations/Tier1_2.gif" alt="fire" style={{...style, bottom: 0, height: '100%', objectPosition: 'right bottom'}} />;
+    return <img src="/animations/Tier1_3.gif" alt="fire" style={style} />;
   }
 
   // Mid Tier (Orange) -> Tier2.gif
