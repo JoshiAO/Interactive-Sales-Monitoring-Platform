@@ -179,7 +179,7 @@ const Customers: React.FC = () => {
             {(role === 'manager' || role === 'admin') && availableTeams.length > 0 && (
               <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', paddingRight: '16px', borderRight: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
                 {selectedTeam !== 'all' && (
-                  <div style={{ position: 'absolute', top: '-26px', right: '16px', background: 'var(--bg-dark)', padding: '0 4px', zIndex: 10 }}>
+                  <div className="bg-mask-seamless" style={{ position: 'absolute', top: '-26px', right: '16px', padding: '0 4px', zIndex: 10 }}>
                     <button onClick={() => { setSelectedTeam('all'); setDisplayCount(20); }} style={{ color: 'var(--accent-danger)', background: 'rgba(239, 68, 68, 0.1)', border: 'none', borderRadius: '12px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer' }}>Clear</button>
                   </div>
                 )}
@@ -211,7 +211,7 @@ const Customers: React.FC = () => {
             {/* Coverage Day Slicer */}
             <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', paddingRight: '16px', borderRight: '1px solid rgba(255,255,255,0.05)', backgroundColor: 'rgba(255,255,255,0.01)', padding: '0 8px', borderRadius: '8px', flexShrink: 0 }}>
               {coverageDay !== 'all' && (
-                <div style={{ position: 'absolute', top: '-26px', right: '16px', background: 'var(--bg-dark)', padding: '0 4px', zIndex: 10 }}>
+                <div className="bg-mask-seamless" style={{ position: 'absolute', top: '-26px', right: '16px', padding: '0 4px', zIndex: 10 }}>
                   <button onClick={() => { setCoverageDay('all'); setDisplayCount(20); }} style={{ color: 'var(--accent-danger)', background: 'rgba(239, 68, 68, 0.1)', border: 'none', borderRadius: '12px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer' }}>Clear</button>
                 </div>
               )}
@@ -242,7 +242,7 @@ const Customers: React.FC = () => {
             {/* Wkly Coverage Slicer */}
             <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.02)', padding: '0 8px', borderRadius: '8px', flexShrink: 0 }}>
               {wklyCoverage !== 'all' && (
-                <div style={{ position: 'absolute', top: '-26px', right: '16px', background: 'var(--bg-dark)', padding: '0 4px', zIndex: 10 }}>
+                <div className="bg-mask-seamless" style={{ position: 'absolute', top: '-26px', right: '16px', padding: '0 4px', zIndex: 10 }}>
                   <button onClick={() => { setWklyCoverage('all'); setDisplayCount(20); }} style={{ color: 'var(--accent-danger)', background: 'rgba(239, 68, 68, 0.1)', border: 'none', borderRadius: '12px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer' }}>Clear</button>
                 </div>
               )}
