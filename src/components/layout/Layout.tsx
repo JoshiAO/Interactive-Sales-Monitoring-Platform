@@ -16,7 +16,7 @@ const Layout: React.FC = () => {
 
   const savedAchievements = localStorage.getItem('salesman_achievements');
   const points = savedAchievements && salesmanId ? JSON.parse(savedAchievements)[salesmanId]?.points || 0 : 0;
-  const fireClass = points >= 60 ? 'fire-blue' : points >= 30 ? 'fire-orange' : points >= 15 ? 'fire-red' : '';
+  const fireClass = points >= 60 ? 'fire-blue' : points >= 30 ? 'fire-orange' : points >= 10 ? 'fire-red' : '';
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {

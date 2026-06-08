@@ -196,7 +196,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
           else if (idx === 1) borderColor = '#9CA3AF'; // Silver
           else if (idx === 2) borderColor = '#B45309'; // Bronze
 
-          const fireClass = salesman.achievements?.points >= 60 ? 'fire-blue' : salesman.achievements?.points >= 30 ? 'fire-orange' : salesman.achievements?.points >= 15 ? 'fire-red' : '';
+          const fireClass = salesman.achievements?.points >= 60 ? 'fire-blue' : salesman.achievements?.points >= 30 ? 'fire-orange' : salesman.achievements?.points >= 10 ? 'fire-red' : '';
 
           return (
             <div key={salesman.id} className={`glass-panel interactive`} 
