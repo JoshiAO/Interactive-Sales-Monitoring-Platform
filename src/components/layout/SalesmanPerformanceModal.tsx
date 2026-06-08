@@ -95,8 +95,23 @@ const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ sal
         </div>
 
         <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
-          {/* Table Section */}
-          <h3 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>Medal History</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+            <h3 style={{ margin: 0, fontSize: '16px' }}>Medal History</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Medal size={14} fill="#FBBF24" color="#78350f" /> Gold (5 pts)
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Medal size={14} fill="#9CA3AF" color="#1f2937" /> Silver (3 pts)
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Medal size={14} fill="#B45309" color="#451a03" /> Bronze (1 pt)
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px', color: 'var(--text-main)', fontWeight: 'bold', borderLeft: '1px solid var(--border)', paddingLeft: '16px' }}>
+                Total Points: <span style={{ color: 'var(--accent-primary)', fontSize: '14px' }}>{salesman.achievements?.points || 0}</span>
+              </div>
+            </div>
+          </div>
           <div style={{ overflowX: 'auto', marginBottom: '32px', borderRadius: '8px', border: '1px solid var(--border)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'center' }}>
               <thead>
