@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { collection, writeBatch, doc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDocs, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 
 const uploadCategories = [
@@ -292,6 +292,127 @@ const DataUpload: React.FC = () => {
             
             // Save COB Date globally
             await setDoc(doc(db, 'settings', 'global'), { cobDate, lastDataUpload: Date.now() }, { merge: true });
+
+            // --- DAILY ACHIEVEMENTS STACKING ---
+            setProgress({ step: 'Calculating Daily Achievements...', current: 90, total: 100 });
+            try {
+              // 1. Fetch all necessary data
+              const [metricsSnap, sttSnap, vd30Snap, usersSnap, settingsSnap] = await Promise.all([
+                getDocs(collection(db, 'dashboard_metrics')),
+                getDocs(collection(db, 'salesman_targets')),
+                getDocs(collection(db, 'vd30_targets')),
+                getDocs(collection(db, 'users')),
+                getDoc(doc(db, 'settings', 'performance_panel'))
+              ]);
+
+              const userTypes: Record<string, string> = {};
+              usersSnap.forEach((u: any) => {
+                 const data = u.data();
+                 if (data.salesmanId && data.salesmanType) userTypes[String(data.salesmanId)] = data.salesmanType;
+              });
+
+              const excludedSalesmen = settingsSnap.exists() ? (settingsSnap.data().excluded_salesmen || []) : [];
+              const excludedVd30Salesmen = settingsSnap.exists() ? (settingsSnap.data().excluded_vd30_salesmen || []) : [];
+
+              // Map targets
+              const targetsMap: Record<string, { target: number, ubaTarget: number, vd30TargetMap: Record<string, number> }> = {};
+              sttSnap.forEach((t: any) => {
+                 const d = t.data();
+                 targetsMap[t.id] = { target: parseFloat(d.stt_target) || 0, ubaTarget: parseFloat(d['uba target']) || 0, vd30TargetMap: {} };
+              });
+              vd30Snap.forEach((t: any) => {
+                 const d = t.data();
+                 if (!targetsMap[t.id]) targetsMap[t.id] = { target: 0, ubaTarget: 0, vd30TargetMap: {} };
+                 Object.keys(d).forEach(k => {
+                   if (k.startsWith('F')) {
+                     targetsMap[t.id].vd30TargetMap[k] = parseFloat(d[k]) || 0;
+                   }
+                 });
+              });
+
+              // Map metrics and calculate VD30 hits
+              const salesmenRankingData: any[] = [];
+              metricsSnap.forEach((m: any) => {
+                 const d = m.data();
+                 const sId = m.id;
+                 const type = userTypes[sId];
+                 if (!type) return; // EXCLUDE UNASSIGNED
+
+                 const targetInfo = targetsMap[sId] || { target: 0, ubaTarget: 0, vd30TargetMap: {} };
+                 
+                 let vd30HitCount = 0;
+                 let vd30TargetCount = 0;
+                 Object.keys(targetInfo.vd30TargetMap).forEach(k => {
+                    const tgt = targetInfo.vd30TargetMap[k];
+                    if (tgt > 0) {
+                      vd30TargetCount++;
+                      const act = (d.vd30_placements && d.vd30_placements[k]) || 0;
+                      if (act >= tgt) vd30HitCount++;
+                    }
+                 });
+
+                 salesmenRankingData.push({
+                   id: sId,
+                   type: type,
+                   mtdSales: d.mtd_net_value || 0,
+                   target: targetInfo.target || 1,
+                   uba: d.uba || 0,
+                   ubaTarget: targetInfo.ubaTarget || 1,
+                   vd30: vd30HitCount,
+                   vd30Target: vd30TargetCount || 1
+                 });
+              });
+
+              // Helper to assign medals
+              const dailyPointsMap: Record<string, { gold: number, silver: number, bronze: number, points: number }> = {};
+              const assignMedals = (sortedList: any[]) => {
+                [5, 3, 1].forEach((points, idx) => {
+                  if (sortedList[idx]) {
+                    const id = sortedList[idx].id;
+                    if (!dailyPointsMap[id]) dailyPointsMap[id] = { gold: 0, silver: 0, bronze: 0, points: 0 };
+                    dailyPointsMap[id].points += points;
+                    if (points === 5) dailyPointsMap[id].gold += 1;
+                    else if (points === 3) dailyPointsMap[id].silver += 1;
+                    else if (points === 1) dailyPointsMap[id].bronze += 1;
+                  }
+                });
+              };
+
+              // Calculate per service model separately
+              ['Ex-Truck', 'Booking'].forEach(serviceModel => {
+                  const filtered = salesmenRankingData.filter(s => s.type === serviceModel);
+                  
+                  const sttSorted = [...filtered]
+                    .filter(s => !excludedSalesmen.includes(s.id) && s.mtdSales > 0)
+                    .sort((a, b) => (b.mtdSales / b.target) - (a.mtdSales / a.target));
+                    
+                  const ubaSorted = [...filtered]
+                    .filter(s => !excludedSalesmen.includes(s.id) && s.uba > 0)
+                    .sort((a, b) => (b.uba / b.ubaTarget) - (a.uba / a.ubaTarget));
+                    
+                  const vd30Sorted = [...filtered]
+                    .filter(s => !excludedVd30Salesmen.includes(s.id) && s.vd30 > 0)
+                    .sort((a, b) => (b.vd30 / b.vd30Target) - (a.vd30 / a.vd30Target));
+
+                  assignMedals(sttSorted);
+                  assignMedals(ubaSorted);
+                  assignMedals(vd30Sorted);
+              });
+
+              // Save to Firestore achievements/YYYY-MM
+              const monthKey = cobDate.substring(0, 7); // e.g. "2026-06"
+              const achRef = doc(db, 'achievements', monthKey);
+              
+              await setDoc(achRef, {
+                daily_points: {
+                  [cobDate]: dailyPointsMap
+                },
+                last_updated: new Date().toISOString()
+              }, { merge: true });
+
+            } catch (err) {
+              console.error("Error calculating daily achievements:", err);
+            }
           } 
           else if (category === 'CML (Customer Master List)') {
             setProgress({ step: 'Aggregating CML Baseline & Chunking...', current: 0, total: 100 });

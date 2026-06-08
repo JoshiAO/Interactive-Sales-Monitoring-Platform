@@ -297,39 +297,31 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
 
         const sortMap = (map: Record<string, number>) => Object.keys(map).map(k => ({ name: k, value: map[k] })).sort((a, b) => b.value - a.value);
 
-        // Auto-calculate Medals & Points for Top 3 (Global)
-        const sttSorted = Object.values(salesmenData)
-          .filter((s: any) => !excludedSalesmen.includes(s.id) && s.mtdSales > 0)
-          .sort((a: any, b: any) => (b.mtdSales / (b.target || 1)) - (a.mtdSales / (a.target || 1)));
-          
-        const ubaSorted = Object.values(salesmenData)
-          .filter((s: any) => !excludedSalesmen.includes(s.id) && s.uba > 0)
-          .sort((a: any, b: any) => (b.uba / (b.ubaTarget || 1)) - (a.uba / (a.ubaTarget || 1)));
-          
-        const vd30Sorted = Object.values(salesmenData)
-          .filter((s: any) => !excludedVd30Salesmen.includes(s.id) && s.vd30 > 0)
-          .sort((a: any, b: any) => (b.vd30 / (b.vd30Target || 1)) - (a.vd30 / (a.vd30Target || 1)));
-
+        // Fetch Daily Stacked Achievements from Firestore
+        const cobDate = globalData?.cobDate || new Date().toISOString().split('T')[0];
+        const monthKey = cobDate.substring(0, 7); // e.g. "2026-06"
         const globalPointsMap: Record<string, { gold: number, silver: number, bronze: number, points: number }> = {};
         
-        const assignMedals = (sortedList: any[]) => {
-          [5, 3, 1].forEach((points, idx) => {
-            if (sortedList[idx]) {
-              const id = sortedList[idx].id;
-              if (!globalPointsMap[id]) globalPointsMap[id] = { gold: 0, silver: 0, bronze: 0, points: 0 };
-              globalPointsMap[id].points += points;
-              if (points === 5) globalPointsMap[id].gold += 1;
-              else if (points === 3) globalPointsMap[id].silver += 1;
-              else if (points === 1) globalPointsMap[id].bronze += 1;
-            }
-          });
-        };
+        try {
+          const achDoc = await getDoc(doc(db, 'achievements', monthKey));
+          if (achDoc.exists()) {
+             const dailyPoints = achDoc.data().daily_points || {};
+             // Aggregate all days for the month
+             Object.values(dailyPoints).forEach((dayMap: any) => {
+                Object.keys(dayMap).forEach(salesmanId => {
+                   if (!globalPointsMap[salesmanId]) globalPointsMap[salesmanId] = { gold: 0, silver: 0, bronze: 0, points: 0 };
+                   globalPointsMap[salesmanId].gold += dayMap[salesmanId].gold || 0;
+                   globalPointsMap[salesmanId].silver += dayMap[salesmanId].silver || 0;
+                   globalPointsMap[salesmanId].bronze += dayMap[salesmanId].bronze || 0;
+                   globalPointsMap[salesmanId].points += dayMap[salesmanId].points || 0;
+                });
+             });
+          }
+        } catch (err) {
+          console.error("Error fetching achievements:", err);
+        }
 
-        assignMedals(sttSorted);
-        assignMedals(ubaSorted);
-        assignMedals(vd30Sorted);
-
-        // Attach medals to salesmenData and save to localStorage
+        // Attach medals to salesmenData and save to localStorage for avatar rendering
         Object.keys(salesmenData).forEach(id => {
           (salesmenData as any)[id].achievements = globalPointsMap[id] || { gold: 0, silver: 0, bronze: 0, points: 0 };
         });
