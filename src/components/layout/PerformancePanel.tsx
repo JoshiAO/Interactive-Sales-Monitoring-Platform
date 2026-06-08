@@ -4,14 +4,16 @@ import { Loader2, Settings, X, Medal } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import SalesmanPerformanceModal from './SalesmanPerformanceModal';
 
-const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) => {
+const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className = '', style }) => {
   const { role } = useAuth();
   const [activeTab, setActiveTab] = useState<'STT' | 'UBA' | 'VD30'>('STT');
   const [viewMode, setViewMode] = useState<'team' | 'general'>('general');
   const [showSettings, setShowSettings] = useState(false);
   const [newExclusion, setNewExclusion] = useState('');
   const [newVd30Exclusion, setNewVd30Exclusion] = useState('');
+  const [selectedSalesman, setSelectedSalesman] = useState<any>(null);
   
   const [serviceModelFilter, setServiceModelFilter] = useState<'All' | 'Ex-Truck' | 'Booking'>('All');
   
@@ -19,7 +21,7 @@ const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) 
 
   if (loading) {
     return (
-      <aside className={`glass-panel performance-panel ${className}`} style={{ width: '100%', maxWidth: '300px', flexShrink: 0, borderLeft: '1px solid var(--border)', borderRadius: 0, padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <aside className={`glass-panel performance-panel ${className}`} style={{ width: '100%', maxWidth: '300px', flexShrink: 0, borderLeft: '1px solid var(--border)', borderRadius: 0, padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', ...style }}>
         <Loader2 size={24} className="animate-spin" color="var(--accent-primary)" />
       </aside>
     );
@@ -80,7 +82,7 @@ const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) 
   };
 
   return (
-    <aside className={`glass-panel performance-panel ${className}`} style={{ width: '100%', maxWidth: '300px', borderLeft: '1px solid var(--border)', borderRadius: 0, padding: '24px', overflowY: 'auto', flexShrink: 0 }}>
+    <aside className={`glass-panel performance-panel ${className}`} style={{ width: '100%', maxWidth: '300px', borderLeft: '1px solid var(--border)', borderRadius: 0, padding: '24px', overflowY: 'auto', flexShrink: 0, ...style }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
         <div>
           <h3 style={{ margin: 0, lineHeight: 1 }}>Performance</h3>
@@ -196,11 +198,14 @@ const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) 
           const fireClass = salesman.achievements?.points >= 15 ? 'fire-blue' : salesman.achievements?.points >= 10 ? 'fire-orange' : salesman.achievements?.points >= 5 ? 'fire-red' : '';
 
           return (
-            <div key={salesman.id} className={`glass-panel interactive ${fireClass}`} style={{ 
+            <div key={salesman.id} className={`glass-panel interactive ${fireClass}`} 
+                 onClick={() => setSelectedSalesman(salesman)}
+                 style={{ 
               padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', 
               border: `1px solid ${borderColor}`,
               position: 'relative',
               overflow: 'hidden',
+              cursor: 'pointer',
               background: idx < 3 ? `linear-gradient(135deg, rgba(255,255,255,0.03) 0%, ${borderColor}25 100%)` : undefined
             }}>
               {/* Background Medal for top 3 */}
@@ -389,6 +394,14 @@ const PerformancePanel: React.FC<{ className?: string }> = ({ className = '' }) 
 
           </div>
         </div>
+      )}
+
+      {selectedSalesman && (
+        <SalesmanPerformanceModal 
+          salesman={selectedSalesman} 
+          rawAchievements={data.rawAchievements} 
+          onClose={() => setSelectedSalesman(null)} 
+        />
       )}
     </aside>
   );

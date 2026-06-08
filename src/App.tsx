@@ -8,6 +8,7 @@ import Home from './pages/dashboard/Home';
 import Sales from './pages/dashboard/Sales';
 import VD30 from './pages/dashboard/VD30';
 import Customers from './pages/dashboard/Customers';
+import MobilePerformancePage from './pages/dashboard/MobilePerformancePage';
 import DataUpload from './pages/admin/DataUpload';
 import Users from './pages/admin/Users';
 
@@ -36,6 +37,8 @@ function AppRoutes() {
         <Route path="data" element={<DataUpload />} />
         <Route path="users" element={<Users />} />
       </Route>
+      
+      <Route path="/performance" element={<ProtectedRoute><MobilePerformancePage /></ProtectedRoute>} />
       
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

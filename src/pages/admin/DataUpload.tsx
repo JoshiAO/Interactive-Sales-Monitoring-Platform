@@ -364,16 +364,34 @@ const DataUpload: React.FC = () => {
               });
 
               // Helper to assign medals
-              const dailyPointsMap: Record<string, { gold: number, silver: number, bronze: number, points: number }> = {};
-              const assignMedals = (sortedList: any[]) => {
+              const dailyPointsMap: Record<string, any> = {};
+              
+              // Pre-populate with indices
+              salesmenRankingData.forEach(s => {
+                 dailyPointsMap[s.id] = {
+                    gold: 0, silver: 0, bronze: 0, points: 0,
+                    metrics: {
+                       stt: { medal: 'none', index: s.target > 0 ? (s.mtdSales / s.target) * 100 : 0 },
+                       uba: { medal: 'none', index: s.ubaTarget > 0 ? (s.uba / s.ubaTarget) * 100 : 0 },
+                       vd30: { medal: 'none', index: s.vd30Target > 0 ? (s.vd30 / s.vd30Target) * 100 : 0 }
+                    }
+                 };
+              });
+
+              const assignMedals = (sortedList: any[], metricKey: 'stt' | 'uba' | 'vd30') => {
                 [5, 3, 1].forEach((points, idx) => {
                   if (sortedList[idx]) {
                     const id = sortedList[idx].id;
-                    if (!dailyPointsMap[id]) dailyPointsMap[id] = { gold: 0, silver: 0, bronze: 0, points: 0 };
+                    if (!dailyPointsMap[id]) return;
+                    
                     dailyPointsMap[id].points += points;
-                    if (points === 5) dailyPointsMap[id].gold += 1;
-                    else if (points === 3) dailyPointsMap[id].silver += 1;
-                    else if (points === 1) dailyPointsMap[id].bronze += 1;
+                    
+                    let medalType = 'none';
+                    if (points === 5) { dailyPointsMap[id].gold += 1; medalType = 'gold'; }
+                    else if (points === 3) { dailyPointsMap[id].silver += 1; medalType = 'silver'; }
+                    else if (points === 1) { dailyPointsMap[id].bronze += 1; medalType = 'bronze'; }
+                    
+                    dailyPointsMap[id].metrics[metricKey].medal = medalType;
                   }
                 });
               };
@@ -394,9 +412,9 @@ const DataUpload: React.FC = () => {
                     .filter(s => !excludedVd30Salesmen.includes(s.id) && s.vd30 > 0)
                     .sort((a, b) => (b.vd30 / b.vd30Target) - (a.vd30 / a.vd30Target));
 
-                  assignMedals(sttSorted);
-                  assignMedals(ubaSorted);
-                  assignMedals(vd30Sorted);
+                  assignMedals(sttSorted, 'stt');
+                  assignMedals(ubaSorted, 'uba');
+                  assignMedals(vd30Sorted, 'vd30');
               });
 
               // Save to Firestore achievements/YYYY-MM

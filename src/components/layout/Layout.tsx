@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { LayoutDashboard, ShoppingCart, Target, Users, Database, Settings, LogOut, Menu, X, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Target, Users, Database, Settings, LogOut, Menu, BarChart2 } from 'lucide-react';
 import { logout } from '../../firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -9,8 +9,8 @@ import PerformancePanel from './PerformancePanel';
 
 const Layout: React.FC = () => {
   const { role, currentUser, name, photoURL, salesmanId } = useAuth();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isPerformanceModalOpen, setIsPerformanceModalOpen] = useState(false);
   const [cobDate, setCobDate] = useState<string>('');
 
   const savedAchievements = localStorage.getItem('salesman_achievements');
@@ -172,28 +172,11 @@ const Layout: React.FC = () => {
       {/* Mobile Floating Action Button (FAB) */}
       <button 
         className="desktop-hidden interactive"
-        onClick={() => setIsPerformanceModalOpen(true)}
+        onClick={() => navigate('/performance')}
         style={{ position: 'fixed', bottom: '24px', right: '24px', width: '56px', height: '56px', borderRadius: '50%', background: 'var(--accent-primary)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 40 }}
       >
         <BarChart2 size={24} />
       </button>
-
-      {/* Mobile Performance Modal */}
-      {isPerformanceModalOpen && (
-        <div className="desktop-hidden animate-fade-in-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '16px', display: 'flex', justifyContent: 'flex-end', borderBottom: '1px solid var(--border)' }}>
-            <button onClick={() => setIsPerformanceModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)' }}>
-              <X size={24} />
-            </button>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {/* Render the panel without its built-in width/border constraints, passing a special class or overriding styles if needed. But our PerformancePanel currently uses max-width 300px. Let's wrap it in a flex container that centers it. */}
-            <div className="animate-fade-in" style={{ display: 'flex', justifyContent: 'center', height: '100%' }}>
-              <PerformancePanel className="" />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

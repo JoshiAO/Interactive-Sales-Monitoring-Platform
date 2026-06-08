@@ -22,6 +22,7 @@ interface DashboardData {
   excludedSalesmen: string[];
   excludedVd30Salesmen: string[];
   frequency: { f1: number, f2: number, f3: number, f4: number };
+  rawAchievements?: Record<string, any>;
 }
 
 export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen: boolean | 'team' = false) => {
@@ -301,11 +302,13 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         const cobDate = globalData?.cobDate || new Date().toISOString().split('T')[0];
         const monthKey = cobDate.substring(0, 7); // e.g. "2026-06"
         const globalPointsMap: Record<string, { gold: number, silver: number, bronze: number, points: number }> = {};
+        let rawDailyAchievements: Record<string, any> = {};
         
         try {
           const achDoc = await getDoc(doc(db, 'achievements', monthKey));
           if (achDoc.exists()) {
              const dailyPoints = achDoc.data().daily_points || {};
+             rawDailyAchievements = dailyPoints;
              // Aggregate all days for the month
              Object.values(dailyPoints).forEach((dayMap: any) => {
                 Object.keys(dayMap).forEach(salesmanId => {
@@ -344,7 +347,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
           salesmen: Object.values(salesmenData).sort((a: any, b: any) => b.mtdSales - a.mtdSales),
           excludedSalesmen,
           excludedVd30Salesmen,
-          frequency: { f1: totalF1, f2: totalF2, f3: totalF3, f4: totalF4 }
+          frequency: { f1: totalF1, f2: totalF2, f3: totalF3, f4: totalF4 },
+          rawAchievements: rawDailyAchievements
         });
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
