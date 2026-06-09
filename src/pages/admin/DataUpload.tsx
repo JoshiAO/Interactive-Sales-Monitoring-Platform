@@ -728,13 +728,14 @@ const DataUpload: React.FC = () => {
                     batch.set(doc(collection(db, collName), safeId), cleanRow, { merge: true });
                   }
                 } else {
-                  const safeId = String(cleanRow['code'] || cleanRow['product_code'] || cleanRow['vd30_code'] || Math.random()).replace(/[^a-zA-Z0-9_]/g, '');
+                  const safeId = String(cleanRow['code'] || cleanRow['product_code'] || cleanRow['Product Code'] || cleanRow['vd30_code'] || Math.random()).replace(/[^a-zA-Z0-9_]/g, '');
                   let collName = 'reference_general';
                   if (category === 'Item Category Reference') collName = 'reference_categories';
                   if (category === 'Channel Reference') collName = 'reference_channels';
                   if (category === 'VD30 Items Reference') collName = 'reference_vd30';
                   if (category === 'Geo Hierarchy Reference') collName = 'reference_geo';
                   if (category === 'Customer Class') collName = 'reference_customer_classes';
+                  if (category === 'NPD & Promo Pack Items') collName = 'npd_promopack_items';
                   batch.set(doc(collection(db, collName), safeId), cleanRow, { merge: true });
                 }
               });
