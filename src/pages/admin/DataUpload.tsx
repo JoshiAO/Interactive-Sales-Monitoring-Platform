@@ -465,11 +465,11 @@ const DataUpload: React.FC = () => {
                 });
 
                 // Aggregate NPD/Promo per product
-                const npdMetrics: Record<string, { stt: number; uba_customers: Set<string>; salesmen: Record<string, { name: string; stt: number; uba_customers: Set<string>; customersMap: Record<string, { name: string; stt: number; uba: number }> }> }> = {};
+                const npdMetrics: Record<string, { stt: number; customersMap: Record<string, number>; salesmen: Record<string, { name: string; stt: number; customersMap: Record<string, { name: string; stt: number }> }> }> = {};
 
                 // Pre-populate all items so they appear even with 0 sales
                 Object.keys(npdItemMap).forEach(prodCode => {
-                  npdMetrics[prodCode] = { stt: 0, uba_customers: new Set(), salesmen: {} };
+                  npdMetrics[prodCode] = { stt: 0, customersMap: {}, salesmen: {} };
                 });
 
                 json.forEach((row: any) => {
@@ -481,28 +481,24 @@ const DataUpload: React.FC = () => {
                   const salesmanCode = String(row['Employee Code'] || '');
                   const salesmanName = row['Employee Name'] || userNamesNpd[salesmanCode] || salesmanCode;
 
-                  if (!npdMetrics[prodCode]) npdMetrics[prodCode] = { stt: 0, uba_customers: new Set(), salesmen: {} };
+                  if (!npdMetrics[prodCode]) npdMetrics[prodCode] = { stt: 0, customersMap: {}, salesmen: {} };
                   npdMetrics[prodCode].stt += netValue;
-                  if (netValue >= 1 && custNum) npdMetrics[prodCode].uba_customers.add(custNum);
+                  
+                  if (custNum) {
+                    npdMetrics[prodCode].customersMap[custNum] = (npdMetrics[prodCode].customersMap[custNum] || 0) + netValue;
+                  }
 
                   if (salesmanCode) {
                     if (!npdMetrics[prodCode].salesmen[salesmanCode]) {
-                      npdMetrics[prodCode].salesmen[salesmanCode] = { name: salesmanName, stt: 0, uba_customers: new Set(), customersMap: {} };
+                      npdMetrics[prodCode].salesmen[salesmanCode] = { name: salesmanName, stt: 0, customersMap: {} };
                     }
                     npdMetrics[prodCode].salesmen[salesmanCode].stt += netValue;
                     
                     if (custNum && netValue !== 0) {
                       if (!npdMetrics[prodCode].salesmen[salesmanCode].customersMap[custNum]) {
-                        npdMetrics[prodCode].salesmen[salesmanCode].customersMap[custNum] = { name: custName, stt: 0, uba: 0 };
+                        npdMetrics[prodCode].salesmen[salesmanCode].customersMap[custNum] = { name: custName, stt: 0 };
                       }
                       npdMetrics[prodCode].salesmen[salesmanCode].customersMap[custNum].stt += netValue;
-                    }
-
-                    if (netValue >= 1 && custNum) {
-                      if (!npdMetrics[prodCode].salesmen[salesmanCode].uba_customers.has(custNum)) {
-                        npdMetrics[prodCode].salesmen[salesmanCode].uba_customers.add(custNum);
-                        npdMetrics[prodCode].salesmen[salesmanCode].customersMap[custNum].uba = 1;
-                      }
                     }
                   }
                 });
@@ -512,18 +508,35 @@ const DataUpload: React.FC = () => {
                 Object.keys(npdMetrics).forEach(prodCode => {
                   const m = npdMetrics[prodCode];
                   const info = npdItemMap[prodCode];
-                  const salesmenArr = Object.keys(m.salesmen).map(code => ({
-                    code,
-                    name: m.salesmen[code].name,
-                    stt: m.salesmen[code].stt,
-                    uba: m.salesmen[code].uba_customers.size,
-                    customers: Object.keys(m.salesmen[code].customersMap).map(cCode => ({
-                      code: cCode,
-                      name: m.salesmen[code].customersMap[cCode].name,
-                      stt: m.salesmen[code].customersMap[cCode].stt,
-                      uba: m.salesmen[code].customersMap[cCode].uba
-                    })).filter(c => c.stt !== 0 || c.uba > 0)
-                  }));
+                  
+                  let productUba = 0;
+                  Object.values(m.customersMap).forEach(cStt => {
+                    if (cStt >= 1) productUba++;
+                  });
+
+                  const salesmenArr = Object.keys(m.salesmen).map(code => {
+                    let smUba = 0;
+                    const smCustomers = Object.keys(m.salesmen[code].customersMap).map(cCode => {
+                      const c = m.salesmen[code].customersMap[cCode];
+                      const uba = c.stt >= 1 ? 1 : 0;
+                      if (uba) smUba++;
+                      return {
+                        code: cCode,
+                        name: c.name,
+                        stt: c.stt,
+                        uba: uba
+                      };
+                    }).filter(c => c.stt !== 0 || c.uba > 0);
+
+                    return {
+                      code,
+                      name: m.salesmen[code].name,
+                      stt: m.salesmen[code].stt,
+                      uba: smUba,
+                      customers: smCustomers
+                    };
+                  });
+
                   const safeId = prodCode.replace(/[^a-zA-Z0-9_]/g, '');
                   npdBatch.set(doc(collection(db, 'npd_promopack_metrics'), safeId), {
                     product_code: prodCode,
@@ -531,7 +544,7 @@ const DataUpload: React.FC = () => {
                     type: info.type,
                     category: info.category,
                     stt: m.stt,
-                    uba: m.uba_customers.size,
+                    uba: productUba,
                     salesmen: salesmenArr,
                     last_updated: new Date().toISOString()
                   }, { merge: false });
