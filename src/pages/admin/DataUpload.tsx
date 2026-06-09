@@ -522,7 +522,7 @@ const DataUpload: React.FC = () => {
                       name: m.salesmen[code].customersMap[cCode].name,
                       stt: m.salesmen[code].customersMap[cCode].stt,
                       uba: m.salesmen[code].customersMap[cCode].uba
-                    })).filter(c => c.stt > 0 || c.uba > 0)
+                    })).filter(c => c.stt !== 0 || c.uba > 0)
                   }));
                   const safeId = prodCode.replace(/[^a-zA-Z0-9_]/g, '');
                   npdBatch.set(doc(collection(db, 'npd_promopack_metrics'), safeId), {
