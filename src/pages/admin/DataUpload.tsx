@@ -526,7 +526,7 @@ const DataUpload: React.FC = () => {
                         stt: c.stt,
                         uba: uba
                       };
-                    }).filter(c => c.stt !== 0 || c.uba > 0);
+                    });
 
                     return {
                       code,
