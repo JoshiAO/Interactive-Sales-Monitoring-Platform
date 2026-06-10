@@ -598,7 +598,7 @@ const DataUpload: React.FC = () => {
               }
             });
 
-            // Save metrics
+            // Save metrics to individual docs (legacy) AND to the 'all' doc
             const cmlBatch = writeBatch(db);
             Object.keys(cmlCounts).forEach(salesmanCode => {
               const docRef = doc(collection(db, 'dashboard_metrics'), salesmanCode);
@@ -608,6 +608,19 @@ const DataUpload: React.FC = () => {
               }, { merge: true });
             });
             await cmlBatch.commit();
+
+            // Also merge cml_count into the 'all' doc so the Sales page can read it
+            const allDocSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
+            const existingAll = allDocSnap.exists() ? allDocSnap.data() : {};
+            const updatedAll: Record<string, any> = {};
+            Object.keys(cmlCounts).forEach(salesmanCode => {
+              updatedAll[salesmanCode] = {
+                ...(existingAll[salesmanCode] || {}),
+                cml_count: cmlCounts[salesmanCode]
+              };
+            });
+            await setDoc(doc(db, 'dashboard_metrics', 'all'), updatedAll, { merge: true });
+            await setDoc(doc(db, 'settings', 'global'), { lastDataUpload: Date.now() }, { merge: true });
             
             // Save Chunks
             setProgress({ step: 'Saving Customer Chunks...', current: 50, total: 100 });
