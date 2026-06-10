@@ -47,11 +47,20 @@ const Ageing: React.FC = () => {
 
     if (sortKey && sortDir !== 'none') {
       result = [...result].sort((a, b) => {
-        const av = a[sortKey as keyof AgeingRow];
-        const bv = b[sortKey as keyof AgeingRow];
+        let av = a[sortKey as keyof AgeingRow];
+        let bv = b[sortKey as keyof AgeingRow];
         let cmp = 0;
-        if (typeof av === 'number' && typeof bv === 'number') cmp = av - bv;
-        else cmp = String(av || '').localeCompare(String(bv || ''));
+
+        if (sortKey === 'days_to_go') {
+          const aVal = av === 'Expired' ? -1 : Number(av);
+          const bVal = bv === 'Expired' ? -1 : Number(bv);
+          cmp = aVal - bVal;
+        } else if (typeof av === 'number' && typeof bv === 'number') {
+          cmp = av - bv;
+        } else {
+          cmp = String(av || '').localeCompare(String(bv || ''));
+        }
+        
         return sortDir === 'asc' ? cmp : -cmp;
       });
     }
@@ -201,12 +210,12 @@ const Ageing: React.FC = () => {
                     <td style={{ padding: '10px 14px', maxWidth: '220px' }}>{row.item_description}</td>
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>{row.ads.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>{row.production_date}</td>
-                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: row.days_to_go <= 30 ? 'var(--accent-danger)' : row.days_to_go <= 60 ? '#fb923c' : 'inherit' }}>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: row.days_to_go === 'Expired' ? 'var(--accent-danger)' : (row.days_to_go as number) <= 30 ? 'var(--accent-danger)' : (row.days_to_go as number) <= 60 ? '#fb923c' : 'inherit' }}>
                       {row.expiry_date}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600 }}>{row.qty.toLocaleString()}</td>
                     <td style={{ padding: '10px 14px' }}>{row.uom}</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: row.days_to_go <= 0 ? 'var(--accent-danger)' : row.days_to_go <= 30 ? '#fb923c' : 'var(--accent-success)' }}>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: row.days_to_go === 'Expired' ? 'var(--accent-danger)' : (row.days_to_go as number) <= 30 ? '#fb923c' : 'var(--accent-success)' }}>
                       {row.days_to_go}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>

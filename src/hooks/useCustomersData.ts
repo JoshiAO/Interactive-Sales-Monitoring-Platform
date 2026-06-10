@@ -43,8 +43,9 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         if (cachedTeamRef && cachedRefUpload === lastReferenceUpload) {
           teamSnapDocs = cachedTeamRef;
         } else {
-          const teamSnap = await getDocs(collection(db, 'reference_team_service'));
-          teamSnapDocs = teamSnap.docs.map(d => d.data());
+          const teamSnap = await getDoc(doc(db, 'reference_team_service', 'all'));
+          const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
+          teamSnapDocs = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
           await set(teamCacheKey, teamSnapDocs);
           await set('customers_lastReferenceUpload', lastReferenceUpload);
         }

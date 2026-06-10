@@ -43,8 +43,9 @@ export const useNpdPromoData = (selectedTeam: string = 'all') => {
         }
 
         // Fetch team reference for role-based filtering
-        const teamSnap = await getDocs(collection(db, 'reference_team_service'));
-        const teamData = teamSnap.docs.map(d => d.data());
+        const teamSnap = await getDoc(doc(db, 'reference_team_service', 'all'));
+        const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
+        const teamData = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
 
         let allowedSalesmen = new Set<string>();
         if (role === 'salesman' && salesmanId) {

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { useUsersCache } from './useUsersCache';
 
 export interface SalesmanInfo {
   code: string;
@@ -10,11 +11,12 @@ export interface SalesmanInfo {
 
 export const useSalesmenList = (selectedTeam: string = 'all') => {
   const { currentUser, role } = useAuth();
+  const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
   const [salesmen, setSalesmen] = useState<SalesmanInfo[]>([]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || usersLoading) return;
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -23,11 +25,16 @@ export const useSalesmenList = (selectedTeam: string = 'all') => {
         const salesmanId = userData?.salesmanId;
         const team = userData?.team;
 
-        const [teamSnap, metricsSnap, usersSnap] = await Promise.all([
-          getDocs(collection(db, 'reference_team_service')),
-          getDocs(collection(db, 'dashboard_metrics')),
-          getDocs(collection(db, 'users'))
+        const [teamSnap, metricsSnap] = await Promise.all([
+          getDoc(doc(db, 'reference_team_service', 'all')),
+          getDoc(doc(db, 'dashboard_metrics', 'all'))
         ]);
+
+        const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
+        const teamData = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
+
+        const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
+        const metricsData = Object.keys(metricsRaw).map(k => ({ id: k, ...metricsRaw[k] }));
 
         let allowedSalesmen = new Set<string>();
 
@@ -35,14 +42,13 @@ export const useSalesmenList = (selectedTeam: string = 'all') => {
           allowedSalesmen.add(String(salesmanId));
         } else if (role === 'supervisor' && team) {
           const supervisorTeams = team.split(',').map((t: string) => t.trim());
-          teamSnap.forEach(d => {
-            if (supervisorTeams.includes(d.data().team)) allowedSalesmen.add(String(d.data().salesman_code));
+          teamData.forEach(d => {
+            if (supervisorTeams.includes(d.team)) allowedSalesmen.add(String(d.salesman_code));
           });
         } else if (role === 'manager' || role === 'admin') {
-          teamSnap.forEach(d => {
-            const row = d.data();
-            if (selectedTeam === 'all' || row.team === selectedTeam) {
-              allowedSalesmen.add(String(row.salesman_code));
+          teamData.forEach(d => {
+            if (selectedTeam === 'all' || d.team === selectedTeam) {
+              allowedSalesmen.add(String(d.salesman_code));
             }
           });
         }
@@ -50,16 +56,14 @@ export const useSalesmenList = (selectedTeam: string = 'all') => {
         const nameMap: Record<string, string> = {};
         
         // Try to get names from users
-        usersSnap.forEach(d => {
-          const u = d.data();
+        usersCache.forEach(u => {
           if (u.salesmanId && u.name) {
             nameMap[String(u.salesmanId)] = u.name;
           }
         });
 
         // Fallback to metrics
-        metricsSnap.forEach(d => {
-          const m = d.data();
+        metricsData.forEach(m => {
           if (m.salesman_code && m.salesman_name && !nameMap[m.salesman_code]) {
             nameMap[String(m.salesman_code)] = m.salesman_name;
           }
@@ -81,7 +85,7 @@ export const useSalesmenList = (selectedTeam: string = 'all') => {
     };
     
     fetchData();
-  }, [currentUser, role, selectedTeam]);
+  }, [currentUser, role, selectedTeam, usersLoading]);
 
   return { loading, salesmen };
 };

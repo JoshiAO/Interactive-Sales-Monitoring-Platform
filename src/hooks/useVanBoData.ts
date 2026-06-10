@@ -3,6 +3,7 @@ import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { get, set } from 'idb-keyval';
+import { useUsersCache } from './useUsersCache';
 
 export interface VanBoItem {
   date: string;
@@ -30,6 +31,7 @@ export interface BoHistoryPoint {
 
 export const useVanBoData = () => {
   const { currentUser } = useAuth();
+  const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<VanBoItem[]>([]);
   const [history, setHistory] = useState<BoHistoryPoint[]>([]);
@@ -38,7 +40,7 @@ export const useVanBoData = () => {
   const [totalQty, setTotalQty] = useState(0);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || usersLoading) return;
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -55,14 +57,6 @@ export const useVanBoData = () => {
         if (cachedData && cachedUpload === lastVanBoUpload) {
           parsedItems = cachedData;
         } else {
-          // Fetch user names for salesman lookup
-          const usersSnap = await getDocs(collection(db, 'users'));
-          const userNames: Record<string, string> = {};
-          usersSnap.forEach(d => {
-            const u = d.data();
-            if (u.salesmanId && u.name) userNames[String(u.salesmanId)] = u.name;
-          });
-
           const snap = await getDocs(collection(db, 'van_bo_data'));
           snap.forEach(d => {
             const r = d.data();
@@ -82,11 +76,9 @@ export const useVanBoData = () => {
           await set('van_bo_lastUpload', lastVanBoUpload);
         }
 
-        // Fetch user names separately for van card display
-        const usersSnap2 = await getDocs(collection(db, 'users'));
+        // Fetch user names for van card display
         const userNames2: Record<string, string> = {};
-        usersSnap2.forEach(d => {
-          const u = d.data();
+        usersCache.forEach(u => {
           if (u.salesmanId && u.name) userNames2[String(u.salesmanId)] = u.name;
         });
 
@@ -132,7 +124,7 @@ export const useVanBoData = () => {
       }
     };
     fetchData();
-  }, [currentUser]);
+  }, [currentUser, usersLoading]);
 
   return { loading, items, history, categories, vans, totalQty };
 };

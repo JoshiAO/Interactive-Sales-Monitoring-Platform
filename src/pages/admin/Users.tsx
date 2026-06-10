@@ -80,6 +80,7 @@ const Users: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this user? (Note: Auth deletion requires Cloud Functions. This only removes the database record.)')) {
       await deleteDoc(doc(db, 'users', id));
+      await setDoc(doc(db, 'settings', 'global'), { lastUserUpdate: Date.now() }, { merge: true });
     }
   };
 
@@ -146,6 +147,7 @@ const Users: React.FC = () => {
           supervisor: formData.role === 'salesman' ? (formData.supervisor || '-') : '-'
         });
       }
+      await setDoc(doc(db, 'settings', 'global'), { lastUserUpdate: Date.now() }, { merge: true });
       setIsModalOpen(false);
     } catch (err: any) {
       alert("Error: " + err.message);
@@ -168,6 +170,7 @@ const Users: React.FC = () => {
       const url = await getDownloadURL(storageRef);
       const urlWithCacheBuster = `${url}&t=${Date.now()}`;
       await updateDoc(doc(db, 'users', userId), { photoURL: urlWithCacheBuster });
+      await setDoc(doc(db, 'settings', 'global'), { lastUserUpdate: Date.now() }, { merge: true });
     } catch (err: any) {
       alert("Upload failed: " + err.message);
     } finally {
@@ -221,6 +224,9 @@ const Users: React.FC = () => {
         });
         await Promise.all(updates);
         alert(`Successfully fixed ${count} users with missing roles.`);
+        if (count > 0) {
+          await setDoc(doc(db, 'settings', 'global'), { lastUserUpdate: Date.now() }, { merge: true });
+        }
       } catch (err: any) {
         alert("Error fixing roles: " + err.message);
       } finally {

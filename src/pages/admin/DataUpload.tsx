@@ -237,7 +237,7 @@ const DataUpload: React.FC = () => {
             await chunkBatch.commit();
 
             setProgress({ step: 'Saving Aggregated Dashboards...', current: 80, total: 100 });
-            const metricsBatch = writeBatch(db);
+            const allMetricsDoc: Record<string, any> = {};
             Object.keys(metrics).forEach(salesmanCode => {
               const m = metrics[salesmanCode];
               const finalVd30: Record<string, number> = {};
@@ -276,8 +276,7 @@ const DataUpload: React.FC = () => {
                 }
               });
 
-              const docRef = doc(collection(db, 'dashboard_metrics'), salesmanCode);
-              metricsBatch.set(docRef, {
+              allMetricsDoc[salesmanCode] = {
                 salesman_code: m.salesman_code,
                 salesman_name: m.salesman_name,
                 mtd_net_value: m.mtd_net_value,
@@ -292,9 +291,10 @@ const DataUpload: React.FC = () => {
                 town: m.town,
                 frequency: { f1, f2, f3, f4 },
                 last_updated: new Date().toISOString()
-              }, { merge: true });
+              };
             });
-            await metricsBatch.commit();
+
+            await setDoc(doc(db, 'dashboard_metrics', 'all'), allMetricsDoc, { merge: true });
             
             // Save COB Date globally
             await setDoc(doc(db, 'settings', 'global'), { cobDate, lastDataUpload: Date.now() }, { merge: true });
@@ -304,9 +304,9 @@ const DataUpload: React.FC = () => {
             try {
               // 1. Fetch all necessary data
               const [metricsSnap, sttSnap, vd30Snap, usersSnap, settingsSnap] = await Promise.all([
-                getDocs(collection(db, 'dashboard_metrics')),
-                getDocs(collection(db, 'salesman_targets')),
-                getDocs(collection(db, 'vd30_targets')),
+                getDoc(doc(db, 'dashboard_metrics', 'all')),
+                getDoc(doc(db, 'salesman_targets', 'all')),
+                getDoc(doc(db, 'vd30_targets', 'all')),
                 getDocs(collection(db, 'users')),
                 getDoc(doc(db, 'settings', 'performance_panel'))
               ]);
@@ -322,25 +322,29 @@ const DataUpload: React.FC = () => {
 
               // Map targets
               const targetsMap: Record<string, { target: number, ubaTarget: number, vd30TargetMap: Record<string, number> }> = {};
-              sttSnap.forEach((t: any) => {
-                 const d = t.data();
-                 targetsMap[t.id] = { target: parseFloat(d.stt_target) || 0, ubaTarget: parseFloat(d['uba target']) || 0, vd30TargetMap: {} };
+              const sttRaw = sttSnap.exists() ? sttSnap.data() : {};
+              Object.keys(sttRaw).forEach(k => {
+                 const d = sttRaw[k];
+                 targetsMap[k] = { target: parseFloat(d.stt_target) || 0, ubaTarget: parseFloat(d['uba target']) || 0, vd30TargetMap: {} };
               });
-              vd30Snap.forEach((t: any) => {
-                 const d = t.data();
-                 if (!targetsMap[t.id]) targetsMap[t.id] = { target: 0, ubaTarget: 0, vd30TargetMap: {} };
-                 Object.keys(d).forEach(k => {
-                   if (k.startsWith('F')) {
-                     targetsMap[t.id].vd30TargetMap[k] = parseFloat(d[k]) || 0;
+              
+              const vd30Raw = vd30Snap.exists() ? vd30Snap.data() : {};
+              Object.keys(vd30Raw).forEach(k => {
+                 const d = vd30Raw[k];
+                 if (!targetsMap[k]) targetsMap[k] = { target: 0, ubaTarget: 0, vd30TargetMap: {} };
+                 Object.keys(d).forEach(field => {
+                   if (field.startsWith('F')) {
+                     targetsMap[k].vd30TargetMap[field] = parseFloat(d[field]) || 0;
                    }
                  });
               });
 
               // Map metrics and calculate VD30 hits
               const salesmenRankingData: any[] = [];
-              metricsSnap.forEach((m: any) => {
-                 const d = m.data();
-                 const sId = m.id;
+              const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
+              
+              Object.keys(metricsRaw).forEach(sId => {
+                 const d = metricsRaw[sId];
                  const type = userTypes[sId];
                  if (!type) return; // EXCLUDE UNASSIGNED
 
@@ -348,11 +352,11 @@ const DataUpload: React.FC = () => {
                  
                  let vd30HitCount = 0;
                  let vd30TargetCount = 0;
-                 Object.keys(targetInfo.vd30TargetMap).forEach(k => {
-                    const tgt = targetInfo.vd30TargetMap[k];
+                 Object.keys(targetInfo.vd30TargetMap).forEach(field => {
+                    const tgt = targetInfo.vd30TargetMap[field];
                     if (tgt > 0) {
                       vd30TargetCount++;
-                      const act = (d.vd30_placements && d.vd30_placements[k]) || 0;
+                      const act = (d.vd30_placements && d.vd30_placements[field]) || 0;
                       if (act >= tgt) vd30HitCount++;
                     }
                  });
@@ -722,39 +726,43 @@ const DataUpload: React.FC = () => {
 
           // === RAW DATA UPLOAD (legacy reference types) ===
           else if (!['Net Invoiced', 'CML (Customer Master List)'].includes(category)) {
-            const BATCH_SIZE = 450;
-            for (let i = 0; i < json.length; i += BATCH_SIZE) {
-              const batch = writeBatch(db);
-              const chunk = json.slice(i, i + BATCH_SIZE);
+            let collName = 'reference_general';
+            if (category === 'VD30 Target') collName = 'vd30_targets';
+            if (category === 'STT & UBA Target') collName = 'salesman_targets';
+            if (category === 'Team & Service Model Reference') collName = 'reference_team_service';
+            if (category === 'Item Category Reference') collName = 'reference_categories';
+            if (category === 'Channel Reference') collName = 'reference_channels';
+            if (category === 'VD30 Items Reference') collName = 'reference_vd30';
+            if (category === 'Geo Hierarchy Reference') collName = 'reference_geo';
+            if (category === 'Customer Class') collName = 'reference_customer_classes';
+            if (category === 'NPD & Promo Pack Items') collName = 'npd_promopack_items';
 
-              chunk.forEach((row: any) => {
+            const useAllDoc = ['vd30_targets', 'salesman_targets', 'reference_team_service', 'reference_vd30', 'reference_categories', 'reference_channels', 'reference_geo'].includes(collName);
+
+            if (useAllDoc) {
+              const allDocData: Record<string, any> = {};
+              json.forEach((row: any) => {
                 const cleanRow = JSON.parse(JSON.stringify(row));
-
-                if (category === 'VD30 Target' || category === 'STT & UBA Target' || category === 'Team & Service Model Reference') {
-                  const salesmanCode = cleanRow['salesman_code'];
-                  if (salesmanCode) {
-                    const safeId = String(salesmanCode).replace(/[^a-zA-Z0-9_]/g, '');
-                    let collName = 'reference_general';
-                    if (category === 'VD30 Target') collName = 'vd30_targets';
-                    if (category === 'STT & UBA Target') collName = 'salesman_targets';
-                    if (category === 'Team & Service Model Reference') collName = 'reference_team_service';
-                    batch.set(doc(collection(db, collName), safeId), cleanRow, { merge: true });
-                  }
-                } else {
-                  const safeId = String(cleanRow['code'] || cleanRow['product_code'] || cleanRow['Product Code'] || cleanRow['vd30_code'] || Math.random()).replace(/[^a-zA-Z0-9_]/g, '');
-                  let collName = 'reference_general';
-                  if (category === 'Item Category Reference') collName = 'reference_categories';
-                  if (category === 'Channel Reference') collName = 'reference_channels';
-                  if (category === 'VD30 Items Reference') collName = 'reference_vd30';
-                  if (category === 'Geo Hierarchy Reference') collName = 'reference_geo';
-                  if (category === 'Customer Class') collName = 'reference_customer_classes';
-                  if (category === 'NPD & Promo Pack Items') collName = 'npd_promopack_items';
-                  batch.set(doc(collection(db, collName), safeId), cleanRow, { merge: true });
-                }
+                const safeId = String(cleanRow['salesman_code'] || cleanRow['code'] || cleanRow['product_code'] || cleanRow['Product Code'] || cleanRow['vd30_code'] || Math.random()).replace(/[^a-zA-Z0-9_]/g, '');
+                allDocData[safeId] = cleanRow;
               });
+              await setDoc(doc(db, collName, 'all'), allDocData, { merge: true });
+              setProgress({ step: 'Uploading Raw Data to Firestore...', current: json.length, total: json.length });
+            } else {
+              const BATCH_SIZE = 450;
+              for (let i = 0; i < json.length; i += BATCH_SIZE) {
+                const batch = writeBatch(db);
+                const chunk = json.slice(i, i + BATCH_SIZE);
 
-              await batch.commit();
-              setProgress({ step: 'Uploading Raw Data to Firestore...', current: Math.min(i + BATCH_SIZE, json.length), total: json.length });
+                chunk.forEach((row: any) => {
+                  const cleanRow = JSON.parse(JSON.stringify(row));
+                  const safeId = String(cleanRow['salesman_code'] || cleanRow['code'] || cleanRow['product_code'] || cleanRow['Product Code'] || cleanRow['vd30_code'] || Math.random()).replace(/[^a-zA-Z0-9_]/g, '');
+                  batch.set(doc(collection(db, collName), safeId), cleanRow, { merge: true });
+                });
+
+                await batch.commit();
+                setProgress({ step: 'Uploading Raw Data to Firestore...', current: Math.min(i + BATCH_SIZE, json.length), total: json.length });
+              }
             }
             await setDoc(doc(db, 'settings', 'global'), { lastReferenceUpload: Date.now() }, { merge: true });
           }

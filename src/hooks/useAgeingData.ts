@@ -14,7 +14,7 @@ export interface AgeingRow {
   expiry_date: string;
   qty: number;
   uom: string;
-  days_to_go: number;
+  days_to_go: number | string;
   idl: string | number;
 }
 
@@ -72,6 +72,25 @@ export const useAgeingData = () => {
                 return String(val);
               };
 
+              const expiryDateStr = formatExcelDate(getValue(['expiry_date', 'expirydate', 'expdate']));
+              
+              let daysToGo: number | string = 0;
+              if (expiryDateStr) {
+                const expiry = new Date(expiryDateStr);
+                const now = new Date();
+                now.setHours(0,0,0,0);
+                expiry.setHours(0,0,0,0);
+                const diffTime = expiry.getTime() - now.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                daysToGo = diffDays;
+              } else {
+                daysToGo = parseFloat(getValue(['days_to_go', 'daystogo', 'days']) || 0);
+              }
+
+              if (typeof daysToGo === 'number' && daysToGo <= 0) {
+                daysToGo = 'Expired';
+              }
+
               allRows.push({
                 branch: getValue(['branch']),
                 category: getValue(['category']),
@@ -79,10 +98,10 @@ export const useAgeingData = () => {
                 item_description: getValue(['item_description', 'itemdescription', 'description', 'productdescription']),
                 ads: parseFloat(getValue(['ads']) || 0),
                 production_date: formatExcelDate(getValue(['production_date', 'productiondate', 'proddate', 'mfgdate'])),
-                expiry_date: formatExcelDate(getValue(['expiry_date', 'expirydate', 'expdate'])),
+                expiry_date: expiryDateStr,
                 qty: parseFloat(getValue(['qty', 'quantity']) || 0),
                 uom: getValue(['uom', 'unit']),
-                days_to_go: parseFloat(getValue(['days_to_go', 'daystogo', 'days']) || 0),
+                days_to_go: daysToGo,
                 idl: getValue(['idl'])
               });
             });

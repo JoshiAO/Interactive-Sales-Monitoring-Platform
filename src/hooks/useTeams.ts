@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -12,12 +12,14 @@ export const useTeams = () => {
 
     const fetchTeams = async () => {
       try {
-        const snap = await getDocs(collection(db, 'reference_team_service'));
+        const snap = await getDoc(doc(db, 'reference_team_service', 'all'));
         const uniqueTeams = new Set<string>();
-        snap.forEach(d => {
-          const t = d.data().team;
-          if (t) uniqueTeams.add(t);
-        });
+        if (snap.exists()) {
+          const data = snap.data();
+          Object.values(data).forEach((d: any) => {
+            if (d.team) uniqueTeams.add(d.team);
+          });
+        }
         setTeams(Array.from(uniqueTeams).sort());
       } catch (error) {
         console.error("Error fetching teams:", error);

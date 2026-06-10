@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { get, set } from 'idb-keyval';
+import { useUsersCache } from './useUsersCache';
 
 interface DashboardData {
   target: number;
@@ -27,6 +28,7 @@ interface DashboardData {
 
 export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen: boolean | 'team' = false) => {
   const { currentUser, role } = useAuth();
+  const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData>({
     target: 0,
@@ -49,7 +51,7 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
   });
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || usersLoading) return;
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -84,8 +86,9 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         if (cachedMetrics && cachedMetricsUpload === lastDataUpload) {
           metricsData = cachedMetrics;
         } else {
-          const metricsSnap = await getDocs(collection(db, 'dashboard_metrics'));
-          metricsData = metricsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const metricsSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
+          const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
+          metricsData = Object.keys(metricsRaw).map(k => ({ id: k, ...metricsRaw[k] }));
           await set(metricsCacheKey, metricsData);
           await set('dashboard_lastDataUpload', lastDataUpload);
         }
@@ -98,32 +101,35 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
           refVd30Data = cachedReference.refVd30Data;
         } else {
           const [sttSnap, vd30Snap, teamSnap, refVd30Snap] = await Promise.all([
-            getDocs(collection(db, 'salesman_targets')),
-            getDocs(collection(db, 'vd30_targets')),
-            getDocs(collection(db, 'reference_team_service')),
-            getDocs(collection(db, 'reference_vd30'))
+            getDoc(doc(db, 'salesman_targets', 'all')),
+            getDoc(doc(db, 'vd30_targets', 'all')),
+            getDoc(doc(db, 'reference_team_service', 'all')),
+            getDoc(doc(db, 'reference_vd30', 'all'))
           ]);
 
-          sttData = sttSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-          vd30Data = vd30Snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          teamData = teamSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-          refVd30Data = refVd30Snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const sttRaw = sttSnap.exists() ? sttSnap.data() : {};
+          sttData = Object.keys(sttRaw).map(k => ({ id: k, ...sttRaw[k] }));
+          
+          const vd30Raw = vd30Snap.exists() ? vd30Snap.data() : {};
+          vd30Data = Object.keys(vd30Raw).map(k => ({ id: k, ...vd30Raw[k] }));
+          
+          const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
+          teamData = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
+          
+          const refVd30Raw = refVd30Snap.exists() ? refVd30Snap.data() : {};
+          refVd30Data = Object.keys(refVd30Raw).map(k => ({ id: k, ...refVd30Raw[k] }));
 
           await set(referenceCacheKey, { sttData, vd30Data, teamData, refVd30Data });
           await set('dashboard_lastReferenceUpload', lastReferenceUpload);
         }
 
-        // Fetch non-cached data (Users and Settings can change independently)
-        const [settingsSnap, usersSnap] = await Promise.all([
-          getDoc(doc(db, 'settings', 'performance_panel')),
-          getDocs(collection(db, 'users'))
-        ]);
+        // Fetch non-cached data
+        const settingsSnap = await getDoc(doc(db, 'settings', 'performance_panel'));
         
         const userAvatars: Record<string, string> = {};
         const userNames: Record<string, string> = {};
         const userTypes: Record<string, string> = {};
-        usersSnap.forEach(d => {
-          const u = d.data();
+        usersCache.forEach(u => {
           if (u.salesmanId) {
             userAvatars[String(u.salesmanId)] = u.photoURL || '';
             if (u.name) userNames[String(u.salesmanId)] = u.name;

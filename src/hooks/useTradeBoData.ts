@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { useUsersCache } from './useUsersCache';
 
 export interface TradeSalesman {
   code: string;
@@ -29,13 +30,14 @@ export interface TradeCustomer {
 
 export const useTradeBoData = (selectedTeam: string = 'all') => {
   const { currentUser, role } = useAuth();
+  const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
   const [salesmen, setSalesmen] = useState<TradeSalesman[]>([]);
   const [history, setHistory] = useState<TradeBoHistoryPoint[]>([]);
   const [totalBsr, setTotalBsr] = useState(0);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || usersLoading) return;
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -49,8 +51,10 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
         const cobDate = globalData?.cobDate || new Date().toISOString().split('T')[0];
 
         // Build allowed salesmen set
-        const teamSnap = await getDocs(collection(db, 'reference_team_service'));
-        const teamRows = teamSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+        const teamSnap = await getDoc(doc(db, 'reference_team_service', 'all'));
+        const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
+        const teamRows = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
+        
         const teamByCode: Record<string, string> = {};
         teamRows.forEach(row => { teamByCode[String(row.salesman_code)] = row.team; });
 
@@ -71,12 +75,10 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
         }
 
         // Fetch user info (avatars, names, types)
-        const usersSnap = await getDocs(collection(db, 'users'));
         const userAvatars: Record<string, string> = {};
         const userNames: Record<string, string> = {};
         const userTypes: Record<string, string> = {};
-        usersSnap.forEach(d => {
-          const u = d.data();
+        usersCache.forEach(u => {
           if (u.salesmanId) {
             userAvatars[String(u.salesmanId)] = u.photoURL || '';
             if (u.name) userNames[String(u.salesmanId)] = u.name;
@@ -85,12 +87,13 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
         });
 
         // Fetch metrics (BSR + STT)
-        const metricsSnap = await getDocs(collection(db, 'dashboard_metrics'));
+        const metricsSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
+        const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
         const salesmenList: TradeSalesman[] = [];
         let bsrTotal = 0;
-        metricsSnap.forEach(d => {
-          const m = d.data();
-          const code = d.id;
+        
+        Object.keys(metricsRaw).forEach(code => {
+          const m = metricsRaw[code];
           if (!allowedSalesmen.has(code)) return;
           const bsr = m.bsr || 0;
           bsrTotal += bsr;
@@ -104,6 +107,7 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
             type: userTypes[code] || ''
           });
         });
+        
         salesmenList.sort((a, b) => b.bsr - a.bsr);
 
         // Fetch trade BO history for current month
@@ -130,7 +134,7 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
       }
     };
     fetchData();
-  }, [currentUser, role, selectedTeam]);
+  }, [currentUser, role, selectedTeam, usersLoading]);
 
   return { loading, salesmen, history, totalBsr };
 };

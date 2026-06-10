@@ -307,10 +307,10 @@ const NpdPromoPacks: React.FC = () => {
                         <div style={{ fontWeight: 500 }}>{s.name}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{s.code}</div>
                       </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: s.stt < 1 && s.uba === 0 ? '#ef4444' : 'var(--accent-primary)', fontWeight: 600 }}>
                         {formatCurrency(s.stt)}
                       </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--accent-success)', fontWeight: 600 }}>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: s.stt < 1 && s.uba === 0 ? '#ef4444' : 'var(--accent-success)', fontWeight: 600 }}>
                         {s.uba.toLocaleString()}
                       </td>
                     </tr>
@@ -394,10 +394,10 @@ const NpdPromoPacks: React.FC = () => {
                             <div style={{ fontWeight: 500 }}>{c.name}</div>
                             <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{c.code}</div>
                           </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', color: c.stt < 1 && c.uba === 0 ? '#ef4444' : 'var(--accent-primary)', fontWeight: 600 }}>
                             {formatCurrency(c.stt)}
                           </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--accent-success)', fontWeight: 600 }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', color: c.stt < 1 && c.uba === 0 ? '#ef4444' : 'var(--accent-success)', fontWeight: 600 }}>
                             {c.uba.toLocaleString()}
                           </td>
                         </tr>
