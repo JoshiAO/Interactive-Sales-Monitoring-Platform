@@ -23,6 +23,7 @@ type UserData = {
   companyCode: string;
   photoURL: string;
   supervisor: string;
+  branch?: string;
 };
 
 const Users: React.FC = () => {
@@ -47,10 +48,10 @@ const Users: React.FC = () => {
 
   // Form State
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', confirmPassword: '', role: 'salesman', team: '', salesmanType: 'Ex-Truck', salesmanId: '', supervisor: ''
+    name: '', email: '', password: '', confirmPassword: '', role: 'salesman', team: '', salesmanType: 'Ex-Truck', salesmanId: '', supervisor: '', branch: ''
   });
 
-  const roles = ['admin', 'manager', 'supervisor', 'salesman'];
+  const roles = ['admin', 'manager', 'supervisor', 'salesman', 'warehouse_supervisor'];
   const availableSupervisors = users.filter(u => u.role === 'supervisor');
 
   useEffect(() => {
@@ -68,7 +69,8 @@ const Users: React.FC = () => {
           salesmanType: u.salesmanType || '-',
           companyCode: u.companyCode || '-',
           photoURL: u.photoURL || '',
-          supervisor: u.supervisor || '-'
+          supervisor: u.supervisor || '-',
+          branch: u.branch || ''
         });
       });
       setUsers(data);
@@ -95,14 +97,15 @@ const Users: React.FC = () => {
       team: user.team === '-' ? '' : user.team,
       salesmanId: user.salesmanId === '-' ? '' : user.salesmanId,
       salesmanType: user.salesmanType === '-' ? 'Ex-Truck' : user.salesmanType,
-      supervisor: user.supervisor === '-' ? '' : user.supervisor
+      supervisor: user.supervisor === '-' ? '' : user.supervisor,
+      branch: user.branch || ''
     });
     setIsModalOpen(true);
   };
 
   const handleCreate = () => {
     setEditingUser(null);
-    setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'salesman', team: '', salesmanType: 'Ex-Truck', salesmanId: '', supervisor: '' });
+    setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'salesman', team: '', salesmanType: 'Ex-Truck', salesmanId: '', supervisor: '', branch: '' });
     setIsModalOpen(true);
   };
 
@@ -132,6 +135,7 @@ const Users: React.FC = () => {
             salesmanType: formData.salesmanType || '-',
             companyCode: companyCode || '-',
             supervisor: formData.role === 'salesman' ? (formData.supervisor || '-') : '-',
+            branch: formData.role === 'warehouse_supervisor' ? (formData.branch || '') : '',
             photoURL: ''
           });
         } finally {
@@ -144,7 +148,8 @@ const Users: React.FC = () => {
           team: (formData.role === 'salesman' || formData.role === 'supervisor') ? (formData.team || '-') : '-',
           salesmanId: formData.salesmanId || '-',
           salesmanType: formData.salesmanType || '-',
-          supervisor: formData.role === 'salesman' ? (formData.supervisor || '-') : '-'
+          supervisor: formData.role === 'salesman' ? (formData.supervisor || '-') : '-',
+          branch: formData.role === 'warehouse_supervisor' ? (formData.branch || '') : ''
         });
       }
       await setDoc(doc(db, 'settings', 'global'), { lastUserUpdate: Date.now() }, { merge: true });
@@ -269,7 +274,7 @@ const Users: React.FC = () => {
             <div key={role}>
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '8px', gap: '16px' }}>
                 <h3 style={{ textTransform: 'capitalize', margin: 0, color: 'var(--text-muted)' }}>
-                  {role}s ({role === 'salesman' && selectedTeamFilter !== 'All Teams' ? roleUsers.filter(u => u.team === selectedTeamFilter).length : roleUsers.length})
+                  {role === 'salesman' ? 'Salesmen' : role === 'warehouse_supervisor' ? 'Warehouse Supervisors' : `${role}s`} ({role === 'salesman' && selectedTeamFilter !== 'All Teams' ? roleUsers.filter(u => u.team === selectedTeamFilter).length : roleUsers.length})
                 </h3>
                 {role === 'salesman' && availableTeams.length > 0 && (
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -368,6 +373,12 @@ const Users: React.FC = () => {
                           </div>
                         </>
                       )}
+                      {role === 'warehouse_supervisor' && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Branch:</span>
+                          <span>{user.branch}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div style={{ marginTop: 'auto', display: 'flex', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
@@ -417,6 +428,7 @@ const Users: React.FC = () => {
               <option value="manager">Manager</option>
               <option value="supervisor">Supervisor</option>
               <option value="salesman">Salesman</option>
+              <option value="warehouse_supervisor">Warehouse Supervisor</option>
             </select>
           </div>
 
@@ -475,6 +487,13 @@ const Users: React.FC = () => {
                   ))}
                 </select>
               )}
+            </div>
+          )}
+
+          {formData.role === 'warehouse_supervisor' && (
+            <div>
+              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Branch</label>
+              <input type="text" value={formData.branch} onChange={e => setFormData({...formData, branch: e.target.value.toUpperCase()})} placeholder="e.g. KEA, KNE" style={{ width: '100%', textTransform: 'uppercase' }} className="input-field" />
             </div>
           )}
           

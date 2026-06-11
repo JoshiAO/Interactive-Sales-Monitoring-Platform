@@ -34,30 +34,35 @@ const Layout: React.FC = () => {
   const navLinks = (
     <nav style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', paddingRight: '4px', paddingBottom: '8px' }}>
-        <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-          <LayoutDashboard size={18} /> Home
-        </NavLink>
-        <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/sales" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-          <ShoppingCart size={18} /> Sales
-        </NavLink>
-        <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/vd30" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-          <Target size={18} /> VD30
-        </NavLink>
-        <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/customers" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-          <Users size={18} /> Customers
-        </NavLink>
-
-        <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/npd" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-          <Package size={18} /> NPD & Promo
-        </NavLink>
+        {role !== 'warehouse_supervisor' && (
+          <>
+            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+              <LayoutDashboard size={18} /> Home
+            </NavLink>
+            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/sales" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+              <ShoppingCart size={18} /> Sales
+            </NavLink>
+            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/vd30" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+              <Target size={18} /> VD30
+            </NavLink>
+            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/customers" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+              <Users size={18} /> Customers
+            </NavLink>
+            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/npd" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+              <Package size={18} /> NPD & Promo
+            </NavLink>
+          </>
+        )}
         {role !== 'salesman' && (
           <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/ageing" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
             <Clock size={18} /> Ageing
           </NavLink>
         )}
-        <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/bo" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-          <AlertTriangle size={18} /> B.O.
-        </NavLink>
+        {role !== 'warehouse_supervisor' && (
+          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/bo" className="btn" style={({isActive}) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+            <AlertTriangle size={18} /> B.O.
+          </NavLink>
+        )}
       </div>
       
       {role === 'admin' && (
@@ -106,7 +111,9 @@ const Layout: React.FC = () => {
               </div>
               <div>
                 {name && <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{name}</div>}
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>Role: {role || 'Guest'}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                  Role: {role === 'warehouse_supervisor' ? 'Warehouse Supervisor' : role || 'Guest'}
+                </div>
                 {cobDate && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>COB Date: <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>{cobDate}</span></div>}
               </div>
             </div>
@@ -144,7 +151,7 @@ const Layout: React.FC = () => {
             <div>
               {name && <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{name}</div>}
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
-                Role: {role || 'Guest'}
+                Role: {role === 'warehouse_supervisor' ? 'Warehouse Supervisor' : role || 'Guest'}
               </div>
               {cobDate && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>COB Date: <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>{cobDate}</span></div>}
             </div>

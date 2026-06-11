@@ -5,7 +5,7 @@ import { Target, TrendingUp, DollarSign, Activity, Loader2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { useTeams } from '../../hooks/useTeams';
-
+import { Navigate } from 'react-router-dom';
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 const Home: React.FC = () => {
@@ -13,6 +13,10 @@ const Home: React.FC = () => {
   const availableTeams = useTeams();
   const [selectedTeam, setSelectedTeam] = useState('all');
   const { loading, data } = useDashboardData(selectedTeam);
+
+  if (role === 'warehouse_supervisor') {
+    return <Navigate to="/ageing" replace />;
+  }
   
   if (loading && data.salesmen.length === 0) {
     return (

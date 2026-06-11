@@ -4,21 +4,28 @@ import * as XLSX from 'xlsx';
 import { collection, writeBatch, doc, getDocs, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 
-const uploadCategories = [
-  'Net Invoiced',
-  'CML (Customer Master List)',
-  'STT & UBA Target',
-  'VD30 Target',
-  'Item Category Reference',
-  'Channel Reference',
-  'VD30 Items Reference',
-  'Geo Hierarchy Reference',
-  'Team & Service Model Reference',
-  'NPD & Promo Pack Items',
-  'Ageing Report',
-  'Warehouse B.O.',
-  'Van B.O.',
-  'Pricelist'
+const uploadGroups = [
+  {
+    name: 'Transactional Data',
+    items: ['Net Invoiced', 'Ageing Report', 'Warehouse B.O.', 'Van B.O.', 'CML (Customer Master List)']
+  },
+  {
+    name: 'Targets',
+    items: ['STT & UBA Target', 'VD30 Target']
+  },
+  {
+    name: 'References',
+    items: [
+      'Item Masterlist', 
+      'Channel Reference', 
+      'VD30 Items Reference', 
+      'Geo Hierarchy Reference', 
+      'Team & Service Model Reference', 
+      'NPD & Promo Pack Items', 
+      'Pricelist',
+      'Product ADS Reference'
+    ]
+  }
 ];
 
 interface AggregatedMetrics {
@@ -72,7 +79,7 @@ const DATE_PICKER_CATEGORIES = ['Net Invoiced', 'Ageing Report', 'Warehouse B.O.
 
 const DataUpload: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string>(uploadCategories[0]);
+  const [activeCategory, setActiveCategory] = useState<string>(uploadGroups[0].items[0]);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<{ step: string; current: number; total: number } | null>(null);
   const [success, setSuccess] = useState(false);
@@ -854,6 +861,66 @@ const DataUpload: React.FC = () => {
             }
             await setDoc(doc(db, 'settings', 'global'), { lastPricelistUpload: Date.now() }, { merge: true });
           }
+          else if (category === 'Product ADS Reference') {
+            setProgress({ step: 'Uploading Product ADS Reference...', current: 0, total: 100 });
+            const compactMap: Record<string, [string, number]> = {};
+            json.forEach((row: any) => {
+              // Custom getValue wrapper for robustness
+              const getValueP = (possibleKeys: string[]) => {
+                const rowKeys = Object.keys(row);
+                for (const k of possibleKeys) {
+                  const normalizedK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  const match = rowKeys.find(rk => rk.toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedK);
+                  if (match && row[match] !== undefined && row[match] !== null) return row[match];
+                }
+                return '';
+              };
+
+              const code = String(getValueP(['product_code', 'Product Code', 'Item Code', 'itemcode', 'item_code']) || '').trim();
+              const desc = String(getValueP(['product_description', 'Product Description', 'Description', 'Item Description']) || '').trim();
+              
+              const branchAds: Record<string, number> = {};
+              let hasAnyAds = false;
+
+              Object.keys(row).forEach(k => {
+                const lowerK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                // Exclude known identifier columns
+                if (!['productcode', 'productdescription', 'description', 'itemcode', 'itemdescription'].includes(lowerK)) {
+                  const val = parseFloat(row[k]);
+                  if (!isNaN(val) && val > 0) {
+                     branchAds[k.trim().toUpperCase()] = val;
+                     hasAnyAds = true;
+                  }
+                }
+              });
+              
+              if (code) {
+                // Store either the branch map, or fallback to 0 if none found
+                compactMap[code] = [desc, hasAnyAds ? branchAds : 0];
+              }
+            });
+            // Store highly compactly as a single JSON string
+            await setDoc(doc(db, 'reference_ads', 'all'), { data: JSON.stringify(compactMap) });
+            await setDoc(doc(db, 'settings', 'global'), { lastReferenceUpload: Date.now() }, { merge: true });
+          }
+
+          // === ITEM MASTERLIST ===
+          else if (category === 'Item Masterlist') {
+            const masterMap: Record<string, [string, string]> = {};
+            json.forEach((row: any) => {
+              const cleanRow = JSON.parse(JSON.stringify(row));
+              const code = String(cleanRow['product_code'] || cleanRow['Product Code'] || cleanRow['Item Code'] || '').trim();
+              const desc = String(cleanRow['product_description'] || cleanRow['Description'] || cleanRow['Item Description'] || '').trim();
+              const cat = String(cleanRow['category'] || cleanRow['Category'] || cleanRow['CATEGORY'] || '').trim();
+              
+              if (code) {
+                masterMap[code] = [desc, cat];
+              }
+            });
+            // Store highly compactly as a single JSON string
+            await setDoc(doc(db, 'reference_masterlist', 'all'), { data: JSON.stringify(masterMap) });
+            await setDoc(doc(db, 'settings', 'global'), { lastReferenceUpload: Date.now() }, { merge: true });
+          }
 
           // === RAW DATA UPLOAD (legacy reference types) ===
           else if (!['Net Invoiced', 'CML (Customer Master List)'].includes(category)) {
@@ -861,14 +928,13 @@ const DataUpload: React.FC = () => {
             if (category === 'VD30 Target') collName = 'vd30_targets';
             if (category === 'STT & UBA Target') collName = 'salesman_targets';
             if (category === 'Team & Service Model Reference') collName = 'reference_team_service';
-            if (category === 'Item Category Reference') collName = 'reference_categories';
             if (category === 'Channel Reference') collName = 'reference_channels';
             if (category === 'VD30 Items Reference') collName = 'reference_vd30';
             if (category === 'Geo Hierarchy Reference') collName = 'reference_geo';
             if (category === 'Customer Class') collName = 'reference_customer_classes';
             if (category === 'NPD & Promo Pack Items') collName = 'npd_promopack_items';
 
-            const useAllDoc = ['vd30_targets', 'salesman_targets', 'reference_team_service', 'reference_vd30', 'reference_categories', 'reference_channels', 'reference_geo'].includes(collName);
+            const useAllDoc = ['vd30_targets', 'salesman_targets', 'reference_team_service', 'reference_vd30', 'reference_channels', 'reference_geo'].includes(collName);
 
             if (useAllDoc) {
               const allDocData: Record<string, any> = {};
@@ -939,21 +1005,30 @@ const DataUpload: React.FC = () => {
         <div className="glass-panel" style={{ width: '300px', flexShrink: 0 }}>
           <h3 style={{ marginBottom: '16px', fontSize: '16px' }}>Data Categories</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {uploadCategories.map(cat => (
-              <button 
-                key={cat}
-                onClick={() => { setActiveCategory(cat); setSuccess(false); setError(''); }}
-                className="btn"
-                style={{ 
-                  justifyContent: 'flex-start', 
-                  backgroundColor: activeCategory === cat ? 'var(--bg-panel-hover)' : 'transparent',
-                  color: activeCategory === cat ? 'var(--accent-primary)' : 'var(--text-main)',
-                  border: activeCategory === cat ? '1px solid var(--border)' : '1px solid transparent'
-                }}
-              >
-                <FileSpreadsheet size={16} />
-                {cat}
-              </button>
+            {uploadGroups.map(group => (
+              <div key={group.name} style={{ marginBottom: '8px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', paddingLeft: '12px', marginBottom: '4px', fontWeight: 600 }}>{group.name}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {group.items.map(cat => (
+                    <button 
+                      key={cat}
+                      onClick={() => { setActiveCategory(cat); setSuccess(false); setError(''); }}
+                      className="btn"
+                      style={{ 
+                        justifyContent: 'flex-start', 
+                        backgroundColor: activeCategory === cat ? 'var(--bg-panel-hover)' : 'transparent',
+                        color: activeCategory === cat ? 'var(--accent-primary)' : 'var(--text-main)',
+                        border: activeCategory === cat ? '1px solid var(--border)' : '1px solid transparent',
+                        padding: '6px 12px',
+                        fontSize: '13px'
+                      }}
+                    >
+                      <FileSpreadsheet size={16} style={{ flexShrink: 0 }} />
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>

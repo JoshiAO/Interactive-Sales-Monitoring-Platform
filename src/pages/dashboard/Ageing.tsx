@@ -1,6 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Loader2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Search, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Edit2, Trash2, Plus, Upload, X, Download } from 'lucide-react';
 import { useAgeingData, type AgeingRow } from '../../hooks/useAgeingData';
+import { useAuth } from '../../contexts/AuthContext';
+import AgeingItemModal from '../../components/ageing/AgeingItemModal';
+import { collection, writeBatch, doc, getDocs, setDoc } from 'firebase/firestore';
+import { db } from '../../firebase/config';
+import * as XLSX from 'xlsx';
 
 type SortKey = keyof AgeingRow | '';
 type SortDir = 'asc' | 'desc' | 'none';
@@ -22,7 +27,8 @@ const COLUMNS: Array<{ key: keyof AgeingRow; label: string; align?: 'right' }> =
 const PAGE_SIZE = 50;
 
 const Ageing: React.FC = () => {
-  const { loading, rows, reportDate } = useAgeingData();
+  const { role } = useAuth();
+  const { loading, rows, reportDate, refresh } = useAgeingData();
   const [search, setSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -30,13 +36,36 @@ const Ageing: React.FC = () => {
   const [sortDir, setSortDir] = useState<SortDir>('none');
   const [page, setPage] = useState(1);
 
+  // Local Edits State
+  const [localRows, setLocalRows] = useState<AgeingRow[]>([]);
+  const [hasEdits, setHasEdits] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<{row: AgeingRow, originalIndex: number} | null>(null);
+
+  React.useEffect(() => {
+    if (!hasEdits) {
+      setLocalRows(rows);
+    }
+  }, [rows, hasEdits]);
+
   const branches = useMemo(() =>
-    Array.from(new Set(rows.map(r => r.branch).filter(Boolean))).sort(), [rows]);
+    Array.from(new Set(localRows.map(r => r.branch).filter(Boolean))).sort(), [localRows]);
   const categories = useMemo(() =>
-    Array.from(new Set(rows.map(r => r.category).filter(Boolean))).sort(), [rows]);
+    Array.from(new Set(localRows.map(r => r.category).filter(Boolean))).sort(), [localRows]);
+  const itemCategoryMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    localRows.forEach(r => {
+      if (r.item_code && r.category) {
+        map[r.item_code] = r.category;
+      }
+    });
+    return map;
+  }, [localRows]);
 
   const filtered = useMemo(() => {
-    let result = rows.filter(r => {
+    // Map with original index so we can accurately edit/delete
+    let result = localRows.map((row, index) => ({ row, index })).filter(({ row: r }) => {
       const matchSearch =
         r.item_code?.toLowerCase().includes(search.toLowerCase()) ||
         r.item_description?.toLowerCase().includes(search.toLowerCase());
@@ -46,9 +75,9 @@ const Ageing: React.FC = () => {
     });
 
     if (sortKey && sortDir !== 'none') {
-      result = [...result].sort((a, b) => {
-        let av = a[sortKey as keyof AgeingRow];
-        let bv = b[sortKey as keyof AgeingRow];
+      result = [...result].sort((aObj, bObj) => {
+        let av = aObj.row[sortKey as keyof AgeingRow];
+        let bv = bObj.row[sortKey as keyof AgeingRow];
         let cmp = 0;
 
         if (sortKey === 'days_to_go') {
@@ -65,7 +94,7 @@ const Ageing: React.FC = () => {
       });
     }
     return result;
-  }, [rows, search, branchFilter, categoryFilter, sortKey, sortDir]);
+  }, [localRows, search, branchFilter, categoryFilter, sortKey, sortDir]);
 
   const paged = useMemo(() => filtered.slice(0, page * PAGE_SIZE), [filtered, page]);
 
@@ -120,6 +149,78 @@ const Ageing: React.FC = () => {
     </div>
   );
 
+  const handleDelete = (index: number) => {
+    const newRows = [...localRows];
+    newRows.splice(index, 1);
+    setLocalRows(newRows);
+    setHasEdits(true);
+  };
+
+  const handleSaveModal = (item: AgeingRow) => {
+    const newRows = [...localRows];
+    const editedItem = { ...item, _is_new_or_edited: true };
+    if (editingItem) {
+      newRows[editingItem.originalIndex] = editedItem;
+    } else {
+      newRows.unshift(editedItem); // Add to top
+    }
+    setLocalRows(newRows);
+    setHasEdits(true);
+    setIsModalOpen(false);
+    setEditingItem(null);
+  };
+
+  const handleUploadEdits = async () => {
+    if (!hasEdits) return;
+    setUploading(true);
+    try {
+      const snapshot = await getDocs(collection(db, 'ageing_data'));
+      const batch = writeBatch(db);
+      snapshot.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+
+      const CHUNK_SIZE = 2000;
+      for (let i = 0; i < localRows.length; i += CHUNK_SIZE) {
+        // Strip out temporary UI flags before saving to database
+        const chunk = localRows.slice(i, i + CHUNK_SIZE).map(({ _is_new_or_edited, ...rest }) => rest);
+        const chunkIndex = Math.floor(i / CHUNK_SIZE);
+        await setDoc(doc(collection(db, 'ageing_data'), `chunk_${chunkIndex}`), { rows: JSON.stringify(chunk) });
+      }
+      await setDoc(doc(db, 'settings', 'global'), { lastAgeingUpload: Date.now() }, { merge: true });
+      await refresh();
+      setHasEdits(false);
+      alert('Edits uploaded successfully.');
+    } catch (err) {
+      console.error('Error uploading ageing edits:', err);
+      alert('Failed to upload edits.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleExport = () => {
+    const exportData = localRows.map(r => ({
+      branch: r.branch,
+      category: r.category,
+      item_code: r.item_code,
+      item_description: r.item_description,
+      ads: r.ads,
+      production_date: r.production_date,
+      expiry_date: r.expiry_date,
+      qty: r.qty,
+      uom: r.uom,
+      days_to_go: r.days_to_go,
+      idl: r.idl
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Ageing Report");
+    XLSX.writeFile(wb, `Ageing_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const canEdit = role === 'admin' || role === 'warehouse_supervisor';
+
   return (
     <div className="animate-fade-in">
       {/* Header */}
@@ -133,26 +234,53 @@ const Ageing: React.FC = () => {
             </p>
           )}
         </div>
-        <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '6px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: '16px', border: '1px solid var(--border)' }}>
-          Showing <strong style={{ color: 'var(--text-main)' }}>{filtered.length.toLocaleString()}</strong> rows
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '6px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span>Showing <strong style={{ color: 'var(--text-main)' }}>{filtered.length.toLocaleString()}</strong> rows</span>
+            <button onClick={handleExport} style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }} title="Export to Excel">
+              <Download size={14} />
+            </button>
+          </div>
+          {hasEdits && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => { setLocalRows(rows); setHasEdits(false); }} className="btn" style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)' }}>
+                <X size={14} style={{ marginRight: '4px' }} /> Revert Edits
+              </button>
+              <button onClick={handleUploadEdits} disabled={uploading} className="btn" style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--accent-primary)', color: 'white', border: 'none' }}>
+                {uploading ? <Loader2 size={14} className="animate-spin" style={{ marginRight: '4px' }} /> : <Upload size={14} style={{ marginRight: '4px' }} />}
+                Upload Edits
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters & Actions */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-        <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
-          <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input
-            type="text"
-            placeholder="Search by item code or description..."
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            style={{
-              width: '100%', padding: '10px 12px 10px 36px', boxSizing: 'border-box',
-              background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)',
-              borderRadius: '8px', color: 'white', fontSize: '14px'
-            }}
-          />
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '250px', maxWidth: '400px' }}>
+            <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              placeholder="Search by item code or description..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+              style={{
+                width: '100%', padding: '10px 12px 10px 36px', boxSizing: 'border-box',
+                background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)',
+                borderRadius: '8px', color: 'white', fontSize: '14px'
+              }}
+            />
+          </div>
+          {canEdit && (
+            <button 
+              onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
+              className="btn btn-primary" 
+              style={{ padding: '10px 16px' }}
+            >
+              <Plus size={16} style={{ marginRight: '6px' }} /> Add Item
+            </button>
+          )}
         </div>
         
         {branches.length > 0 && (
@@ -192,17 +320,20 @@ const Ageing: React.FC = () => {
                       </span>
                     </th>
                   ))}
+                  {canEdit && <th style={{ padding: '12px 14px', textAlign: 'right', position: 'sticky', top: 0, background: 'rgba(15, 23, 42, 0.95)' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
-                {paged.map((row, idx) => (
+                {paged.map(({row, index}) => (
                   <tr
-                    key={idx}
+                    key={index}
                     style={{
                       borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
-                      transition: 'background 0.15s'
+                      backgroundColor: row._is_new_or_edited ? 'rgba(59, 130, 246, 0.1)' : index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
+                      transition: 'background 0.15s',
+                      boxShadow: row._is_new_or_edited ? 'inset 4px 0 0 var(--accent-primary)' : 'none'
                     }}
+                    title={row._is_new_or_edited ? "Pending Upload" : ""}
                   >
                     <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>{row.branch}</td>
                     <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>{row.category}</td>
@@ -221,10 +352,20 @@ const Ageing: React.FC = () => {
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                       {typeof row.idl === 'number' ? row.idl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : !isNaN(parseFloat(String(row.idl))) ? parseFloat(String(row.idl)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : row.idl}
                     </td>
+                    {canEdit && (
+                      <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button onClick={() => { setEditingItem({row, originalIndex: index}); setIsModalOpen(true); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }} title="Edit">
+                          <Edit2 size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(index)} style={{ background: 'none', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '4px', marginLeft: '4px' }} title="Delete">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {paged.length === 0 && (
-                  <tr><td colSpan={11} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <tr><td colSpan={canEdit ? 12 : 11} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     No data found. Upload an Ageing Report in the Data page.
                   </td></tr>
                 )}
@@ -245,6 +386,17 @@ const Ageing: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+      {isModalOpen && (
+        <AgeingItemModal
+          initialData={editingItem?.row}
+          existingBranches={branches}
+          existingCategories={categories}
+          itemCategoryMap={itemCategoryMap}
+          onClose={() => { setIsModalOpen(false); setEditingItem(null); }}
+          onSave={handleSaveModal}
+        />
       )}
     </div>
   );

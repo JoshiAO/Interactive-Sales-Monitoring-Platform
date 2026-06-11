@@ -3,7 +3,7 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 
-export type UserRole = 'admin' | 'manager' | 'supervisor' | 'salesman' | null;
+export type UserRole = 'admin' | 'manager' | 'supervisor' | 'salesman' | 'warehouse_supervisor' | null;
 
 interface AuthContextType {
   currentUser: User | null;
@@ -12,6 +12,7 @@ interface AuthContextType {
   name: string | null;
   photoURL: string | null;
   salesmanId: string | null;
+  branch: string | null;
   loading: boolean;
 }
 
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   name: null,
   photoURL: null,
   salesmanId: null,
+  branch: null,
   loading: true,
 });
 
@@ -34,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [name, setName] = useState<string | null>(null);
   const [photoURL, setPhotoURL] = useState<string | null>(null);
   const [salesmanId, setSalesmanId] = useState<string | null>(null);
+  const [branch, setBranch] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,6 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setName(data.name || user.displayName || null);
             setPhotoURL(data.photoURL || user.photoURL || null);
             setSalesmanId(data.salesmanId || null);
+            setBranch(data.branch || null);
           } else {
             // Fallback to custom claims
             const tokenResult = await user.getIdTokenResult();
@@ -58,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setName(user.displayName || null);
             setPhotoURL(user.photoURL || null);
             setSalesmanId(null);
+            setBranch(null);
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -81,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, role, companyCode, name, photoURL, salesmanId, loading }}>
+    <AuthContext.Provider value={{ currentUser, role, companyCode, name, photoURL, salesmanId, branch, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

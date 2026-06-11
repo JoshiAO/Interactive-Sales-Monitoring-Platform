@@ -13,9 +13,23 @@ service cloud.firestore {
       return isAuthenticated() && (request.auth.token.role == 'admin' || getUserRole() == 'admin');
     }
 
+    function isWarehouseSupervisor() {
+      return isAuthenticated() && (request.auth.token.role == 'warehouse_supervisor' || getUserRole() == 'warehouse_supervisor');
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+    
+    match /ageing_data/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isWarehouseSupervisor();
+    }
+
+    match /settings/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isWarehouseSupervisor();
     }
     
     match /{document=**} {
