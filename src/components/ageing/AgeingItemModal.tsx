@@ -182,7 +182,7 @@ const AgeingItemModal: React.FC<AgeingItemModalProps> = ({ onClose, onSave, init
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div>
+            <div style={{ position: 'relative' }}>
               <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>Branch</label>
               <div
                 className="input-field"
@@ -222,7 +222,7 @@ const AgeingItemModal: React.FC<AgeingItemModalProps> = ({ onClose, onSave, init
                 {role !== 'warehouse_supervisor' && <ChevronDown size={16} color="var(--text-muted)" />}
               </div>
               {showBranchDropdown && filteredBranches.length > 0 && (
-                <div style={{ position: 'absolute', background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '8px', zIndex: 50, marginTop: '4px', maxHeight: '200px', overflowY: 'auto' }}>
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '8px', zIndex: 50, marginTop: '4px', maxHeight: '200px', overflowY: 'auto' }}>
                   {filteredBranches.map(b => (
                     <div
                       key={b}
