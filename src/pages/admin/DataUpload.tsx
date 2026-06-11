@@ -863,7 +863,7 @@ const DataUpload: React.FC = () => {
           }
           else if (category === 'Product ADS Reference') {
             setProgress({ step: 'Uploading Product ADS Reference...', current: 0, total: 100 });
-            const compactMap: Record<string, [string, number]> = {};
+            const compactMap: Record<string, [string, number | Record<string, number>]> = {};
             json.forEach((row: any) => {
               // Custom getValue wrapper for robustness
               const getValueP = (possibleKeys: string[]) => {
