@@ -16,6 +16,8 @@ export interface AgeingRow {
   uom: string;
   days_to_go: number | string;
   idl: string | number;
+  timestamp?: string;
+  source?: string;
   _is_new_or_edited?: boolean;
 }
 
@@ -34,7 +36,7 @@ export const useAgeingData = () => {
       const ageingDate = globalData?.ageingReportDate || '';
       setReportDate(ageingDate);
 
-      const cacheKey = 'ageing_data_cache_v3';
+      const cacheKey = 'ageing_data_cache_v4';
       const cachedData = await get(cacheKey);
       const cachedUpload = await get('ageing_lastUpload');
       const recalculateDaysToGo = (items: AgeingRow[]) => {
@@ -119,7 +121,9 @@ export const useAgeingData = () => {
               qty: parseFloat(getValue(['qty', 'quantity']) || 0),
               uom: getValue(['uom', 'unit']),
               days_to_go: daysToGo,
-              idl: getValue(['idl'])
+              idl: getValue(['idl']),
+              timestamp: r.timestamp || '',
+              source: r.source || ''
             });
           });
         }

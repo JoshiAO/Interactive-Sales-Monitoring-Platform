@@ -685,7 +685,12 @@ const DataUpload: React.FC = () => {
             // Write new data in chunks of 200 rows per doc
             const CHUNK_SIZE = 200;
             for (let i = 0; i < json.length; i += CHUNK_SIZE) {
-              const chunk = json.slice(i, i + CHUNK_SIZE).map((r: any) => JSON.parse(JSON.stringify(r)));
+              const chunk = json.slice(i, i + CHUNK_SIZE).map((r: any) => {
+                const parsed = JSON.parse(JSON.stringify(r));
+                parsed.timestamp = cobDate;
+                parsed.source = 'System';
+                return parsed;
+              });
               const chunkIndex = Math.floor(i / CHUNK_SIZE);
               await setDoc(doc(collection(db, 'ageing_data'), `chunk_${chunkIndex}`), { rows: JSON.stringify(chunk) });
               setProgress({ step: 'Uploading Ageing data...', current: Math.min(i + CHUNK_SIZE, json.length), total: json.length });

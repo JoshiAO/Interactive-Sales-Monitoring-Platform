@@ -21,7 +21,8 @@ const COLUMNS: Array<{ key: keyof AgeingRow; label: string; align?: 'right' }> =
   { key: 'qty', label: 'Qty', align: 'right' },
   { key: 'uom', label: 'UOM' },
   { key: 'days_to_go', label: 'Days to Go', align: 'right' },
-  { key: 'idl', label: 'IDL' }
+  { key: 'idl', label: 'IDL', align: 'right' },
+  { key: 'timestamp', label: 'Timestamp' }
 ];
 
 const PAGE_SIZE = 50;
@@ -158,7 +159,8 @@ const Ageing: React.FC = () => {
 
   const handleSaveModal = (item: AgeingRow) => {
     const newRows = [...localRows];
-    const editedItem = { ...item, _is_new_or_edited: true };
+    // Use the current date if the item is edited
+    const editedItem = { ...item, timestamp: new Date().toISOString().split('T')[0], source: 'Manual', _is_new_or_edited: true };
     if (editingItem) {
       newRows[editingItem.originalIndex] = editedItem;
     } else {
@@ -210,7 +212,9 @@ const Ageing: React.FC = () => {
       qty: r.qty,
       uom: r.uom,
       days_to_go: r.days_to_go,
-      idl: r.idl
+      idl: r.idl,
+      timestamp: r.timestamp || '-',
+      source: r.source || '-'
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -352,6 +356,24 @@ const Ageing: React.FC = () => {
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                       {typeof row.idl === 'number' ? row.idl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : !isNaN(parseFloat(String(row.idl))) ? parseFloat(String(row.idl)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : row.idl}
                     </td>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{row.timestamp || '-'}</span>
+                        {row.source && (
+                          <span style={{ 
+                            fontSize: '9px', 
+                            padding: '2px 6px', 
+                            borderRadius: '12px', 
+                            background: row.source === 'System' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                            color: row.source === 'System' ? '#10b981' : '#f59e0b',
+                            textTransform: 'uppercase',
+                            fontWeight: 600
+                          }}>
+                            {row.source}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     {canEdit && (
                       <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button onClick={() => { setEditingItem({row, originalIndex: index}); setIsModalOpen(true); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }} title="Edit">
@@ -365,7 +387,7 @@ const Ageing: React.FC = () => {
                   </tr>
                 ))}
                 {paged.length === 0 && (
-                  <tr><td colSpan={canEdit ? 12 : 11} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <tr><td colSpan={canEdit ? 13 : 12} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     No data found. Upload an Ageing Report in the Data page.
                   </td></tr>
                 )}
