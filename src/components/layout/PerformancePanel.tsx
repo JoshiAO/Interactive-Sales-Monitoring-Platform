@@ -31,6 +31,10 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
   const excludedHouseAccounts = data.excludedSalesmen || [];
   const excludedVd30Accounts = data.excludedVd30Salesmen || [];
 
+  const today = new Date();
+  const date = today.getDate();
+  const currentWeek = Math.min(Math.ceil(date / 7), 5);
+
   const eligibleSalesmen = [...data.salesmen]
     .filter(s => {
       if (activeTab === 'VD30') {
@@ -41,10 +45,6 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
         if (activeTab === 'UBA' && (!s.uba || s.uba <= 0)) return false;
         if (excludedHouseAccounts.includes(s.id)) return false;
       }
-
-      const today = new Date();
-      const date = today.getDate();
-      const currentWeek = Math.min(Math.ceil(date / 7), 5);
 
       const supervisor = usersCache.find(u => u.role === 'supervisor' && u.team && u.team.includes(s.team));
       const commitments = (supervisor && data.weeklyCommitments) ? data.weeklyCommitments[supervisor.uid] : null;
@@ -71,18 +71,15 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
         isApproved = weekData.status === 'approved';
       }
 
-      if (!isApproved) {
-        return false;
-      }
-
       const sttPct = (s.mtdSales / (s.target || 1)) * 100;
       const ubaPct = (s.uba / (s.ubaTarget || 1)) * 100;
       const vd30Pct = (s.vd30 / (s.vd30Target || 1)) * 100;
-
       const actualPct = activeTab === 'STT' ? sttPct : activeTab === 'UBA' ? ubaPct : vd30Pct;
 
-      if (actualPct < teamCommitment) {
-        return false;
+      if (activeTab === 'STT') {
+        if (!isApproved || actualPct < teamCommitment) {
+          return false;
+        }
       }
 
       if (commitments && commitments[activeTab.toLowerCase()]) {
@@ -226,7 +223,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px', boxSizing: 'border-box' }}>
               {(displayExTruck.length === 0 && displayBooking.length === 0) && (
                 <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--border)' }}>
-                  No eligible salesmen found.
+                  No eligible salesmen found. (Salesmen: {data.salesmen.length}, Users: {usersCache.length}, W: {currentWeek}, C: {Object.keys(data.weeklyCommitments || {}).length})
                 </div>
               )}
 
