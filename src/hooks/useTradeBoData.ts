@@ -10,6 +10,7 @@ export interface TradeSalesman {
   photoURL: string;
   stt: number;
   bsr: number;
+  gsr: number;
   team: string;
   type: string;
 }
@@ -29,7 +30,7 @@ export interface TradeCustomer {
 }
 
 export const useTradeBoData = (selectedTeam: string = 'all') => {
-  const { currentUser, role } = useAuth();
+  const { currentUser, role, salesmanId, team } = useAuth();
   const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
   const [salesmen, setSalesmen] = useState<TradeSalesman[]>([]);
@@ -41,17 +42,16 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        const userData = userDoc.exists() ? userDoc.data() : null;
-        const salesmanId = userData?.salesmanId;
-        const team = userData?.team;
+        const [globalDoc, teamSnap, metricsSnap] = await Promise.all([
+          getDoc(doc(db, 'settings', 'global')),
+          getDoc(doc(db, 'reference_team_service', 'all')),
+          getDoc(doc(db, 'dashboard_metrics', 'all'))
+        ]);
 
-        const globalDoc = await getDoc(doc(db, 'settings', 'global'));
         const globalData = globalDoc.exists() ? globalDoc.data() : null;
         const cobDate = globalData?.cobDate || new Date().toISOString().split('T')[0];
 
         // Build allowed salesmen set
-        const teamSnap = await getDoc(doc(db, 'reference_team_service', 'all'));
         const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
         const teamRows = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
         
@@ -87,7 +87,6 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
         });
 
         // Fetch metrics (BSR + STT)
-        const metricsSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
         const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
         const salesmenList: TradeSalesman[] = [];
         let bsrTotal = 0;
@@ -103,6 +102,7 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
             photoURL: userAvatars[code] || '',
             stt: m.mtd_net_value || 0,
             bsr,
+            gsr: m.gsr || 0,
             team: teamByCode[code] || '',
             type: userTypes[code] || ''
           });

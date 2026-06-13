@@ -10,7 +10,7 @@ export interface SalesmanInfo {
 }
 
 export const useSalesmenList = (selectedTeam: string = 'all') => {
-  const { currentUser, role } = useAuth();
+  const { currentUser, role, salesmanId, team } = useAuth();
   const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
   const [salesmen, setSalesmen] = useState<SalesmanInfo[]>([]);
@@ -20,11 +20,6 @@ export const useSalesmenList = (selectedTeam: string = 'all') => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        const userData = userDoc.exists() ? userDoc.data() : null;
-        const salesmanId = userData?.salesmanId;
-        const team = userData?.team;
-
         const [teamSnap, metricsSnap] = await Promise.all([
           getDoc(doc(db, 'reference_team_service', 'all')),
           getDoc(doc(db, 'dashboard_metrics', 'all'))

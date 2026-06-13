@@ -337,3 +337,37 @@ textarea:focus {
     padding-top: calc(16px + 60px) !important;
   }
 }
+
+@media (min-width: 1025px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .mobile-blur {
+    filter: blur(8px);
+    pointer-events: none;
+    user-select: none;
+    opacity: 0.6;
+  }
+}
+
+/* Announcement Marquee */
+.marquee-container {
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.marquee-content {
+  padding-left: 100%;
+  animation: marquee 25s linear infinite;
+  white-space: nowrap;
+}
+
+@keyframes marquee {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(-100%, 0); }
+}

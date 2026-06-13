@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card } from '../../components/ui/Card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Target, TrendingUp, DollarSign, Activity, Loader2 } from 'lucide-react';
+import { Target, TrendingUp, PhilippinePeso, Activity, Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { useTeams } from '../../hooks/useTeams';
@@ -93,7 +93,12 @@ const Home: React.FC = () => {
         marginBottom: '32px' 
       }}>
         <Card title="Target" value={formatCurrency(data.target)} icon={<Target size={20} />} subtitle="Monthly Goal" />
-        <Card title="MTD Sales" value={formatCurrency(data.mtdSales)} icon={<DollarSign size={20} />} subtitle="Current Month" />
+        <Card title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            MTD Sales
+            <span style={{ color: 'var(--text-main)', fontSize: '13px' }}>{data.target > 0 ? ((data.mtdSales / data.target) * 100).toFixed(1) + '%' : '0.0%'}</span>
+          </span>
+        } value={formatCurrency(data.mtdSales)} icon={<PhilippinePeso size={20} />} subtitle="Current Month" />
         <Card title="Balance" value={formatCurrency(data.balance)} icon={<Activity size={20} />} subtitle="Remaining to Target" />
         <Card title="UBA" value={data.uba.toLocaleString()} icon={<TrendingUp size={20} />} subtitle="Unique Buying Accounts" />
       </div>

@@ -312,7 +312,10 @@ const BackOrder: React.FC = () => {
                   )}
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '14px' }}>{s.name}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{s.code}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', marginBottom: '4px' }}>{s.code}</div>
+                    <div style={{ display: 'inline-block', padding: '2px 6px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--accent-danger)', fontSize: '10px', fontWeight: 700 }}>
+                      {((s.stt + s.gsr + s.bsr) > 0 ? (s.bsr / (s.stt + s.gsr + s.bsr)) * 100 : 0).toFixed(2)}%
+                    </div>
                   </div>
                 </div>
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px', display: 'flex', gap: '12px' }}>
@@ -513,7 +516,12 @@ const BackOrder: React.FC = () => {
             <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Trade B.O. (BSR)</div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--accent-danger)' }}>{formatCurrency(selectedSalesman.bsr)}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--accent-danger)' }}>{formatCurrency(selectedSalesman.bsr)}</div>
+                  <div style={{ padding: '2px 8px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--accent-danger)', fontSize: '12px', fontWeight: 700 }}>
+                    {((selectedSalesman.stt + selectedSalesman.gsr + selectedSalesman.bsr) > 0 ? (selectedSalesman.bsr / (selectedSalesman.stt + selectedSalesman.gsr + selectedSalesman.bsr)) * 100 : 0).toFixed(2)}%
+                  </div>
+                </div>
               </div>
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Customers</div>

@@ -8,7 +8,7 @@ import Home from './pages/dashboard/Home';
 import Sales from './pages/dashboard/Sales';
 import VD30 from './pages/dashboard/VD30';
 import Customers from './pages/dashboard/Customers';
-import MobilePerformancePage from './pages/dashboard/MobilePerformancePage';
+import PerformancePage from './pages/dashboard/PerformancePage';
 import NpdPromoPacks from './pages/dashboard/NpdPromoPacks';
 import Ageing from './pages/dashboard/Ageing';
 import BackOrder from './pages/dashboard/BackOrder';
@@ -42,9 +42,8 @@ function AppRoutes() {
         <Route path="bo" element={<BackOrder />} />
         <Route path="data" element={<DataUpload />} />
         <Route path="users" element={<Users />} />
+        <Route path="performance" element={<PerformancePage />} />
       </Route>
-      
-      <Route path="/performance" element={<ProtectedRoute><MobilePerformancePage /></ProtectedRoute>} />
       
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

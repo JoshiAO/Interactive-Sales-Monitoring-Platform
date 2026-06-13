@@ -31,6 +31,10 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isWarehouseSupervisor();
     }
+
+    match /weekly_commitments/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
     
     match /{document=**} {
       allow read: if isAuthenticated();

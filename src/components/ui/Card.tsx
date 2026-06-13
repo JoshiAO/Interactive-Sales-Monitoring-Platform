@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface CardProps {
-  title: string;
+  title: string | React.ReactNode;
   value: string | number;
   subtitle?: string;
   icon?: React.ReactNode;

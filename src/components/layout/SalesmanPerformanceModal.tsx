@@ -6,15 +6,12 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 interface SalesmanPerformanceModalProps {
   salesman: any;
   rawAchievements?: Record<string, any>;
+  rawDailyPoints?: Record<string, any>;
   onClose: () => void;
 }
 
-const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ salesman, rawAchievements, onClose }) => {
-  // Extract unique dates from rawAchievements
-  const dates = useMemo(() => {
-    if (!rawAchievements) return [];
-    return Object.keys(rawAchievements).sort();
-  }, [rawAchievements]);
+const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ salesman, rawAchievements, rawDailyPoints, onClose }) => {
+  const weeks = [1, 2, 3, 4, 5];
 
   // Build Table Data
   const getMedalIcon = (medal: string) => {
@@ -26,20 +23,18 @@ const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ sal
 
   // Build Graph Data
   const graphData = useMemo(() => {
-    if (!rawAchievements) return [];
-    return dates.map(date => {
-      const dayData = rawAchievements[date][salesman.id];
-      if (!dayData || !dayData.metrics) {
-        return { date, STT: 0, UBA: 0, VD30: 0 };
-      }
+    if (!rawDailyPoints) return [];
+    const sortedDates = Object.keys(rawDailyPoints).sort();
+    return sortedDates.map((d, idx) => {
+      const dayData = rawDailyPoints[d]?.[salesman.id]?.metrics;
       return {
-        date,
-        STT: dayData.metrics.stt?.index || 0,
-        UBA: dayData.metrics.uba?.index || 0,
-        VD30: dayData.metrics.vd30?.index || 0,
+        day: `D${idx + 1}`,
+        STT: dayData?.stt?.index || 0,
+        UBA: dayData?.uba?.index || 0,
+        VD30: dayData?.vd30?.index || 0,
       };
     });
-  }, [rawAchievements, dates, salesman.id]);
+  }, [rawDailyPoints, salesman.id]);
 
   const metrics = [
     { key: 'stt', label: 'STT Index' },
@@ -118,10 +113,9 @@ const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ sal
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
                   <th style={{ position: 'sticky', left: 0, background: 'var(--bg-panel)', padding: '12px', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)', textAlign: 'left', zIndex: 2 }}>Metric</th>
-                  {dates.map(date => (
-                    <th key={date} style={{ padding: '12px', borderBottom: '1px solid var(--border)', minWidth: '100px' }}>{date.split('-').slice(1).join('-')}</th>
+                  {weeks.map(w => (
+                    <th key={w} style={{ padding: '12px', borderBottom: '1px solid var(--border)', minWidth: '100px' }}>W{w}</th>
                   ))}
-                  {dates.length === 0 && <th style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>No Data</th>}
                 </tr>
               </thead>
               <tbody>
@@ -130,16 +124,15 @@ const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ sal
                     <td style={{ position: 'sticky', left: 0, background: 'var(--bg-panel)', padding: '12px', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)', textAlign: 'left', fontWeight: 600, zIndex: 1 }}>
                       {metric.label}
                     </td>
-                    {dates.map(date => {
-                      const dayData = rawAchievements?.[date]?.[salesman.id];
-                      const medal = dayData?.metrics?.[metric.key]?.medal || 'none';
+                    {weeks.map(w => {
+                      const weekData = rawAchievements?.[w.toString()]?.[salesman.id];
+                      const medal = weekData?.metrics?.[metric.key]?.medal || 'none';
                       return (
-                        <td key={date} style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>
+                        <td key={w} style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>
                           {getMedalIcon(medal)}
                         </td>
                       );
                     })}
-                    {dates.length === 0 && <td style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>-</td>}
                   </tr>
                 ))}
               </tbody>
@@ -152,11 +145,11 @@ const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ sal
           <div style={{ marginBottom: '24px' }}>
             <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: 'var(--text-muted)' }}>STT Index (%)</h4>
             <div style={{ height: '200px', width: '100%', overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '16px' }}>
-              <div style={{ minWidth: dates.length > 7 ? `${dates.length * 80}px` : '100%', height: '100%' }}>
+              <div style={{ minWidth: '100%', height: '100%' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={graphData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-                    <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} tickFormatter={(val) => val.split('-').slice(1).join('-')} />
+                    <XAxis dataKey="day" stroke="var(--text-muted)" fontSize={11} />
                     <YAxis stroke="var(--text-muted)" fontSize={11} />
                     <Tooltip content={<CustomTooltip />} />
                     <Line type="monotone" dataKey="STT" stroke="#3B82F6" strokeWidth={3} dot={{ r: 4, fill: '#3B82F6' }} activeDot={{ r: 6 }} />
@@ -169,11 +162,11 @@ const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ sal
           <div style={{ marginBottom: '24px' }}>
             <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: 'var(--text-muted)' }}>UBA Index (%)</h4>
             <div style={{ height: '200px', width: '100%', overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '16px' }}>
-              <div style={{ minWidth: dates.length > 7 ? `${dates.length * 80}px` : '100%', height: '100%' }}>
+              <div style={{ minWidth: '100%', height: '100%' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={graphData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-                    <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} tickFormatter={(val) => val.split('-').slice(1).join('-')} />
+                    <XAxis dataKey="day" stroke="var(--text-muted)" fontSize={11} />
                     <YAxis stroke="var(--text-muted)" fontSize={11} />
                     <Tooltip content={<CustomTooltip />} />
                     <Line type="monotone" dataKey="UBA" stroke="#10B981" strokeWidth={3} dot={{ r: 4, fill: '#10B981' }} activeDot={{ r: 6 }} />
@@ -186,11 +179,11 @@ const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ sal
           <div style={{ marginBottom: '24px' }}>
             <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: 'var(--text-muted)' }}>VD30 Index (%)</h4>
             <div style={{ height: '200px', width: '100%', overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '16px' }}>
-              <div style={{ minWidth: dates.length > 7 ? `${dates.length * 80}px` : '100%', height: '100%' }}>
+              <div style={{ minWidth: '100%', height: '100%' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={graphData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-                    <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} tickFormatter={(val) => val.split('-').slice(1).join('-')} />
+                    <XAxis dataKey="day" stroke="var(--text-muted)" fontSize={11} />
                     <YAxis stroke="var(--text-muted)" fontSize={11} />
                     <Tooltip content={<CustomTooltip />} />
                     <Line type="monotone" dataKey="VD30" stroke="#F59E0B" strokeWidth={3} dot={{ r: 4, fill: '#F59E0B' }} activeDot={{ r: 6 }} />

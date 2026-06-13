@@ -15,7 +15,7 @@ export interface NpdPromoItem {
 }
 
 export const useNpdPromoData = (selectedTeam: string = 'all') => {
-  const { currentUser, role } = useAuth();
+  const { currentUser, role, salesmanId, team } = useAuth();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<NpdPromoItem[]>([]);
 
@@ -24,10 +24,6 @@ export const useNpdPromoData = (selectedTeam: string = 'all') => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        const userData = userDoc.exists() ? userDoc.data() : null;
-        const salesmanId = userData?.salesmanId;
-        const team = userData?.team;
 
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
         const globalData = globalDoc.exists() ? globalDoc.data() : null;

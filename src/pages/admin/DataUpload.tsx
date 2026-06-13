@@ -81,10 +81,37 @@ const DataUpload: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>(uploadGroups[0].items[0]);
   const [uploading, setUploading] = useState(false);
+  const [clearingData, setClearingData] = useState(false);
   const [progress, setProgress] = useState<{ step: string; current: number; total: number } | null>(null);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [cobDate, setCobDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [systemAnnouncement, setSystemAnnouncement] = useState('');
+  const [savingAnnouncement, setSavingAnnouncement] = useState(false);
+
+  // Fetch current announcement on mount
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      const docSnap = await getDoc(doc(db, 'settings', 'global'));
+      if (docSnap.exists() && docSnap.data().systemAnnouncement) {
+        setSystemAnnouncement(docSnap.data().systemAnnouncement);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const handleSaveAnnouncement = async () => {
+    setSavingAnnouncement(true);
+    try {
+      await setDoc(doc(db, 'settings', 'global'), { systemAnnouncement }, { merge: true });
+      alert("System announcement updated successfully!");
+    } catch (e: any) {
+      console.error(e);
+      alert("Failed to update announcement: " + e.message);
+    } finally {
+      setSavingAnnouncement(false);
+    }
+  };
 
   const processAndUpload = async (file: File, category: string) => {
     return new Promise<void>((resolve, reject) => {
@@ -998,11 +1025,87 @@ const DataUpload: React.FC = () => {
     }
   };
 
+  const handleClearTransactionalData = async () => {
+    if (!window.confirm("WARNING: Are you absolutely sure you want to clear ALL transactional data? This cannot be undone!")) return;
+    if (!window.confirm("Double checking: This will permanently delete Gamification, Sales, Customers, and B.O. data. Proceed?")) return;
+
+    setClearingData(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      const collectionsToClear = [
+        'dashboard_metrics',
+        'customer_data',
+        'warehouse_bo_data',
+        'van_bo_data',
+        'ageing_data',
+        'achievements',
+        'historical_medals',
+        'weekly_commitments',
+        'trade_bo_history',
+        'van_bo_history',
+        'warehouse_bo_history',
+        'npd_promopack_metrics'
+      ];
+
+      for (const collName of collectionsToClear) {
+        const snap = await getDocs(collection(db, collName));
+        const docs = snap.docs;
+        for (let i = 0; i < docs.length; i += 450) {
+          const chunk = docs.slice(i, i + 450);
+          const batch = writeBatch(db);
+          chunk.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+      }
+
+      await setDoc(doc(db, 'settings', 'global'), { 
+        lastDataUpload: Date.now(),
+        lastAgeingUpload: Date.now(),
+        lastWarehouseBoUpload: Date.now(),
+        lastVanBoUpload: Date.now()
+      }, { merge: true });
+
+      alert("All transactional data successfully cleared.");
+      setSuccess(true);
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to clear data: " + err.message);
+    } finally {
+      setClearingData(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       <div style={{ marginBottom: '24px' }}>
         <h2>Data Management</h2>
         <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>Upload Excel (.xlsx) files to update platform data.</p>
+      </div>
+
+      {/* System Announcement Settings */}
+      <div className="glass-panel" style={{ marginBottom: '32px', padding: '24px' }}>
+        <h3 style={{ marginBottom: '16px', fontSize: '16px', color: 'var(--accent-primary)' }}>System Announcement</h3>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+          Broadcast a global message to all users (e.g. for maintenance or data updates). Leave empty to clear the announcement.
+        </p>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <input 
+            type="text" 
+            placeholder="Type a message..."
+            value={systemAnnouncement}
+            onChange={e => setSystemAnnouncement(e.target.value)}
+            style={{ flex: 1, padding: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'white' }}
+          />
+          <button 
+            onClick={handleSaveAnnouncement}
+            className="btn btn-primary"
+            disabled={savingAnnouncement}
+          >
+            {savingAnnouncement ? 'Saving...' : 'Broadcast'}
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
@@ -1121,13 +1224,34 @@ const DataUpload: React.FC = () => {
               </div>
             )}
 
-            <button type="submit" className="btn btn-primary" disabled={!selectedFile || uploading} style={{ width: '100%' }}>
+            <button type="submit" className="btn btn-primary" disabled={!selectedFile || uploading || clearingData} style={{ width: '100%' }}>
               {uploading ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Loader2 size={18} className="animate-spin" /> Processing Data...
                 </div>
               ) : 'Upload Data'}
             </button>
+
+            {/* Danger Zone */}
+            <div style={{ marginTop: '48px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
+              <h3 style={{ color: 'var(--accent-danger)', fontSize: '16px', marginBottom: '8px' }}>Danger Zone</h3>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                Clearing transactional data will delete all Net Invoiced metrics, customer progress, gamification medals, warehouse and van B.O., and ageing data. This is useful for starting a fresh month. Reference data and Targets will NOT be deleted.
+              </p>
+              <button 
+                type="button"
+                className="btn"
+                onClick={handleClearTransactionalData}
+                disabled={clearingData || uploading}
+                style={{ width: '100%', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', justifyContent: 'center' }}
+              >
+                {clearingData ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Loader2 size={18} className="animate-spin" /> Clearing Data...
+                  </div>
+                ) : 'Clear All Transactional Data'}
+              </button>
+            </div>
           </form>
         </div>
       </div>

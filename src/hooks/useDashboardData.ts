@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
-import { get, set } from 'idb-keyval';
+import { get, set, del } from 'idb-keyval';
 import { useUsersCache } from './useUsersCache';
+import { evaluateGamification } from '../utils/evaluateGamification';
 
 interface DashboardData {
   target: number;
@@ -24,10 +25,13 @@ interface DashboardData {
   excludedVd30Salesmen: string[];
   frequency: { f1: number, f2: number, f3: number, f4: number };
   rawAchievements?: Record<string, any>;
+  rawDailyPoints?: Record<string, any>;
+  weeklyCommitments?: any;
+  historicalMedals?: any;
 }
 
 export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen: boolean | 'team' = false) => {
-  const { currentUser, role } = useAuth();
+  const { currentUser, role, salesmanId, team } = useAuth();
   const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData>({
@@ -48,6 +52,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
     excludedSalesmen: [],
     excludedVd30Salesmen: [],
     frequency: { f1: 0, f2: 0, f3: 0, f4: 0 },
+    weeklyCommitments: {},
+    historicalMedals: {}
   });
 
   useEffect(() => {
@@ -55,12 +61,6 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch user data first to get their salesmanId and team
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        const userData = userDoc.exists() ? userDoc.data() : null;
-        const salesmanId = userData?.salesmanId;
-        const team = userData?.team;
-
         // Fetch COB Date and lastUpload for cache validation
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
         const globalData = globalDoc.exists() ? globalDoc.data() : null;
@@ -70,11 +70,17 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         const metricsCacheKey = 'dashboard_metrics_cache_v2';
         const referenceCacheKey = 'dashboard_reference_cache_v2';
 
-        const cachedMetrics = await get(metricsCacheKey);
-        const cachedReference = await get(referenceCacheKey);
+        const withTimeout = <T>(promise: Promise<T>, ms: number = 1000): Promise<T | null> => {
+          return Promise.race([
+            promise,
+            new Promise<null>(resolve => setTimeout(() => resolve(null), ms))
+          ]);
+        };
 
-        const cachedMetricsUpload = await get('dashboard_lastDataUpload');
-        const cachedRefUpload = await get('dashboard_lastReferenceUpload');
+        const cachedMetrics = await withTimeout(get(metricsCacheKey));
+        const cachedReference = await withTimeout(get(referenceCacheKey));
+        const cachedMetricsUpload = await withTimeout(get('dashboard_lastDataUpload'));
+        const cachedRefUpload = await withTimeout(get('dashboard_lastReferenceUpload'));
 
         let metricsData: any[] = [];
         let sttData: any[] = [];
@@ -89,8 +95,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
           const metricsSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
           const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
           metricsData = Object.keys(metricsRaw).map(k => ({ id: k, ...metricsRaw[k] }));
-          await set(metricsCacheKey, metricsData);
-          await set('dashboard_lastDataUpload', lastDataUpload);
+          await withTimeout(set(metricsCacheKey, metricsData));
+          await withTimeout(set('dashboard_lastDataUpload', lastDataUpload));
         }
 
         // 2. Deep Cache: Targets and References (Monthly updates)
@@ -119,8 +125,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
           const refVd30Raw = refVd30Snap.exists() ? refVd30Snap.data() : {};
           refVd30Data = Object.keys(refVd30Raw).map(k => ({ id: k, ...refVd30Raw[k] }));
 
-          await set(referenceCacheKey, { sttData, vd30Data, teamData, refVd30Data });
-          await set('dashboard_lastReferenceUpload', lastReferenceUpload);
+          await withTimeout(set(referenceCacheKey, { sttData, vd30Data, teamData, refVd30Data }));
+          await withTimeout(set('dashboard_lastReferenceUpload', lastReferenceUpload));
         }
 
         // Fetch non-cached data
@@ -237,7 +243,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
             vd30: 0,
             vd30Target: 0,
             photoURL: userAvatars[m.id] || '',
-            type: userTypes[m.id] || 'Unknown'
+            type: userTypes[m.id] || 'Unknown',
+            team: teamData.find((r:any) => r.salesman_code === m.id)?.team || ''
           };
         });
 
@@ -304,30 +311,46 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
 
         const sortMap = (map: Record<string, number>) => Object.keys(map).map(k => ({ name: k, value: map[k] })).sort((a, b) => b.value - a.value);
 
-        // Fetch Daily Stacked Achievements from Firestore
+        // Fetch Weekly Achievements from Firestore
         const cobDate = globalData?.cobDate || new Date().toISOString().split('T')[0];
         const monthKey = cobDate.substring(0, 7); // e.g. "2026-06"
         const globalPointsMap: Record<string, { gold: number, silver: number, bronze: number, points: number }> = {};
-        let rawDailyAchievements: Record<string, any> = {};
+        let rawWeeklyAchievements: Record<string, any> = {};
+
+        let rawDailyPoints: Record<string, any> = {};
 
         try {
           const achDoc = await getDoc(doc(db, 'achievements', monthKey));
           if (achDoc.exists()) {
-            const dailyPoints = achDoc.data().daily_points || {};
-            rawDailyAchievements = dailyPoints;
-            // Aggregate all days for the month
-            Object.values(dailyPoints).forEach((dayMap: any) => {
-              Object.keys(dayMap).forEach(salesmanId => {
+            const weeklyMedals = achDoc.data().weekly_medals || {};
+            rawDailyPoints = achDoc.data().daily_points || {};
+            rawWeeklyAchievements = weeklyMedals;
+            // Aggregate all weeks for the month
+            Object.values(weeklyMedals).forEach((weekMap: any) => {
+              Object.keys(weekMap).forEach(salesmanId => {
                 if (!globalPointsMap[salesmanId]) globalPointsMap[salesmanId] = { gold: 0, silver: 0, bronze: 0, points: 0 };
-                globalPointsMap[salesmanId].gold += dayMap[salesmanId].gold || 0;
-                globalPointsMap[salesmanId].silver += dayMap[salesmanId].silver || 0;
-                globalPointsMap[salesmanId].bronze += dayMap[salesmanId].bronze || 0;
-                globalPointsMap[salesmanId].points += dayMap[salesmanId].points || 0;
+                globalPointsMap[salesmanId].gold += weekMap[salesmanId].gold || 0;
+                globalPointsMap[salesmanId].silver += weekMap[salesmanId].silver || 0;
+                globalPointsMap[salesmanId].bronze += weekMap[salesmanId].bronze || 0;
+                globalPointsMap[salesmanId].points += weekMap[salesmanId].points || 0;
               });
             });
           }
         } catch (err) {
           console.error("Error fetching achievements:", err);
+        }
+
+        let weeklyCommitments = {};
+        let historicalMedals = {};
+        try {
+          const [commDoc, medDoc] = await Promise.all([
+            getDoc(doc(db, 'weekly_commitments', monthKey)),
+            getDoc(doc(db, 'historical_medals', monthKey))
+          ]);
+          if (commDoc.exists()) weeklyCommitments = commDoc.data();
+          if (medDoc.exists()) historicalMedals = medDoc.data();
+        } catch (err) {
+          console.error("Error fetching gamification data:", err);
         }
 
         // Attach medals to salesmenData and save to localStorage for avatar rendering
@@ -354,7 +377,10 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
           excludedSalesmen,
           excludedVd30Salesmen,
           frequency: { f1: totalF1, f2: totalF2, f3: totalF3, f4: totalF4 },
-          rawAchievements: rawDailyAchievements
+          rawAchievements: rawWeeklyAchievements,
+          rawDailyPoints,
+          weeklyCommitments,
+          historicalMedals
         });
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
@@ -366,5 +392,22 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
     fetchData();
   }, [currentUser, role, selectedTeam, forceAllSalesmen, usersLoading]);
 
-  return { loading, data };
+  const forceEvaluateGamification = async (week: number) => {
+    if (!data.salesmen || data.salesmen.length === 0) return;
+    const monthKey = new Date().toISOString().substring(0, 7);
+    
+    // Fetch latest commitments just in time to avoid stale data issues
+    let latestCommitments = data.weeklyCommitments;
+    try {
+      const commDoc = await getDoc(doc(db, 'weekly_commitments', monthKey));
+      if (commDoc.exists()) latestCommitments = commDoc.data();
+    } catch (e) {
+      console.error(e);
+    }
+    
+    await evaluateGamification(monthKey, week, data.salesmen, latestCommitments, usersCache, true);
+    await del('dashboard_metrics_lastUpload'); // Invalidate cache to force fetch of new medals
+  };
+
+  return { loading, data, forceEvaluateGamification };
 };

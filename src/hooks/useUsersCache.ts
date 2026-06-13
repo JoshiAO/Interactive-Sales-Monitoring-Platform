@@ -29,9 +29,16 @@ export const useUsersCache = () => {
         const settingsSnap = await getDoc(doc(db, 'settings', 'global'));
         const serverLastUpdate = settingsSnap.data()?.lastUserUpdate || 0;
 
+        const withTimeout = <T>(promise: Promise<T>, ms: number = 1000): Promise<T | null> => {
+          return Promise.race([
+            promise,
+            new Promise<null>(resolve => setTimeout(() => resolve(null), ms))
+          ]);
+        };
+
         // 2. Check local IDB for cached timestamp
-        const localLastUpdate = await get('users_cache_timestamp') || 0;
-        const localUsers = await get('users_cache_data');
+        const localLastUpdate = await withTimeout(get('users_cache_timestamp')) || 0;
+        const localUsers = await withTimeout(get('users_cache_data'));
 
         if (localUsers && localLastUpdate >= serverLastUpdate) {
           // Cache is valid
@@ -50,17 +57,18 @@ export const useUsersCache = () => {
         });
 
         // 4. Save to IDB
-        await set('users_cache_data', fetchedUsers);
-        await set('users_cache_timestamp', Date.now());
+        await withTimeout(set('users_cache_data', fetchedUsers));
+        await withTimeout(set('users_cache_timestamp', Date.now()));
 
         if (mounted) {
           setUsersCache(fetchedUsers);
+        }
+      } catch (err) {
+        console.error("Error fetching users cache:", err);
+      } finally {
+        if (mounted) {
           setLoading(false);
         }
-
-      } catch (err) {
-        console.error('Error fetching users cache:', err);
-        if (mounted) setLoading(false);
       }
     };
 

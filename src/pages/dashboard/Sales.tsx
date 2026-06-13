@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card } from '../../components/ui/Card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Target, DollarSign, Activity, Users, Box, Loader2, Flag } from 'lucide-react';
+import { Target, PhilippinePeso, Activity, Users, Box, Loader2, Flag } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
@@ -81,7 +81,12 @@ const Sales: React.FC = () => {
         marginBottom: '20px' 
       }}>
         <Card title="STT Target" value={formatCurrency(data.target)} icon={<Target size={20} />} />
-        <Card title="STT (Net Value)" value={formatCurrency(data.mtdSales)} icon={<DollarSign size={20} />} />
+        <Card title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            STT (Net Value)
+            <span style={{ color: 'var(--text-main)', fontSize: '13px' }}>{data.target > 0 ? ((data.mtdSales / data.target) * 100).toFixed(1) + '%' : '0.0%'}</span>
+          </span>
+        } value={formatCurrency(data.mtdSales)} icon={<PhilippinePeso size={20} />} />
         <Card title="STT Balance" value={formatCurrency(data.balance)} icon={<Activity size={20} />} />
         <Card title="Volume" value={`${data.mtdVolume.toLocaleString(undefined, { maximumFractionDigits: 1 })} CS`} icon={<Box size={20} />} />
       </div>
@@ -201,6 +206,7 @@ const Sales: React.FC = () => {
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   STT 
                   <Flag size={12} fill={s.mtdSales >= s.target && s.target > 0 ? 'var(--accent-success)' : 'var(--accent-danger)'} color={s.mtdSales >= s.target && s.target > 0 ? 'var(--accent-success)' : 'var(--accent-danger)'} />
+                  <span style={{ fontSize: '11px', color: 'var(--text-main)' }}>{s.target > 0 ? ((s.mtdSales / s.target) * 100).toFixed(1) + '%' : '0.0%'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}><span>Actual:</span> <span style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>{formatCurrency(s.mtdSales)}</span></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}><span>Target:</span> <span>{formatCurrency(s.target)}</span></div>
@@ -211,6 +217,7 @@ const Sales: React.FC = () => {
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   UBA
                   <Flag size={12} fill={s.uba >= s.ubaTarget && s.ubaTarget > 0 ? 'var(--accent-success)' : 'var(--accent-danger)'} color={s.uba >= s.ubaTarget && s.ubaTarget > 0 ? 'var(--accent-success)' : 'var(--accent-danger)'} />
+                  <span style={{ fontSize: '11px', color: 'var(--text-main)' }}>{s.ubaTarget > 0 ? ((s.uba / s.ubaTarget) * 100).toFixed(1) + '%' : '0.0%'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}><span>Actual:</span> <span style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>{s.uba.toLocaleString()}</span></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}><span>Target:</span> <span>{s.ubaTarget.toLocaleString()}</span></div>

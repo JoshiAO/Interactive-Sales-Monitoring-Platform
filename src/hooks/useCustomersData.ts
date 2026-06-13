@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { get, set } from 'idb-keyval';
 
 export const useCustomersData = (selectedTeam: string = 'all') => {
-  const { currentUser, role } = useAuth();
+  const { currentUser, role, salesmanId, team } = useAuth();
   const [loading, setLoading] = useState(true);
   const [customers, setCustomers] = useState<any[]>([]);
 
@@ -14,10 +14,6 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        const userData = userDoc.exists() ? userDoc.data() : null;
-        const salesmanId = userData?.salesmanId;
-        const team = userData?.team;
 
         // Fetch COB Date and lastUpload for cache validation
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
