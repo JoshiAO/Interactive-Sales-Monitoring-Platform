@@ -223,7 +223,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px', boxSizing: 'border-box' }}>
               {(displayExTruck.length === 0 && displayBooking.length === 0) && (
                 <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--border)' }}>
-                  No eligible salesmen found. (Salesmen: {data.salesmen.length}, Users: {usersCache.length}, W: {currentWeek}, C: {Object.keys(data.weeklyCommitments || {}).length})
+                  No eligible salesmen found.
                 </div>
               )}
 
