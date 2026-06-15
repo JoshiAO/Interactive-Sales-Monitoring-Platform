@@ -1,90 +1,207 @@
-# 📊 Sales Monitoring Dashboard
+# 📊 Interactive Sales Monitoring Platform
 
-A modern, robust, and highly responsive **Sales Monitoring Web Application** tailored for fast-paced sales operations. This platform enables multiple roles (Admin, Manager, Supervisor, and Salesman) to track targets, daily sales, unique buying accounts, frequency metrics, and customer analytics in a sleek, beautifully designed interface.
+A modern, highly premium, and responsive **Progressive Web App (PWA)** built for tracking and monitoring sales performance. This platform enables multiple roles—**Salesman, Supervisor, Manager, Admin, and Warehouse Supervisor**—to cascade goals, analyze targets, track inventory ageing/back-orders, and compete in a structured weekly gamification leaderboard.
 
-## 🚀 Key Features
+The live application is hosted at [rd-sales-monitoring.web.app](https://rd-sales-monitoring.web.app) with the source code managed under the [JoshiAO/sales-monitoring-dashboard](https://github.com/JoshiAO/sales-monitoring-dashboard) repository.
 
-*   **🔐 Role-Based Access Control (RBAC):** Distinct interfaces, dashboards, and permissions for `Admin`, `Manager`, `Supervisor`, and `Salesman`.
-*   **📈 Real-Time Data Visualization:** Interactive charts, responsive grids, and clean visual cards representing Net Invoiced Value, Volume, GSR/BSR, and Frequency metrics using Recharts.
-*   **👥 Team Filtering & Slicing:** Intuitive "Team Slicers" allowing managers and admins to filter metrics on-the-fly by specific teams.
-*   **📂 Excel Data Upload:** Built-in tool for Admins to easily upload, process, and map massive raw Excel data directly into the Firebase database.
-*   **📱 Fully Responsive UI:** Optimized for both Desktop and Mobile experiences with smooth micro-animations, glassmorphism design, and mobile-friendly sidebars.
-*   **🔥 Firebase Integration:** Secure authentication, real-time Firestore database queries, and Firebase Storage for user avatars.
-*   **🏆 Performance Ranking Panel:** An integrated real-time leaderboard highlighting the top-performing salesmen.
+---
 
-## 💻 Tech Stack
+## 🎯 Platform Access & Activation Flow
 
-*   **Frontend Framework:** React 19 (Vite)
-*   **Language:** TypeScript
-*   **Styling:** Custom CSS with Glassmorphism, CSS Variables, and Flex/Grid Layouts
-*   **Charting:** Recharts
-*   **Icons:** Lucide React
-*   **Backend & Database:** Firebase Auth, Firestore, and Cloud Storage
-*   **Data Processing:** XLSX (SheetJS)
-*   **Image Processing:** React Easy Crop
+To ensure high security and enterprise containment, the application implements a strict two-stage entry process:
 
-## 🛠️ Project Setup
+### 1. Device Activation
+*   Before accessing the login interface, the device must be activated by submitting a valid **Company Code** on the Activation Page.
+*   The system hashes the code using `SHA-256` and queries the Firestore database of a centralized project (`joshiao-active-projects`) via REST API to verify if it is valid and active.
+*   Once validated, the code is stored in the browser's `localStorage` as proof of activation, which unlocks the main login route.
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your-username/sales-monitoring-dashboard.git
-   cd sales-monitoring-dashboard
-   ```
+### 2. User Authentication & Session Guard
+*   Authentication is managed through **Firebase Authentication** (Email & Password).
+*   Routing guards automatically redirect unactivated sessions to `/activation`, unauthenticated sessions to `/login`, and unauthorized users away from premium tab views.
+*   Custom claims (assigned dynamically or queried from user profile documents) define the user's role: `admin`, `manager`, `supervisor`, `salesman`, or `warehouse_supervisor`.
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+### 3. PWA Capabilities
+*   Built with `vite-plugin-pwa`, the application is installable on both PC (Chrome/Edge desktop app) and Mobile (Add to Home Screen).
+*   Includes automatic service worker updates and standalone offline asset caching using custom configurations.
 
-3. **Environment Configuration:**
-   Create a `.env` file in the root directory and add your Firebase project credentials:
-   ```env
-   VITE_FIREBASE_API_KEY=your_api_key
-   VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=your_project_id
-   VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   VITE_FIREBASE_APP_ID=your_app_id
-   ```
+---
 
-4. **Run the development server:**
-   ```bash
-   npm run dev
-   ```
+## 👥 Role-Based Access Control (RBAC)
 
-## 📂 Project Structure
+The sidebar navigation dynamically filters modules based on the logged-in user's role:
 
+| Navigation Tab | Salesman | Supervisor | Manager | Admin | Warehouse Supervisor |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Home** (Overview) | Yes | Yes | Yes | Yes | No |
+| **Sales** (Metrics & Geo) | Yes | Yes | Yes | Yes | No |
+| **VD30** (Placements) | Yes | Yes | Yes | Yes | No |
+| **Customers** (Details) | Yes | Yes | Yes | Yes | No |
+| **NPD & Promo** (Launch KPIs) | Yes | Yes | Yes | Yes | No |
+| **Ageing** (Inventory Expiry) | No | Yes | Yes | Yes | Yes |
+| **B.O.** (Back Orders) | Yes | Yes | Yes | Yes | Yes |
+| **Gamification** (Leaderboard) | Yes | Yes | Yes | Yes | Yes |
+| **Data Upload** (Admin Panel) | No | No | No | Yes | No |
+| **Users** (CRUD Management) | No | No | No | Yes | No |
+
+### Access & Aggregate Scopes:
+*   **Salesman**: Restricted strictly to self performance metrics and customer cards.
+*   **Supervisor**: Aggregates and displays team-wide salesman performance. Can review and propose weekly commitments.
+*   **Manager**: Aggregates all salesman metrics grouped by supervisor, views supervisor targets, and approves/rejects target proposals. Has a team slicer to filter views.
+*   **Admin**: Inherits manager scopes, possesses full CRUD control over users, and parses/uploads Excel data packages.
+*   **Warehouse Supervisor**: Specialized operations role restricted to managing Ageing reports, viewing Back Orders (B.O.), and monitoring the Gamification Leaderboard.
+
+---
+
+## 📈 Metric Definitions & Business Rules
+
+The analytical engine processes Firestore documents based on strict criteria:
+
+### 1. Customer Master List (CML)
+*   **Base Universe**: Counts active/approved customer entries assigned to the salesman's ID.
+*   **Database Condition**: `STATUS == "Active/Approved"`.
+
+### 2. Unique Buying Accounts (UBA) & Strike Rate
+*   **Calculation**: Counts the number of unique `Sold To Customer number` keys inside the `Net Invoiced` dataset having a `Net Value >= ₱1.00` during the current month.
+*   **Strike Rate %**: Calculated as `(UBA / Active CML) * 100`.
+
+### 3. Value Drivers 30 (VD30)
+*   **Definition**: Measures store penetration/placements (distribution) rather than absolute invoice values.
+*   **Condition**: Sales are counted only if the `Channel` classification contains the substring `"Sari-Sari"` (to eliminate groceries/supermarkets from inflating distribution counts).
+*   **Item Hit Rule**: A salesman receives credit (a hit) for a VD30 category only when their actual unique store placements meet or exceed their assigned target store placements for that individual item.
+*   **Service Model Scope**:
+    *   **Ex-Truck**: Monitored strictly on the first **19 items** (Items 1-19).
+    *   **Booking**: Monitored on all **30 items** (Items 1-30).
+
+---
+
+## 🏆 Weekly Commitments & Gamification
+
+The platform gamifies performance metrics (`STT`, `UBA`, and `VD30`) on a weekly lifecycle. 
+
+### 1. Cumulative Target Proposal
+Supervisors propose targets that must be **cumulative (added up over the month)** rather than isolated weekly goals:
+*   *Week 1*: Propose target index (e.g., **20%**)
+*   *Week 2*: Propose target index (e.g., **45%** - 20% from W1 + 25% for W2)
+*   *Week 3*: Propose target index (e.g., **70%** - 45% from W2 + 25% for W3)
+*   *Week 4*: Propose target index (e.g., **100%** - 70% from W3 + 30% for W4)
+
+Proposals must be approved by a Manager or Admin via the **Commitment Settings** card before they affect calculations.
+
+### 2. Leaderboard Eligibility Rules
+*   **STT (Net Value)**: Coupled to target commitments. A salesman is filtered out of the leaderboard for the week if:
+    1. The supervisor has not proposed a target, or it is not yet approved.
+    2. The salesman's actual STT achievement percentage is below the approved commitment target.
+*   **UBA & VD30**: Decoupled from the strict commitment approval gate to prevent empty leaderboards. Salesmen are ranked directly based on achievement index relative to their base monthly targets (`actual / target`).
+
+### 3. Medals & Points Distribution
+At the end of each week, the system evaluates all eligible candidates separated by Service Model (`Ex-Truck` vs `Booking`):
+*   🥇 **Gold Medal (Rank 1)**: +5 points, awarded card highlights.
+*   🥈 **Silver Medal (Rank 2)**: +3 points, awarded card highlights.
+*   🥉 **Bronze Medal (Rank 3)**: +1 point, awarded card highlights.
+*   🎗️ **Rank 4-10**: +0 points.
+
+Accumulated points throughout the month determine final monthly ranks. High-ranking salesmen are highlighted with corresponding Gold/Silver/Bronze card borders in the performance panels.
+
+---
+
+## 📂 Admin Data Upload Schema
+
+Admins upload structured `.xlsx` files which are parsed on the client side using `xlsx` (SheetJS) and saved in Firestore. Below are the required columns for each template:
+
+### 1. Net Invoiced
+Tracks raw transaction rows.
 ```text
-src/
-├── components/
-│   ├── auth/          # Login and Activation forms
-│   ├── common/        # Reusable UI components (Cards, Modals)
-│   └── layout/        # Sidebar, Header, and Performance Panel
-├── contexts/          # React Context (Auth state management)
-├── firebase/          # Firebase configuration and initialization
-├── hooks/             # Custom React Hooks for Firestore data fetching
-├── pages/
-│   ├── admin/         # Data Upload and User Management pages
-│   ├── dashboard/     # Sales, VD30, Customers, and Home pages
-│   └── error/         # 404 and fallback views
-├── index.css          # Global styling, tokens, and utility classes
-└── App.tsx            # Main application router and role guards
+RD Name | Date | Week | Branch Name | Employee Code | Employee Name | Channel | Sold To Customer number | Sold To Customer Name | Category | Product Code | Product Description | Volume | Net Value | Good Stock Returns | Bad Stock Returns | Channel_Classification | Brgy | Town | Province | FS | RTM Model | GT Channel
 ```
 
-## ✨ Design Philosophy
+### 2. Customer Master List (CML)
+The database of active clients.
+```text
+BRANCH NAME | CDAM | FS | CHANNEL | SALES REP ID | SALES REP NAME | CUSTOMER CODE | CUSTOMER NAME | BARANGAY | CITY | PROVINCE | STATUS | RETAIL ENVIRONMENT | PARTY CLASSIFICATION DESCRIPTION | COVERAGE DAY | WKLY COVERAGE | FREQ COUNT | FREQ
+```
 
-The application utilizes a rich, dynamic aesthetic focusing on a premium **dark mode** experience:
-*   Harmonious **deep blue** gradients and **glassmorphism** panels.
-*   Smooth micro-interactions (hover states, transitions).
-*   Clean typography utilizing native sans-serif font stacks.
-*   Information hierarchy structured for quick, at-a-glance scanning of critical sales data.
+### 3. VD30 Target
+Numeric store-count targets per salesman.
+```text
+salesman_code | F01_2403 | F02_64480 | ... | F30_62727
+```
 
-## 👨‍💻 Author
+### 4. Salesman Target STT and UBA
+```text
+salesman_code | stt_target | uba target
+```
 
-**Joshua Alforque Ocampo**
-* Principal Developer & Architect
+### 5. Category Reference
+```text
+category
+```
 
-## 📄 License
+### 6. Channel Reference
+Maps classifications to key account buckets.
+```text
+party_classification_description | key_account
+```
 
-This project is licensed under the [MIT License](LICENSE). 
-Copyright (c) 2026 Joshua Alforque Ocampo. All Rights Reserved.
+### 7. Geo Hierarchy Data
+```text
+Province | City | Barangay
+```
+
+### 8. VD30 Items Reference
+Maps product codes to target value driver codes.
+```text
+product_code | product_description | vd30_code | vd30_description
+```
+
+---
+
+## ⚙️ Technical Architecture & Stack
+
+*   **Frontend Library**: React 19 (Vite, TypeScript)
+*   **State Management**: React Context (`AuthContext`)
+*   **Styling**: Custom Vanilla CSS with responsive Flex/Grid layouts, glassmorphism tokens, and micro-animations.
+*   **Charts**: Recharts (dynamic line graphs, stacked/grouped bar charts, inner-donut pie charts)
+*   **Icons**: Lucide React
+*   **Database & Auth**: Firebase Auth, Firestore, and Firebase Storage
+*   **Offline / Install Support**: Vite PWA Plugin
+*   **Local Processing**: SheetJS (Excel ingestion), React Easy Crop (avatar adjustments)
+
+---
+
+## 🛠️ Local Development & Setup
+
+### 1. Installation
+Clone the repository and install dependencies:
+```bash
+git clone https://github.com/JoshiAO/sales-monitoring-dashboard.git
+cd sales-monitoring-dashboard
+npm install
+```
+
+### 2. Environment Configuration
+Create a `.env` file in the project root containing your Firebase credentials:
+```env
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+### 3. Running Locally
+Launch the Vite development server with hot-reloading:
+```bash
+npm run dev
+```
+
+### 4. Deploying to Firebase Hosting
+Compile the production build and deploy to Firebase:
+```bash
+npm run build
+firebase deploy
+```
+
+---
+
+*Copyright © 2026 Joshua Alforque Ocampo. All Rights Reserved.*
