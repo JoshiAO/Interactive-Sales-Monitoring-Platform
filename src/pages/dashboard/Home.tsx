@@ -194,9 +194,9 @@ const Home: React.FC = () => {
           {/* Additional Metrics */}
           <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '16px', color: 'var(--text-muted)' }}>Additional Metrics</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '24px' }}>
+            <div className="metrics-container">
               {/* Column 1 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="metrics-group">
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Customer Master List (CML)</div>
                   <div style={{ fontSize: '24px', fontWeight: 600 }}>{data.cml.toLocaleString()}</div>
@@ -212,7 +212,7 @@ const Home: React.FC = () => {
               </div>
 
               {/* Column 2: NPD */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="metrics-group">
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>NPD Net Value</div>
                   <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--accent-primary)' }} title={formatCurrency(npdTotals.stt)}>{formatShortCurrency(npdTotals.stt)}</div>
@@ -228,7 +228,7 @@ const Home: React.FC = () => {
               </div>
 
               {/* Column 3: Promo Packs */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="metrics-group">
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Promo packs Net Value</div>
                   <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--accent-success)' }} title={formatCurrency(promoTotals.stt)}>{formatShortCurrency(promoTotals.stt)}</div>

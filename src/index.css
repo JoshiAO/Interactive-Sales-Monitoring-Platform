@@ -233,6 +233,49 @@ textarea:focus {
   gap: 20px;
 }
 
+/* Metrics Separator Layout */
+.metrics-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+}
+
+.metrics-container > .metrics-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0 24px;
+  border-right: 1px solid var(--border);
+}
+
+.metrics-container > .metrics-group:first-child {
+  padding-left: 0;
+}
+
+.metrics-container > .metrics-group:last-child {
+  padding-right: 0;
+  border-right: none;
+}
+
+@media (max-width: 768px) {
+  .metrics-container {
+    flex-direction: column;
+  }
+  .metrics-container > .metrics-group {
+    padding: 24px 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .metrics-container > .metrics-group:first-child {
+    padding-top: 0;
+  }
+  .metrics-container > .metrics-group:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+}
+
 /* For filters layout in Customers.tsx */
 .filters-grid {
   display: grid;
