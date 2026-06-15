@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Target, TrendingUp, PhilippinePeso, Activity, Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
+import { useNpdPromoData } from '../../hooks/useNpdPromoData';
 import { useTeams } from '../../hooks/useTeams';
 import { Navigate } from 'react-router-dom';
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
@@ -13,12 +14,28 @@ const Home: React.FC = () => {
   const availableTeams = useTeams();
   const [selectedTeam, setSelectedTeam] = useState('all');
   const { loading, data } = useDashboardData(selectedTeam);
+  const { loading: npdLoading, items: npdItems } = useNpdPromoData(selectedTeam);
+
+  const npdTotals = { stt: 0, volume: 0, uba: 0 };
+  const promoTotals = { stt: 0, volume: 0, uba: 0 };
+
+  npdItems.forEach(item => {
+    if (item.type === 'NPD') {
+      npdTotals.stt += item.stt;
+      npdTotals.volume += item.volume;
+      npdTotals.uba += item.uba;
+    } else if (item.type?.toUpperCase().includes('PROMO')) {
+      promoTotals.stt += item.stt;
+      promoTotals.volume += item.volume;
+      promoTotals.uba += item.uba;
+    }
+  });
 
   if (role === 'warehouse_supervisor') {
     return <Navigate to="/ageing" replace />;
   }
   
-  if (loading && data.salesmen.length === 0) {
+  if ((loading && data.salesmen.length === 0) || (npdLoading && npdItems.length === 0)) {
     return (
       <div className="flex-center" style={{ height: '50vh', color: 'var(--accent-primary)' }}>
         <Loader2 size={32} className="animate-spin" />
@@ -170,18 +187,53 @@ const Home: React.FC = () => {
           {/* Additional Metrics */}
           <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '16px', color: 'var(--text-muted)' }}>Additional Metrics</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Customer Master List (CML)</div>
-                <div style={{ fontSize: '24px', fontWeight: 600 }}>{data.cml.toLocaleString()}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '24px' }}>
+              {/* Column 1 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Customer Master List (CML)</div>
+                  <div style={{ fontSize: '24px', fontWeight: 600 }}>{data.cml.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>UBA Target</div>
+                  <div style={{ fontSize: '24px', fontWeight: 600 }}>{data.ubaTarget.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Strike Rate</div>
+                  <div style={{ fontSize: '24px', fontWeight: 600 }}>{data.cml > 0 ? ((data.uba / data.cml) * 100).toFixed(1) : 0}%</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>UBA Target</div>
-                <div style={{ fontSize: '24px', fontWeight: 600 }}>{data.ubaTarget.toLocaleString()}</div>
+
+              {/* Column 2: NPD */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>NPD Net Value</div>
+                  <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--accent-primary)' }}>{formatCurrency(npdTotals.stt)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Volume</div>
+                  <div style={{ fontSize: '24px', fontWeight: 600 }}>{npdTotals.volume.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>UBA</div>
+                  <div style={{ fontSize: '24px', fontWeight: 600 }}>{npdTotals.uba.toLocaleString()}</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Strike Rate</div>
-                <div style={{ fontSize: '24px', fontWeight: 600 }}>{data.cml > 0 ? ((data.uba / data.cml) * 100).toFixed(1) : 0}%</div>
+
+              {/* Column 3: Promo Packs */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Promo packs Net Value</div>
+                  <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--accent-success)' }}>{formatCurrency(promoTotals.stt)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Volume</div>
+                  <div style={{ fontSize: '24px', fontWeight: 600 }}>{promoTotals.volume.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>UBA</div>
+                  <div style={{ fontSize: '24px', fontWeight: 600 }}>{promoTotals.uba.toLocaleString()}</div>
+                </div>
               </div>
             </div>
           </div>

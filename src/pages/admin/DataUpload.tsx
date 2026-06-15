@@ -512,24 +512,26 @@ const DataUpload: React.FC = () => {
                 });
 
                 // Aggregate NPD/Promo per product
-                const npdMetrics: Record<string, { stt: number; customersMap: Record<string, number>; salesmen: Record<string, { name: string; stt: number; customersMap: Record<string, { name: string; stt: number }> }> }> = {};
+                const npdMetrics: Record<string, { stt: number; volume: number; customersMap: Record<string, number>; salesmen: Record<string, { name: string; stt: number; volume: number; customersMap: Record<string, { name: string; stt: number }> }> }> = {};
 
                 // Pre-populate all items so they appear even with 0 sales
                 Object.keys(npdItemMap).forEach(prodCode => {
-                  npdMetrics[prodCode] = { stt: 0, customersMap: {}, salesmen: {} };
+                  npdMetrics[prodCode] = { stt: 0, volume: 0, customersMap: {}, salesmen: {} };
                 });
 
                 json.forEach((row: any) => {
                   const prodCode = String(row['Product Code'] || '');
                   if (!npdItemMap[prodCode]) return;
                   const netValue = parseFloat(row['Net Value']) || 0;
+                  const volume = parseFloat(row['Volume']) || 0;
                   const custNum = row['Sold To Customer number'] ? String(row['Sold To Customer number']).replace(/[^a-zA-Z0-9_]/g, '') : '';
                   const custName = row['Sold-to Customer Name'] || row['Sold To Customer Name'] || custNum;
                   const salesmanCode = String(row['Employee Code'] || '');
                   const salesmanName = row['Employee Name'] || userNamesNpd[salesmanCode] || salesmanCode;
 
-                  if (!npdMetrics[prodCode]) npdMetrics[prodCode] = { stt: 0, customersMap: {}, salesmen: {} };
+                  if (!npdMetrics[prodCode]) npdMetrics[prodCode] = { stt: 0, volume: 0, customersMap: {}, salesmen: {} };
                   npdMetrics[prodCode].stt += netValue;
+                  npdMetrics[prodCode].volume += volume;
                   
                   if (custNum) {
                     npdMetrics[prodCode].customersMap[custNum] = (npdMetrics[prodCode].customersMap[custNum] || 0) + netValue;
@@ -537,9 +539,10 @@ const DataUpload: React.FC = () => {
 
                   if (salesmanCode) {
                     if (!npdMetrics[prodCode].salesmen[salesmanCode]) {
-                      npdMetrics[prodCode].salesmen[salesmanCode] = { name: salesmanName, stt: 0, customersMap: {} };
+                      npdMetrics[prodCode].salesmen[salesmanCode] = { name: salesmanName, stt: 0, volume: 0, customersMap: {} };
                     }
                     npdMetrics[prodCode].salesmen[salesmanCode].stt += netValue;
+                    npdMetrics[prodCode].salesmen[salesmanCode].volume += volume;
                     
                     if (custNum && netValue !== 0) {
                       if (!npdMetrics[prodCode].salesmen[salesmanCode].customersMap[custNum]) {
@@ -579,6 +582,7 @@ const DataUpload: React.FC = () => {
                       code,
                       name: m.salesmen[code].name,
                       stt: m.salesmen[code].stt,
+                      volume: m.salesmen[code].volume,
                       uba: smUba,
                       customers: smCustomers
                     };
@@ -591,6 +595,7 @@ const DataUpload: React.FC = () => {
                     type: info.type,
                     category: info.category,
                     stt: m.stt,
+                    volume: m.volume,
                     uba: productUba,
                     salesmen: salesmenArr,
                     last_updated: new Date().toISOString()

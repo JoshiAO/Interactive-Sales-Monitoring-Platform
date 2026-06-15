@@ -10,8 +10,9 @@ export interface NpdPromoItem {
   type: string; // 'NPD' | 'PROMOPACK'
   category: string;
   stt: number;
+  volume: number;
   uba: number;
-  salesmen: Array<{ code: string; name: string; stt: number; uba: number; customers?: Array<{code: string; name: string; stt: number; uba: number}> }>;
+  salesmen: Array<{ code: string; name: string; stt: number; volume?: number; uba: number; customers?: Array<{code: string; name: string; stt: number; uba: number}> }>;
 }
 
 export const useNpdPromoData = (selectedTeam: string = 'all') => {
@@ -78,6 +79,7 @@ export const useNpdPromoData = (selectedTeam: string = 'all') => {
 
           // Recompute totals for filtered salesmen
           const stt = filteredSalesmen.reduce((sum, s) => sum + (s.stt || 0), 0);
+          const volume = filteredSalesmen.reduce((sum, s) => sum + (s.volume || 0), 0);
           const uba = filteredSalesmen.reduce((sum, s) => sum + (s.uba || 0), 0);
 
           result.push({
@@ -86,6 +88,7 @@ export const useNpdPromoData = (selectedTeam: string = 'all') => {
             type: m.type,
             category: m.category,
             stt: role === 'admin' || role === 'manager' ? m.stt : stt,
+            volume: role === 'admin' || role === 'manager' ? (m.volume || 0) : volume,
             uba: role === 'admin' || role === 'manager' ? m.uba : uba,
             salesmen: filteredSalesmen
           });
