@@ -21,13 +21,13 @@ const Home: React.FC = () => {
 
   npdItems.forEach(item => {
     if (item.type === 'NPD') {
-      npdTotals.stt += item.stt;
-      npdTotals.volume += item.volume;
-      npdTotals.uba += item.uba;
+      npdTotals.stt += item.stt || 0;
+      npdTotals.volume += item.volume || 0;
+      npdTotals.uba += item.uba || 0;
     } else if (item.type?.toUpperCase().includes('PROMO')) {
-      promoTotals.stt += item.stt;
-      promoTotals.volume += item.volume;
-      promoTotals.uba += item.uba;
+      promoTotals.stt += item.stt || 0;
+      promoTotals.volume += item.volume || 0;
+      promoTotals.uba += item.uba || 0;
     }
   });
 
@@ -44,6 +44,13 @@ const Home: React.FC = () => {
   }
 
   const formatCurrency = (val: number) => `₱${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  
+  const formatShortCurrency = (val: number) => {
+    if (isNaN(val) || val == null) return '₱0';
+    if (val >= 1_000_000) return `₱${(val / 1_000_000).toFixed(2)}M`;
+    if (val >= 1_000) return `₱${(val / 1_000).toFixed(2)}K`;
+    return `₱${val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  };
   
   // Constrain VD30 data for the chart
   const vd30ChartData = data.vd30
@@ -208,7 +215,7 @@ const Home: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>NPD Net Value</div>
-                  <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--accent-primary)' }}>{formatCurrency(npdTotals.stt)}</div>
+                  <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--accent-primary)' }} title={formatCurrency(npdTotals.stt)}>{formatShortCurrency(npdTotals.stt)}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Volume</div>
@@ -224,7 +231,7 @@ const Home: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Promo packs Net Value</div>
-                  <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--accent-success)' }}>{formatCurrency(promoTotals.stt)}</div>
+                  <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--accent-success)' }} title={formatCurrency(promoTotals.stt)}>{formatShortCurrency(promoTotals.stt)}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Volume</div>
