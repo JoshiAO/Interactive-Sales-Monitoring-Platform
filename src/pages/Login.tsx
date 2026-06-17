@@ -199,8 +199,10 @@ const Login: React.FC = () => {
           </button>
         </form>
       </div>
-      <div className="animate-fade-in" style={{ marginTop: '24px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>
+      <div className="animate-fade-in" style={{ marginTop: '24px', fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', opacity: 0.6 }}>
         &copy; 2026 Joshua Alforque Ocampo. All Rights Reserved.
+        <br />
+        Protected by reCAPTCHA — <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-muted)' }}>Privacy</a> · <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-muted)' }}>Terms</a>
       </div>
     </div>
   );

@@ -421,16 +421,7 @@ textarea:focus {
   }
 }
 
-/* reCAPTCHA v3 Badge */
+/* reCAPTCHA v3 Badge — hidden per Google's allowed alternative (text attribution on forms) */
 .grecaptcha-badge {
-  left: 8px !important;
-  right: auto !important;
-  transform: scale(0.7);
-  transform-origin: bottom left;
-  opacity: 0.3;
-  transition: opacity 0.3s ease;
-}
-
-.grecaptcha-badge:hover {
-  opacity: 1;
+  visibility: hidden !important;
 }
