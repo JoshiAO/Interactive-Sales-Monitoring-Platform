@@ -420,3 +420,17 @@ textarea:focus {
     top: 56px !important;
   }
 }
+
+/* reCAPTCHA v3 Badge */
+.grecaptcha-badge {
+  left: 8px !important;
+  right: auto !important;
+  transform: scale(0.7);
+  transform-origin: bottom left;
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+}
+
+.grecaptcha-badge:hover {
+  opacity: 1;
+}
