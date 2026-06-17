@@ -1,11 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { verifyRecaptcha, loadRecaptcha } from '../utils/recaptcha';
+import { activationRateLimiter, formatRemainingTime } from '../utils/rateLimiter';
 
 const Activation: React.FC = () => {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Preload reCAPTCHA script on mount
+    loadRecaptcha().catch(() => {});
+  }, []);
 
   const hashString = async (message: string) => {
     const msgBuffer = new TextEncoder().encode(message);
@@ -17,9 +24,26 @@ const Activation: React.FC = () => {
   const handleActivate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // 1. Rate limiter check
+    const { allowed, retryAfterMs } = activationRateLimiter.consume();
+    if (!allowed) {
+      setError(`Too many attempts. Please wait ${formatRemainingTime(retryAfterMs)}.`);
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // 2. reCAPTCHA v3 verification
+      const { passed, score } = await verifyRecaptcha('activation');
+      if (!passed) {
+        setError(`Verification failed (score: ${score.toFixed(2)}). Please try again.`);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Validate company code
       const hashedCode = await hashString(code);
       
       // Call Firestore REST API for the 'joshiao-active-projects' project
