@@ -28,6 +28,7 @@ interface DashboardData {
   rawDailyPoints?: Record<string, any>;
   weeklyCommitments?: any;
   historicalMedals?: any;
+  refVd30Items: any[];
 }
 
 export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen: boolean | 'team' = false) => {
@@ -53,7 +54,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
     excludedVd30Salesmen: [],
     frequency: { f1: 0, f2: 0, f3: 0, f4: 0 },
     weeklyCommitments: {},
-    historicalMedals: {}
+    historicalMedals: {},
+    refVd30Items: []
   });
 
   useEffect(() => {
@@ -190,6 +192,7 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         const channelsMap: Record<string, number> = {};
         const geoMap: Record<string, number> = {};
         const salesmenData: Record<string, any> = {};
+        const globalVd30ProductDetails: Record<string, { customers: number, volume: number }> = {};
 
         // Aggregate Metrics
         metricsData.forEach((m: any) => {
@@ -225,6 +228,17 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
               salesmanVd30ActualMap[k] = val;
             });
           }
+
+          if (m.vd30_product_details) {
+            Object.keys(m.vd30_product_details).forEach(prodCode => {
+              if (!globalVd30ProductDetails[prodCode]) {
+                globalVd30ProductDetails[prodCode] = { customers: 0, volume: 0 };
+              }
+              globalVd30ProductDetails[prodCode].customers += (m.vd30_product_details[prodCode].customers || 0);
+              globalVd30ProductDetails[prodCode].volume += (m.vd30_product_details[prodCode].volume || 0);
+            });
+          }
+
           if (m.categories) Object.keys(m.categories).forEach(k => categoriesMap[k] = (categoriesMap[k] || 0) + m.categories[k]);
           if (m.channels) Object.keys(m.channels).forEach(k => channelsMap[k] = (channelsMap[k] || 0) + m.channels[k]);
 
@@ -359,6 +373,17 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         });
         localStorage.setItem('salesman_achievements', JSON.stringify(globalPointsMap));
 
+        // Attach aggregated product details to refVd30Items
+        const refVd30ItemsWithStats = refVd30Data.map((item: any) => {
+          const prodCode = String(item.product_code || item.id || '');
+          const stats = globalVd30ProductDetails[prodCode] || { customers: 0, volume: 0 };
+          return {
+            ...item,
+            customers: stats.customers,
+            volume: stats.volume
+          };
+        });
+
         setData({
           target: totalTarget,
           mtdSales: totalMtdSales,
@@ -380,7 +405,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
           rawAchievements: rawWeeklyAchievements,
           rawDailyPoints,
           weeklyCommitments,
-          historicalMedals
+          historicalMedals,
+          refVd30Items: refVd30ItemsWithStats
         });
       } catch (err) {
         console.error("Error fetching dashboard data:", err);

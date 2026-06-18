@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Search, MapPin, Loader2 } from 'lucide-react';
+import { Search, MapPin, Loader2, UserRound } from 'lucide-react';
 import { useCustomersData } from '../../hooks/useCustomersData';
 import { useTeams } from '../../hooks/useTeams';
 import { useSalesmenList } from '../../hooks/useSalesmenList';
+import { useUsersCache } from '../../hooks/useUsersCache';
 import { Modal } from '../../components/ui/Modal';
 
 const Customers: React.FC = () => {
@@ -25,6 +26,16 @@ const Customers: React.FC = () => {
   
   const { loading, customers } = useCustomersData(selectedTeam);
   const { salesmen } = useSalesmenList(selectedTeam);
+  const { usersCache } = useUsersCache();
+
+  // Build salesman name lookup from usersCache (no extra reads)
+  const salesmanNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    usersCache.forEach(u => {
+      if (u.salesmanId && u.name) map[String(u.salesmanId)] = u.name;
+    });
+    return map;
+  }, [usersCache]);
 
   const availableCoverageDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
   const availableWklyCoverage = ['W1&W3', 'W2&W4', 'WKLY'];
@@ -296,6 +307,12 @@ const Customers: React.FC = () => {
                   <MapPin size={12} />
                   <span>{customer.barangay}, {customer.city}</span>
                 </div>
+                {role !== 'salesman' && customer.salesmanId && (
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                    <UserRound size={11} />
+                    <span>{customer.salesmanId}{salesmanNameMap[customer.salesmanId] ? ` — ${salesmanNameMap[customer.salesmanId]}` : ''}</span>
+                  </div>
+                )}
               </div>
               {customer.newCustomer && (
                 <div style={{ 

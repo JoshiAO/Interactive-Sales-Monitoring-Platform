@@ -37,6 +37,7 @@ interface AggregatedMetrics {
   bsr: number;
   uba_customers: Set<string>;
   vd30_placements: Record<string, Set<string>>;
+  vd30_product_details: Record<string, { customers: Set<string>; volume: number }>;
   categories: Record<string, number>;
   channels: Record<string, number>;
   brgy: Record<string, number>;
@@ -165,6 +166,7 @@ const DataUpload: React.FC = () => {
                   bsr: 0,
                   uba_customers: new Set<string>(),
                   vd30_placements: {},
+                  vd30_product_details: {} as Record<string, { customers: Set<string>; volume: number }>,
                   categories: {},
                   channels: {},
                   brgy: {},
@@ -222,6 +224,14 @@ const DataUpload: React.FC = () => {
                       m.vd30_placements[vd30Bucket] = new Set<string>();
                     }
                     m.vd30_placements[vd30Bucket].add(String(custNum));
+
+                    // Per-product detail tracking (Option B)
+                    const prodKey = String(prodCode);
+                    if (!m.vd30_product_details[prodKey]) {
+                      m.vd30_product_details[prodKey] = { customers: new Set<string>(), volume: 0 };
+                    }
+                    m.vd30_product_details[prodKey].customers.add(String(custNum));
+                    m.vd30_product_details[prodKey].volume += volume;
                   }
                 }
               }
@@ -318,6 +328,16 @@ const DataUpload: React.FC = () => {
               // Preserve cml_count from existing data (set by CML upload)
               const existingCml = existingMetricsAll[salesmanCode]?.cml_count;
 
+              // Serialize per-product VD30 details compactly: { product_code: { customers: count, volume: num } }
+              const finalVd30Products: Record<string, { customers: number; volume: number }> = {};
+              Object.keys(m.vd30_product_details).forEach(prodCode => {
+                const detail = m.vd30_product_details[prodCode];
+                finalVd30Products[prodCode] = {
+                  customers: detail.customers.size,
+                  volume: detail.volume
+                };
+              });
+
               allMetricsDoc[salesmanCode] = {
                 salesman_code: m.salesman_code,
                 salesman_name: m.salesman_name,
@@ -327,6 +347,7 @@ const DataUpload: React.FC = () => {
                 bsr: m.bsr,
                 uba: finalUba,
                 vd30_placements: finalVd30,
+                vd30_product_details: finalVd30Products,
                 categories: m.categories,
                 channels: m.channels,
                 brgy: m.brgy,

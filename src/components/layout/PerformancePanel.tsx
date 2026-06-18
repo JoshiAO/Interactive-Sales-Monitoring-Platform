@@ -109,22 +109,20 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
   let displayExTruck: any[] = [];
   let displayBooking: any[] = [];
 
-  if (role === 'admin' || role === 'manager') {
-    // Top 10 Ex-Truck + Top 10 Booking
-    displayExTruck = eligibleSalesmen.filter(s => s.type === 'Ex-Truck').slice(0, 10);
-    displayBooking = eligibleSalesmen.filter(s => s.type === 'Booking').slice(0, 10);
-  } else if (role === 'supervisor') {
-    // Supervisor sees Top 10 of their team
-    displayExTruck = eligibleSalesmen.filter(s => s.type === 'Ex-Truck').slice(0, 10);
-    displayBooking = eligibleSalesmen.filter(s => s.type === 'Booking').slice(0, 10);
-  } else {
-    // Salesman locked to their own type
+  if (role === 'salesman') {
+    // Salesman sees peers of same service model type ranked
     const myType = data.salesmen.find((s: any) => s.id === salesmanId)?.type || 'Ex-Truck';
-    if (myType === 'Ex-Truck') {
-      displayExTruck = eligibleSalesmen.filter(s => s.type === 'Ex-Truck').slice(0, 10);
-    } else {
-      displayBooking = eligibleSalesmen.filter(s => s.type === 'Booking').slice(0, 10);
-    }
+    const peers = eligibleSalesmen.filter(s => s.type === myType).slice(0, 10);
+    if (myType === 'Ex-Truck') displayExTruck = peers;
+    else displayBooking = peers;
+  } else if (role === 'supervisor') {
+    // Supervisor sees all team salesmen — no service model filtering
+    // Show all eligible in a single list (use Ex-Truck bucket for display)
+    displayExTruck = eligibleSalesmen.slice(0, 10);
+  } else {
+    // Admin, Manager, Warehouse Supervisor: Top 10 per service model
+    displayExTruck = eligibleSalesmen.filter(s => s.type === 'Ex-Truck').slice(0, 10);
+    displayBooking = eligibleSalesmen.filter(s => s.type === 'Booking').slice(0, 10);
   }
 
 
@@ -314,17 +312,37 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
                   );
                 };
 
+                // For salesman/supervisor: show without service model filter
+                const showBothWithoutPicker = role === 'salesman' || role === 'supervisor';
+
                 return (
                   <>
-                    {serviceModel === 'Ex-Truck' && displayExTruck.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {displayExTruck.map((s, idx) => renderSalesmanCard(s, idx + 1))}
-                      </div>
-                    )}
-                    {serviceModel === 'Booking' && displayBooking.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {displayBooking.map((s, idx) => renderSalesmanCard(s, idx + 1))}
-                      </div>
+                    {showBothWithoutPicker ? (
+                      <>
+                        {displayExTruck.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {displayExTruck.map((s, idx) => renderSalesmanCard(s, idx + 1))}
+                          </div>
+                        )}
+                        {displayBooking.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {displayBooking.map((s, idx) => renderSalesmanCard(s, idx + 1))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {serviceModel === 'Ex-Truck' && displayExTruck.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {displayExTruck.map((s, idx) => renderSalesmanCard(s, idx + 1))}
+                          </div>
+                        )}
+                        {serviceModel === 'Booking' && displayBooking.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {displayBooking.map((s, idx) => renderSalesmanCard(s, idx + 1))}
+                          </div>
+                        )}
+                      </>
                     )}
                   </>
                 );
@@ -413,8 +431,8 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
           </div> {/* End of Inner Padding Wrapper */}
         </div> {/* End of Expanded Content */}
 
-        {/* Absolute Hovering Service Model Selector */}
-        {!isCollapsed && (
+        {/* Absolute Hovering Service Model Selector — shown only for admin, manager, warehouse_supervisor */}
+        {!isCollapsed && (role === 'admin' || role === 'manager' || role === 'warehouse_supervisor') && (
           <div style={{ position: 'absolute', bottom: '16px', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 30 }}>
             <div style={{ display: 'flex', gap: '8px', width: '90%', maxWidth: '300px', padding: '8px', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(12px)', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', pointerEvents: 'auto' }}>
               <button

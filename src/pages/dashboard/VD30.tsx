@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Modal } from '../../components/ui/Modal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { useTeams } from '../../hooks/useTeams';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Package, Users, BarChart3 } from 'lucide-react';
 
 const Meter: React.FC<{ target: number; actual: number }> = ({ target, actual }) => {
   const percent = Math.min((actual / (target || 1)) * 100, 100).toFixed(0);
@@ -31,6 +31,23 @@ const VD30: React.FC = () => {
   
   const { loading, data } = useDashboardData(selectedTeam);
 
+  // Build product list per VD30 code from refVd30Items (already cached, no extra reads)
+  const productsByVd30Code = useMemo(() => {
+    const map: Record<string, Array<{ product_code: string; product_description: string, customers: number, volume: number }>> = {};
+    (data.refVd30Items || []).forEach((item: any) => {
+      const code = item.vd30_code;
+      if (!code) return;
+      if (!map[code]) map[code] = [];
+      map[code].push({
+        product_code: item.product_code || item.id || '',
+        product_description: item.product_description || '',
+        customers: item.customers || 0,
+        volume: item.volume || 0
+      });
+    });
+    return map;
+  }, [data.refVd30Items]);
+
   if (loading && data.salesmen.length === 0) {
     return (
       <div className="flex-center" style={{ height: '50vh', color: 'var(--accent-primary)' }}>
@@ -40,6 +57,9 @@ const VD30: React.FC = () => {
   }
 
   const displayItems = data.vd30.filter(item => item.target > 0);
+
+  // Get products for the selected VD30 item
+  const selectedProducts = selectedItem ? (productsByVd30Code[selectedItem.code] || []) : [];
 
   return (
     <div className="animate-fade-in">
@@ -135,29 +155,88 @@ const VD30: React.FC = () => {
         )}
       </div>
 
+      {/* VD30 Item Detail Modal with Product Breakdown */}
       <Modal 
         isOpen={!!selectedItem}
         onClose={() => setSelectedItem(null)}
-        title={selectedItem?.name || ''}
+        title={selectedItem?.code || ''}
       >
         {selectedItem && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Header */}
             <div style={{ fontWeight: '500', color: 'var(--accent-primary)', fontSize: '18px' }}>
               {selectedItem.description}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Target Placements</span>
-              <span style={{ fontWeight: 'bold' }}>{selectedItem.target} Stores</span>
+
+            {/* Stats Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                <BarChart3 size={16} color="var(--text-muted)" />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Index</span>
+                <span style={{ fontWeight: 'bold', fontSize: '16px', color: selectedItem.actual >= selectedItem.target ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
+                  {((selectedItem.actual / (selectedItem.target || 1)) * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                <Users size={16} color="var(--text-muted)" />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Customers</span>
+                <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{selectedItem.actual}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                <Package size={16} color="var(--text-muted)" />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Target</span>
+                <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{selectedItem.target}</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Actual Placements</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>{selectedItem.actual} Stores</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Index</span>
-              <span style={{ fontWeight: 'bold', color: selectedItem.actual >= selectedItem.target ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
-                {((selectedItem.actual / (selectedItem.target || 1)) * 100).toFixed(1)}%
-              </span>
+
+            {/* Product List */}
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Package size={14} />
+                Products in this VD30 Group ({selectedProducts.length})
+              </div>
+              <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {selectedProducts.length > 0 ? (
+                  selectedProducts.map((product: any, idx: number) => (
+                    <div key={idx} style={{ 
+                      display: 'flex', alignItems: 'center', gap: '8px', 
+                      padding: '10px 12px', background: 'rgba(255,255,255,0.03)', 
+                      borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' 
+                    }}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ 
+                          fontFamily: 'monospace', fontSize: '12px', color: 'var(--accent-primary)', 
+                          fontWeight: 600, whiteSpace: 'nowrap'
+                        }}>
+                          {product.product_code}
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-main)', lineHeight: 1.4 }}>
+                          {product.product_description || 'No description'}
+                        </span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '16px', minWidth: '120px', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Customers</span>
+                          <span style={{ fontSize: '13px', fontWeight: 'bold', color: product.customers > 0 ? 'var(--accent-success)' : 'var(--text-muted)' }}>
+                            {product.customers}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Volume</span>
+                          <span style={{ fontSize: '13px', fontWeight: 'bold', color: product.volume > 0 ? 'var(--accent-success)' : 'var(--text-muted)' }}>
+                            {product.volume.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    No product reference data available for this VD30 group.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
