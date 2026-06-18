@@ -312,7 +312,7 @@ const DataUpload: React.FC = () => {
                   let activeWeeks = 0;
                   const weeklyData = m.customer_weekly_net[custId] || {};
                   Object.values(weeklyData).forEach((weekNet: any) => {
-                    if (weekNet > 0) activeWeeks++;
+                    if (weekNet >= 1) activeWeeks++;
                   });
                   
                   // Ensure they fall into at least F1 if they are UBA
