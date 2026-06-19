@@ -428,29 +428,20 @@ textarea:focus {
 
 /* Marquee for Salesman Names */
 .name-scroll-container {
-  max-width: 130px;
+  width: 100%;
   overflow: hidden;
   white-space: nowrap;
+  container-type: inline-size;
 }
 
 .name-scroll-text {
   display: inline-block;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  width: 100%;
-  vertical-align: bottom;
-  transition: all 0.3s ease;
-}
-
-.glass-panel:hover .name-scroll-container .name-scroll-text {
-  width: max-content;
-  text-overflow: clip;
-  animation: scroll-marquee 4s linear infinite;
-  animation-delay: 0.5s; /* Wait half a second before scrolling */
-  padding-right: 20px;
+  white-space: nowrap;
+  padding-right: 4px;
+  animation: scroll-marquee 5s linear infinite alternate;
 }
 
 @keyframes scroll-marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(calc(-100% + 130px)); }
+  0%, 15% { transform: translateX(0); }
+  85%, 100% { transform: translateX(min(0px, calc(100cqi - 100%))); }
 }
