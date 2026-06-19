@@ -10,6 +10,7 @@ import { useTradeBoData, useTradeBoCustomers, type TradeCustomer } from '../../h
 import { useWarehouseBoData } from '../../hooks/useWarehouseBoData';
 import { useVanBoData } from '../../hooks/useVanBoData';
 import { usePricelist } from '../../hooks/usePricelist';
+import { useItemCategories } from '../../hooks/useItemCategories';
 import { Modal } from '../../components/ui/Modal';
 
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
@@ -146,6 +147,7 @@ const BackOrder: React.FC = () => {
   const canSeeAdminTabs = role === 'admin' || role === 'manager' || role === 'supervisor';
 
   const { loading: priceLoading, priceMap } = usePricelist();
+  const { categoryMap } = useItemCategories();
   const { loading: tradeLoading, salesmen, history: tradeHistory, totalBsr } = useTradeBoData(selectedTeam);
   const { loading: whLoading, items: whItems, categories: whCats, branches: whBranches, totalAmount: whTotalAmount, uploadDate: whUploadDate } = useWarehouseBoData(priceMap);
   const { loading: vanLoading, items: vanItems, categories: vanCats, vans, totalAmount: vanTotalAmount, uploadDate: vanUploadDate } = useVanBoData(priceMap);
@@ -636,7 +638,7 @@ const BackOrder: React.FC = () => {
                   (() => {
                     const custCats = new Set<string>();
                     Object.keys(selectedCustomer.bsr_products).forEach(code => {
-                      const cat = priceMap[code]?.category;
+                      const cat = categoryMap[code];
                       if (cat) custCats.add(cat);
                     });
                     const availableCats = Array.from(custCats).sort();
@@ -655,7 +657,7 @@ const BackOrder: React.FC = () => {
                         
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           {Object.entries(selectedCustomer.bsr_products)
-                            .filter(([prodCode]) => custProductCategory === 'all' || priceMap[prodCode]?.category === custProductCategory)
+                            .filter(([prodCode]) => custProductCategory === 'all' || categoryMap[prodCode] === custProductCategory)
                             .sort((a, b) => b[1] - a[1])
                             .map(([prodCode, value]) => (
                               <div key={prodCode} style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
