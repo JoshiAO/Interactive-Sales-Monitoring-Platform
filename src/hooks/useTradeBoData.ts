@@ -27,6 +27,8 @@ export interface TradeCustomer {
   city: string;
   province: string;
   bsr: number;
+  bsr_products?: Record<string, number>;
+  bsr_categories?: Record<string, number>;
 }
 
 export const useTradeBoData = (selectedTeam: string = 'all') => {
@@ -163,7 +165,9 @@ export const useTradeBoCustomers = (salesmanCode: string | null) => {
             barangay: c['BARANGAY'] || '-',
             city: c['CITY'] || '-',
             province: c['PROVINCE'] || c['REGION'] || '-',
-            bsr: c.bsr || 0
+            bsr: c.bsr || 0,
+            bsr_products: c.bsr_products || {},
+            bsr_categories: c.bsr_categories || {}
           }))
           .sort((a: TradeCustomer, b: TradeCustomer) => b.bsr - a.bsr);
         setCustomers(result);

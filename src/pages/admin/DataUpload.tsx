@@ -198,12 +198,18 @@ const DataUpload: React.FC = () => {
                 m.uba_customers.add(cNumStr); // Track all customers seen for this salesman
 
                 if (!customerMetrics[cNumStr]) {
-                  customerMetrics[cNumStr] = { volume: 0, netValue: 0, gsr: 0, bsr: 0, isBuying: false };
+                  customerMetrics[cNumStr] = { volume: 0, netValue: 0, gsr: 0, bsr: 0, isBuying: false, bsr_products: {}, bsr_categories: {} };
                 }
                 customerMetrics[cNumStr].volume += volume;
                 customerMetrics[cNumStr].netValue += netValue;
                 customerMetrics[cNumStr].gsr += gsr;
                 customerMetrics[cNumStr].bsr += bsr;
+
+                if (bsr > 0 && prodCode) {
+                  const pCode = String(prodCode);
+                  customerMetrics[cNumStr].bsr_products[pCode] = (customerMetrics[cNumStr].bsr_products[pCode] || 0) + bsr;
+                  customerMetrics[cNumStr].bsr_categories[category] = (customerMetrics[cNumStr].bsr_categories[category] || 0) + bsr;
+                }
               }
               
               m.categories[category] = (m.categories[category] || 0) + netValue;
@@ -267,12 +273,16 @@ const DataUpload: React.FC = () => {
                    c.gsr = metrics.gsr;
                    c.bsr = metrics.bsr;
                    c.isBuying = metrics.netValue >= 1;
+                   if (Object.keys(metrics.bsr_products).length > 0) c.bsr_products = metrics.bsr_products;
+                   if (Object.keys(metrics.bsr_categories).length > 0) c.bsr_categories = metrics.bsr_categories;
                 } else {
                    c.volume = 0;
                    c.netValue = 0;
                    c.gsr = 0;
                    c.bsr = 0;
                    c.isBuying = false;
+                   delete c.bsr_products;
+                   delete c.bsr_categories;
                 }
               });
               

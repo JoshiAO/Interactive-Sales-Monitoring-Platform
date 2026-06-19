@@ -3,10 +3,10 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { Search, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Calendar } from 'lucide-react';
+import { Search, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Calendar, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeams } from '../../hooks/useTeams';
-import { useTradeBoData, useTradeBoCustomers } from '../../hooks/useTradeBoData';
+import { useTradeBoData, useTradeBoCustomers, type TradeCustomer } from '../../hooks/useTradeBoData';
 import { useWarehouseBoData } from '../../hooks/useWarehouseBoData';
 import { useVanBoData } from '../../hooks/useVanBoData';
 import { usePricelist } from '../../hooks/usePricelist';
@@ -16,6 +16,15 @@ const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4
 
 const formatCurrency = (val: number) =>
   `₱${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const formatShortCurrency = (val: number) => {
+  if (Math.abs(val) >= 1_000_000) {
+    return `₱${(val / 1_000_000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}M`;
+  } else if (Math.abs(val) >= 1_000) {
+    return `₱${(val / 1_000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}K`;
+  }
+  return `₱${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 // ─── Sortable Table ──────────────────────────────────────────────────────────
 interface SortableTableProps {
@@ -122,6 +131,7 @@ const BackOrder: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'trade' | 'warehouse' | 'van'>('trade');
   const [selectedSalesman, setSelectedSalesman] = useState<any | null>(null);
   const [selectedVan, setSelectedVan] = useState<string | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<TradeCustomer | null>(null);
   const [wSearch, setWSearch] = useState('');
   const [wBranch, setWBranch] = useState('all');
   const [wCategory, setWCategory] = useState('all');
@@ -321,11 +331,11 @@ const BackOrder: React.FC = () => {
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px', display: 'flex', gap: '12px' }}>
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>STT</div>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--accent-primary)' }}>{formatCurrency(s.stt)}</div>
+                    <div title={formatCurrency(s.stt)} style={{ fontSize: '14px', fontWeight: 600, color: 'var(--accent-primary)', cursor: 'help' }}>{formatShortCurrency(s.stt)}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Trade B.O.</div>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-danger)' }}>{formatCurrency(s.bsr)}</div>
+                    <div title={formatCurrency(s.bsr)} style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-danger)', cursor: 'help' }}>{formatShortCurrency(s.bsr)}</div>
                   </div>
                 </div>
               </div>
@@ -510,24 +520,26 @@ const BackOrder: React.FC = () => {
       )}
 
       {/* ═══ TRADE CUSTOMER MODAL ════════════════════════════════════════════ */}
-      <Modal isOpen={!!selectedSalesman} onClose={() => setSelectedSalesman(null)} title={`${selectedSalesman?.name || ''} — Trade B.O.`}>
+      <Modal isOpen={!!selectedSalesman} onClose={() => { setSelectedSalesman(null); setSelectedCustomer(null); }} title={`${selectedSalesman?.name || ''} — Trade B.O.`}>
         {selectedSalesman && (
           <div>
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Trade B.O. (BSR)</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--accent-danger)' }}>{formatCurrency(selectedSalesman.bsr)}</div>
-                  <div style={{ padding: '2px 8px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--accent-danger)', fontSize: '12px', fontWeight: 700 }}>
-                    {((selectedSalesman.stt + selectedSalesman.gsr + selectedSalesman.bsr) > 0 ? (selectedSalesman.bsr / (selectedSalesman.stt + selectedSalesman.gsr + selectedSalesman.bsr)) * 100 : 0).toFixed(2)}%
+            {!selectedCustomer ? (
+              <>
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Trade B.O. (BSR)</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--accent-danger)' }}>{formatCurrency(selectedSalesman.bsr)}</div>
+                      <div style={{ padding: '2px 8px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--accent-danger)', fontSize: '12px', fontWeight: 700 }}>
+                        {((selectedSalesman.stt + selectedSalesman.gsr + selectedSalesman.bsr) > 0 ? (selectedSalesman.bsr / (selectedSalesman.stt + selectedSalesman.gsr + selectedSalesman.bsr)) * 100 : 0).toFixed(2)}%
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Customers</div>
+                    <div style={{ fontSize: '18px', fontWeight: 700 }}>{filteredCustomers.length}</div>
                   </div>
                 </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Customers</div>
-                <div style={{ fontSize: '18px', fontWeight: 700 }}>{filteredCustomers.length}</div>
-              </div>
-            </div>
 
             {/* Filters */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
@@ -559,7 +571,8 @@ const BackOrder: React.FC = () => {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto' }}>
                 {filteredCustomers.map(c => (
-                  <div key={c.id} style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <div key={c.id} className="interactive" onClick={() => setSelectedCustomer(c)}
+                    style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '13px' }}>{c.name}</div>
@@ -575,6 +588,61 @@ const BackOrder: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+            </>
+            ) : (
+              // Customer Details View
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <button onClick={() => setSelectedCustomer(null)} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '13px', transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.color = 'var(--text-main)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }} onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}>
+                  <ArrowLeft size={14} /> Back to Customers
+                </button>
+                <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px' }}>{selectedCustomer.name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{selectedCustomer.id}</div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-danger)', marginTop: '12px' }}>{formatCurrency(selectedCustomer.bsr)}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Total Trade B.O.</div>
+                </div>
+
+                {/* BSR Category Chart */}
+                {selectedCustomer.bsr_categories && Object.keys(selectedCustomer.bsr_categories).length > 0 && (
+                  <div style={{ height: '240px', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+                    <h3 style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px', flexShrink: 0 }}>Trade B.O. by Category</h3>
+                    <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={Object.entries(selectedCustomer.bsr_categories).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)} margin={{ top: 5, right: 5, left: -20, bottom: 25 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                          <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickMargin={8} interval={0} angle={-45} textAnchor="end" height={40} />
+                          <YAxis stroke="var(--text-muted)" fontSize={10} tickFormatter={(val) => `₱${(val / 1000).toFixed(0)}k`} />
+                          <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={chartTooltipStyle.contentStyle} formatter={(val: any) => formatCurrency(val as number)} />
+                          <Bar dataKey="value" fill="var(--accent-danger)" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* BSR Products List */}
+                {selectedCustomer.bsr_products && Object.keys(selectedCustomer.bsr_products).length > 0 && (
+                  <div>
+                    <h3 style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>Products</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                      {Object.entries(selectedCustomer.bsr_products).sort((a, b) => b[1] - a[1]).map(([prodCode, value]) => (
+                        <div key={prodCode} style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {priceMap[prodCode]?.product_description || prodCode}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '2px' }}>{prodCode}</div>
+                          </div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-danger)', flexShrink: 0 }}>
+                            {formatCurrency(value)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
