@@ -2,8 +2,6 @@
 
 A modern, highly premium, and responsive **Progressive Web App (PWA)** built for tracking and monitoring sales performance. This platform enables multiple roles—**Salesman, Supervisor, Manager, Admin, and Warehouse Supervisor**—to cascade goals, analyze targets, track inventory ageing/back-orders, and compete in a structured weekly gamification leaderboard.
 
-The live application is hosted at [rd-sales-monitoring.web.app](https://rd-sales-monitoring.web.app) with the source code managed under the [JoshiAO/sales-monitoring-dashboard](https://github.com/JoshiAO/sales-monitoring-dashboard) repository.
-
 ---
 
 ## 🎯 Platform Access & Activation Flow
