@@ -156,23 +156,33 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         });
 
         let allowedSalesmen = new Set<string>();
+        let leaderboardSalesmen = new Set<string>();
 
         // Filter based on role
         if (forceAllSalesmen === true) {
           teamData.forEach((row: any) => {
             allowedSalesmen.add(String(row.salesman_code));
+            leaderboardSalesmen.add(String(row.salesman_code));
           });
         } else if (forceAllSalesmen === 'team' || role === 'supervisor') {
           const supervisorTeams = team ? team.split(',').map((t: string) => t.trim()) : [];
           teamData.forEach((row: any) => {
-            if (supervisorTeams.includes(row.team)) allowedSalesmen.add(String(row.salesman_code));
+            if (supervisorTeams.includes(row.team)) {
+              allowedSalesmen.add(String(row.salesman_code));
+              leaderboardSalesmen.add(String(row.salesman_code));
+            }
           });
         } else if (role === 'salesman' && salesmanId) {
           allowedSalesmen.add(String(salesmanId));
+          // Salesmen need to see their peers in the leaderboard
+          teamData.forEach((row: any) => {
+            leaderboardSalesmen.add(String(row.salesman_code));
+          });
         } else if (role === 'manager' || role === 'admin') {
           teamData.forEach((row: any) => {
             if (selectedTeam === 'all' || row.team === selectedTeam) {
               allowedSalesmen.add(String(row.salesman_code));
+              leaderboardSalesmen.add(String(row.salesman_code));
             }
           });
         }
@@ -196,54 +206,59 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
 
         // Aggregate Metrics
         metricsData.forEach((m: any) => {
-          if (!allowedSalesmen.has(m.id)) return;
+          if (!leaderboardSalesmen.has(m.id)) return;
+          const isAggregated = allowedSalesmen.has(m.id);
 
-          totalMtdSales += (m.mtd_net_value || 0);
-          totalMtdVolume += (m.mtd_volume || 0);
-          totalGsr += (m.gsr || 0);
-          totalBsr += (m.bsr || 0);
-          totalCml += (m.cml_count || 0);
-          // Calculate Frequency
           let f1 = 0, f2 = 0, f3 = 0, f4 = 0;
           if (m.frequency) {
             f1 = m.frequency.f1 || 0;
             f2 = m.frequency.f2 || 0;
             f3 = m.frequency.f3 || 0;
             f4 = m.frequency.f4 || 0;
-            totalF1 += f1;
-            totalF2 += f2;
-            totalF3 += f3;
-            totalF4 += f4;
           }
-
-          // Use Frequency sum for accurate UBA if available
           const accurateUba = m.frequency ? (f1 + f2 + f3 + f4) : (m.uba || 0);
-          totalUba += accurateUba;
 
           let salesmanVd30ActualMap: Record<string, number> = {};
           if (m.vd30_placements) {
             Object.keys(m.vd30_placements).forEach(k => {
-              const val = m.vd30_placements[k];
-              vd30Actuals[k] = (vd30Actuals[k] || 0) + val;
-              salesmanVd30ActualMap[k] = val;
+              salesmanVd30ActualMap[k] = m.vd30_placements[k];
             });
           }
 
-          if (m.vd30_product_details) {
-            Object.keys(m.vd30_product_details).forEach(prodCode => {
-              if (!globalVd30ProductDetails[prodCode]) {
-                globalVd30ProductDetails[prodCode] = { customers: 0, volume: 0 };
-              }
-              globalVd30ProductDetails[prodCode].customers += (m.vd30_product_details[prodCode].customers || 0);
-              globalVd30ProductDetails[prodCode].volume += (m.vd30_product_details[prodCode].volume || 0);
-            });
+          if (isAggregated) {
+            totalMtdSales += (m.mtd_net_value || 0);
+            totalMtdVolume += (m.mtd_volume || 0);
+            totalGsr += (m.gsr || 0);
+            totalBsr += (m.bsr || 0);
+            totalCml += (m.cml_count || 0);
+            totalF1 += f1;
+            totalF2 += f2;
+            totalF3 += f3;
+            totalF4 += f4;
+            totalUba += accurateUba;
+
+            if (m.vd30_placements) {
+              Object.keys(m.vd30_placements).forEach(k => {
+                vd30Actuals[k] = (vd30Actuals[k] || 0) + m.vd30_placements[k];
+              });
+            }
+
+            if (m.vd30_product_details) {
+              Object.keys(m.vd30_product_details).forEach(prodCode => {
+                if (!globalVd30ProductDetails[prodCode]) {
+                  globalVd30ProductDetails[prodCode] = { customers: 0, volume: 0 };
+                }
+                globalVd30ProductDetails[prodCode].customers += (m.vd30_product_details[prodCode].customers || 0);
+                globalVd30ProductDetails[prodCode].volume += (m.vd30_product_details[prodCode].volume || 0);
+              });
+            }
+
+            if (m.categories) Object.keys(m.categories).forEach(k => categoriesMap[k] = (categoriesMap[k] || 0) + m.categories[k]);
+            if (m.channels) Object.keys(m.channels).forEach(k => channelsMap[k] = (channelsMap[k] || 0) + m.channels[k]);
+
+            const geoSource = role === 'salesman' ? m.brgy : m.town;
+            if (geoSource) Object.keys(geoSource).forEach(k => geoMap[k] = (geoMap[k] || 0) + geoSource[k]);
           }
-
-          if (m.categories) Object.keys(m.categories).forEach(k => categoriesMap[k] = (categoriesMap[k] || 0) + m.categories[k]);
-          if (m.channels) Object.keys(m.channels).forEach(k => channelsMap[k] = (channelsMap[k] || 0) + m.channels[k]);
-
-          const geoSource = role === 'salesman' ? m.brgy : m.town;
-          if (geoSource) Object.keys(geoSource).forEach(k => geoMap[k] = (geoMap[k] || 0) + geoSource[k]);
 
           salesmenData[m.id] = {
             id: m.id,
@@ -264,11 +279,14 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
 
         // Aggregate Targets
         sttData.forEach((t: any) => {
-          if (!allowedSalesmen.has(t.id)) return;
+          if (!leaderboardSalesmen.has(t.id)) return;
           const target = parseFloat(t.stt_target) || 0;
           const ubaTgt = parseFloat(t['uba target']) || 0;
-          totalTarget += target;
-          totalUbaTarget += ubaTgt;
+          
+          if (allowedSalesmen.has(t.id)) {
+            totalTarget += target;
+            totalUbaTarget += ubaTgt;
+          }
 
           if (salesmenData[t.id]) {
             salesmenData[t.id].target = target;
@@ -277,12 +295,14 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         });
 
         vd30Data.forEach((t: any) => {
-          if (!allowedSalesmen.has(t.id)) return;
+          if (!leaderboardSalesmen.has(t.id)) return;
           let salesmanVd30TargetMap: Record<string, number> = {};
           Object.keys(t).forEach(k => {
             if (k.startsWith('F')) {
               const val = parseFloat(t[k]) || 0;
-              vd30Targets[k] = (vd30Targets[k] || 0) + val;
+              if (allowedSalesmen.has(t.id)) {
+                vd30Targets[k] = (vd30Targets[k] || 0) + val;
+              }
               salesmanVd30TargetMap[k] = val;
             }
           });
