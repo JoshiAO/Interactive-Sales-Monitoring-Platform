@@ -320,9 +320,9 @@ const BackOrder: React.FC = () => {
                       {s.name.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <div>
-                    <div className="name-scroll-container">
-                      <div className="name-scroll-text" style={{ fontWeight: 600, fontSize: '14px' }}>{s.name}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={s.name}>
+                      {s.name}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', marginBottom: '4px' }}>{s.code}</div>
                     <div style={{ display: 'inline-block', padding: '2px 6px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--accent-danger)', fontSize: '10px', fontWeight: 700 }}>

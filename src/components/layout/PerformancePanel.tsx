@@ -280,10 +280,8 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
                         </div>
                       </div>
                       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', zIndex: 1 }}>
-                        <div className="name-scroll-container">
-                          <div className="name-scroll-text" style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-main)' }}>
-                            {salesman.name}
-                          </div>
+                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={salesman.name}>
+                          {salesman.name}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
