@@ -180,7 +180,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
 
         {/* --- Expanded Content --- */}
         <div style={{ width: isMobileView ? '100%' : '370px', flex: 1, overflowY: 'auto', overflowX: 'hidden', opacity: isCollapsed ? 0 : 1, transition: 'opacity 0.2s', pointerEvents: isCollapsed ? 'none' : 'auto' }}>
-          <div style={{ width: isMobileView ? '100%' : '90%', margin: '0 auto', padding: '4px 24px 24px 0px', display: 'flex', flexDirection: 'column', minHeight: '100%', boxSizing: 'border-box' }}>
+          <div style={{ width: isMobileView ? '100%' : '90%', margin: '0 auto', padding: '4px 24px 100px 0px', display: 'flex', flexDirection: 'column', minHeight: '100%', boxSizing: 'border-box' }}>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <div>
@@ -280,8 +280,10 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
                         </div>
                       </div>
                       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', zIndex: 1 }}>
-                        <div style={{ fontSize: '14px', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-main)' }}>
-                          {salesman.name}
+                        <div className="name-scroll-container">
+                          <div className="name-scroll-text" style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-main)' }}>
+                            {salesman.name}
+                          </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
