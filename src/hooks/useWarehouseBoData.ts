@@ -19,7 +19,7 @@ export interface WarehouseBoItem {
   amount: number;
 }
 
-export const useWarehouseBoData = (priceMap: PriceMap) => {
+export const useWarehouseBoData = (priceMap: PriceMap, priceLoading: boolean = false) => {
   const { currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<WarehouseBoItem[]>([]);
@@ -30,7 +30,7 @@ export const useWarehouseBoData = (priceMap: PriceMap) => {
   const [uploadDate, setUploadDate] = useState('');
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || priceLoading) return;
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -118,7 +118,7 @@ export const useWarehouseBoData = (priceMap: PriceMap) => {
       }
     };
     fetchData();
-  }, [currentUser, priceMap]);
+  }, [currentUser, priceMap, priceLoading]);
 
   return { loading, items, categories, branches, totalQty, totalAmount, uploadDate };
 };

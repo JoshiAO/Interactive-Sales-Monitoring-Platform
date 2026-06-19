@@ -29,7 +29,7 @@ export interface VanCard {
   totalAmount: number;
 }
 
-export const useVanBoData = (priceMap: PriceMap) => {
+export const useVanBoData = (priceMap: PriceMap, priceLoading: boolean = false) => {
   const { currentUser } = useAuth();
   const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
@@ -41,7 +41,7 @@ export const useVanBoData = (priceMap: PriceMap) => {
   const [uploadDate, setUploadDate] = useState('');
 
   useEffect(() => {
-    if (!currentUser || usersLoading) return;
+    if (!currentUser || usersLoading || priceLoading) return;
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -153,7 +153,7 @@ export const useVanBoData = (priceMap: PriceMap) => {
       }
     };
     fetchData();
-  }, [currentUser, usersLoading, priceMap]);
+  }, [currentUser, usersLoading, priceMap, priceLoading]);
 
   return { loading, items, categories, vans, totalQty, totalAmount, uploadDate };
 };

@@ -149,8 +149,8 @@ const BackOrder: React.FC = () => {
   const { loading: priceLoading, priceMap } = usePricelist();
   const { categoryMap } = useItemCategories();
   const { loading: tradeLoading, salesmen, history: tradeHistory, totalBsr } = useTradeBoData(selectedTeam);
-  const { loading: whLoading, items: whItems, categories: whCats, branches: whBranches, totalAmount: whTotalAmount, uploadDate: whUploadDate } = useWarehouseBoData(priceMap);
-  const { loading: vanLoading, items: vanItems, categories: vanCats, vans, totalAmount: vanTotalAmount, uploadDate: vanUploadDate } = useVanBoData(priceMap);
+  const { loading: whLoading, items: whItems, categories: whCats, branches: whBranches, totalAmount: whTotalAmount, uploadDate: whUploadDate } = useWarehouseBoData(priceMap, priceLoading);
+  const { loading: vanLoading, items: vanItems, categories: vanCats, vans, totalAmount: vanTotalAmount, uploadDate: vanUploadDate } = useVanBoData(priceMap, priceLoading);
   const { loading: custLoading, customers } = useTradeBoCustomers(selectedSalesman?.code || null);
 
   // ─── Warehouse derived data ─────────────────────────────────────────────
