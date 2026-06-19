@@ -626,7 +626,7 @@ const BackOrder: React.FC = () => {
                 {selectedCustomer.bsr_products && Object.keys(selectedCustomer.bsr_products).length > 0 && (
                   <div>
                     <h3 style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>Products</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {Object.entries(selectedCustomer.bsr_products).sort((a, b) => b[1] - a[1]).map(([prodCode, value]) => (
                         <div key={prodCode} style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
