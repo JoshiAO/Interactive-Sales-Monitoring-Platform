@@ -425,3 +425,32 @@ textarea:focus {
 .grecaptcha-badge {
   visibility: hidden !important;
 }
+
+/* Marquee for Salesman Names */
+.name-scroll-container {
+  max-width: 130px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.name-scroll-text {
+  display: inline-block;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  width: 100%;
+  vertical-align: bottom;
+  transition: all 0.3s ease;
+}
+
+.glass-panel:hover .name-scroll-container .name-scroll-text {
+  width: max-content;
+  text-overflow: clip;
+  animation: scroll-marquee 4s linear infinite;
+  animation-delay: 0.5s; /* Wait half a second before scrolling */
+  padding-right: 20px;
+}
+
+@keyframes scroll-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-100% + 130px)); }
+}
