@@ -114,7 +114,7 @@ const VD30: React.FC = () => {
       <div className="glass-panel" style={{ height: '350px', marginBottom: '32px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <h3 style={{ marginBottom: '16px', fontSize: '16px', color: 'var(--text-muted)' }}>Overall VD30 Achievement</h3>
         <div style={{ flex: 1 }}>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={displayItems} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />

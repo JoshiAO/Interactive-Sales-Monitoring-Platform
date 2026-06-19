@@ -123,7 +123,7 @@ const SalesmanPerformanceCard: React.FC<SalesmanPerformanceCardProps> = ({ sales
       {/* Skewing Chart */}
       <div style={{ height: '140px', width: '100%', marginTop: '8px' }}>
         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>Skewing (Pacing vs Commitment)</div>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
             <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
             <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} />

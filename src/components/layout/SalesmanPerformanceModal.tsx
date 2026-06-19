@@ -146,7 +146,7 @@ const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ sal
             <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: 'var(--text-muted)' }}>STT Index (%)</h4>
             <div style={{ height: '200px', width: '100%', overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '16px' }}>
               <div style={{ minWidth: '100%', height: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <LineChart data={graphData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
                     <XAxis dataKey="day" stroke="var(--text-muted)" fontSize={11} />
@@ -163,7 +163,7 @@ const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ sal
             <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: 'var(--text-muted)' }}>UBA Index (%)</h4>
             <div style={{ height: '200px', width: '100%', overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '16px' }}>
               <div style={{ minWidth: '100%', height: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <LineChart data={graphData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
                     <XAxis dataKey="day" stroke="var(--text-muted)" fontSize={11} />
@@ -180,7 +180,7 @@ const SalesmanPerformanceModal: React.FC<SalesmanPerformanceModalProps> = ({ sal
             <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: 'var(--text-muted)' }}>VD30 Index (%)</h4>
             <div style={{ height: '200px', width: '100%', overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px', padding: '16px' }}>
               <div style={{ minWidth: '100%', height: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <LineChart data={graphData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
                     <XAxis dataKey="day" stroke="var(--text-muted)" fontSize={11} />

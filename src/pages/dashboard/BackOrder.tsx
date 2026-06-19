@@ -242,7 +242,7 @@ const BackOrder: React.FC = () => {
         <div className="glass-panel" style={{ marginBottom: '24px', height: '260px', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '12px' }}>Trade B.O. History (BSR)</h3>
           <div style={{ flex: 1 }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <LineChart data={tradeHistory} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} />
@@ -362,7 +362,7 @@ const BackOrder: React.FC = () => {
               <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
                 <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '12px' }}>By Category</h3>
                 <div style={{ flex: 1 }}>
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <BarChart data={whCategoryChart} layout="vertical" margin={{ left: 0, right: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                       <XAxis type="number" stroke="var(--text-muted)" fontSize={11} tickFormatter={v => `₱${(v / 1000).toFixed(0)}k`} />
@@ -376,7 +376,7 @@ const BackOrder: React.FC = () => {
               <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
                 <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '12px' }}>By Branch</h3>
                 <div style={{ flex: 1 }}>
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <PieChart>
                       <Pie data={whBranchChart} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
                         {whBranchChart.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
@@ -435,7 +435,7 @@ const BackOrder: React.FC = () => {
               <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
                 <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '12px' }}>By Category</h3>
                 <div style={{ flex: 1 }}>
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <BarChart data={vanCategoryChart} layout="vertical" margin={{ left: 0, right: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                       <XAxis type="number" stroke="var(--text-muted)" fontSize={11} tickFormatter={v => `₱${(v / 1000).toFixed(0)}k`} />
@@ -449,7 +449,7 @@ const BackOrder: React.FC = () => {
               <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
                 <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '12px' }}>By Van</h3>
                 <div style={{ flex: 1 }}>
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <PieChart>
                       <Pie data={vanShareChart} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
                         {vanShareChart.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
@@ -611,7 +611,7 @@ const BackOrder: React.FC = () => {
                   <div style={{ height: '240px', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
                     <h3 style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px', flexShrink: 0 }}>Trade B.O. by Category</h3>
                     <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                         <BarChart data={Object.entries(selectedCustomer.bsr_categories).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)} margin={{ top: 5, right: 5, left: -20, bottom: 25 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                           <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickMargin={8} interval={0} angle={-45} textAnchor="end" height={40} />

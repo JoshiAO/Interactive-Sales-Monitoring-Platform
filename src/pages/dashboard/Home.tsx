@@ -134,7 +134,7 @@ const Home: React.FC = () => {
         <div className="glass-panel" style={{ height: '400px', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ marginBottom: '16px', fontSize: '16px', color: 'var(--text-muted)' }}>VD30 Performance</h3>
           <div style={{ flex: 1 }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={vd30ChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
@@ -158,7 +158,7 @@ const Home: React.FC = () => {
           <div className="glass-panel" style={{ height: '400px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <h3 style={{ marginBottom: '16px', fontSize: '16px', color: 'var(--text-muted)' }}>Product Category</h3>
           <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <PieChart>
                 <Pie
                   data={data.categories}

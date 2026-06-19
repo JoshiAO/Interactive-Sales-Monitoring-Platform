@@ -148,7 +148,7 @@ const Sales: React.FC = () => {
             Geo Performance {role === 'salesman' ? '(Barangay)' : '(City)'}
           </h3>
           <div style={{ flex: 1 }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={data.geo} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                 <XAxis type="number" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => v.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
@@ -168,7 +168,7 @@ const Sales: React.FC = () => {
         <div className="glass-panel" style={{ height: '350px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <h3 style={{ marginBottom: '16px', fontSize: '16px', color: 'var(--text-muted)' }}>Customer Channel</h3>
           <div style={{ flex: 1 }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={data.channels}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
@@ -238,7 +238,7 @@ const Sales: React.FC = () => {
       <Modal isOpen={!!selectedSalesmanVd30} onClose={() => setSelectedSalesmanVd30(null)} title={`${selectedSalesmanVd30?.name || ''} - VD30`}>
         {selectedSalesmanVd30 && (
           <div style={{ height: `${Math.max(350, Object.keys(selectedSalesmanVd30.vd30TargetMap || {}).length * 30)}px`, width: '100%', minWidth: 0, marginTop: '8px' }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart layout="vertical" data={Object.keys(selectedSalesmanVd30.vd30TargetMap || {}).map(k => {
                 const itemName = k.split('_')[0];
                 return {
