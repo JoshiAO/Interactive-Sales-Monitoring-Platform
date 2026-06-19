@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -137,6 +137,11 @@ const BackOrder: React.FC = () => {
   const [wCategory, setWCategory] = useState('all');
   const [vSearch, setVSearch] = useState('');
   const [vCategory, setVCategory] = useState('all');
+  const [custProductCategory, setCustProductCategory] = useState('all');
+
+  useEffect(() => {
+    setCustProductCategory('all');
+  }, [selectedCustomer]);
 
   const canSeeAdminTabs = role === 'admin' || role === 'manager' || role === 'supervisor';
 
@@ -628,24 +633,47 @@ const BackOrder: React.FC = () => {
 
                 {/* BSR Products List */}
                 {selectedCustomer.bsr_products && Object.keys(selectedCustomer.bsr_products).length > 0 && (
-                  <div>
-                    <h3 style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>Products</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {Object.entries(selectedCustomer.bsr_products).sort((a, b) => b[1] - a[1]).map(([prodCode, value]) => (
-                        <div key={prodCode} style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
-                            <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {priceMap[prodCode]?.product_description || prodCode}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '2px' }}>{prodCode}</div>
-                          </div>
-                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-danger)', flexShrink: 0 }}>
-                            {formatCurrency(value)}
-                          </div>
+                  (() => {
+                    const custCats = new Set<string>();
+                    Object.keys(selectedCustomer.bsr_products).forEach(code => {
+                      const cat = priceMap[code]?.category;
+                      if (cat) custCats.add(cat);
+                    });
+                    const availableCats = Array.from(custCats).sort();
+                    
+                    return (
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                          <h3 style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Products</h3>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                        
+                        {availableCats.length > 1 && (
+                          <div style={{ marginBottom: '12px' }}>
+                            <SlicerRow options={availableCats} selected={custProductCategory} onSelect={setCustProductCategory} label="Category" />
+                          </div>
+                        )}
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {Object.entries(selectedCustomer.bsr_products)
+                            .filter(([prodCode]) => custProductCategory === 'all' || priceMap[prodCode]?.category === custProductCategory)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([prodCode, value]) => (
+                              <div key={prodCode} style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
+                                  <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {priceMap[prodCode]?.product_description || prodCode}
+                                  </div>
+                                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '2px' }}>{prodCode}</div>
+                                </div>
+                                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-danger)', flexShrink: 0 }}>
+                                  {formatCurrency(value)}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    );
+                  })()
                 )}
               </div>
             )}
