@@ -321,8 +321,10 @@ const BackOrder: React.FC = () => {
                     </div>
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={s.name}>
-                      {s.name}
+                    <div className="bo-name-scroll-container">
+                      <div className="bo-name-scroll-text" title={s.name}>
+                        {s.name}
+                      </div>
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', marginBottom: '4px' }}>{s.code}</div>
                     <div style={{ display: 'inline-block', padding: '2px 6px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--accent-danger)', fontSize: '10px', fontWeight: 700 }}>

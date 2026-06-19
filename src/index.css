@@ -441,3 +441,34 @@ textarea:focus {
   width: 100%;
   vertical-align: bottom;
 }
+
+/* BackOrder Page Hover Marquee */
+.bo-name-scroll-container {
+  width: 100%;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.bo-name-scroll-text {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.glass-panel:hover .bo-name-scroll-container .bo-name-scroll-text {
+  display: inline-block;
+  width: max-content;
+  overflow: visible;
+  text-overflow: clip;
+  padding-right: 4px;
+  animation: bo-scroll-marquee 4s linear infinite alternate;
+}
+
+@keyframes bo-scroll-marquee {
+  0%, 15% { transform: translateX(0); }
+  85%, 100% { transform: translateX(min(0px, calc(100cqi - 100%))); }
+}
