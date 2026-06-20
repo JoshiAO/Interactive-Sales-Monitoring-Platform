@@ -116,7 +116,7 @@ const SlicerRow: React.FC<{ options: string[], selected: string, onSelect: (val:
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '8px', width: '100%' }}>
-      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{label}</span>
+      {label && <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{label}</span>}
       
       {options.length > 0 && (
         <button onClick={() => scroll('left')} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: 'var(--text-muted)' }}>
@@ -677,7 +677,7 @@ const BackOrder: React.FC = () => {
                         
                         {availableCats.length > 1 && (
                           <div style={{ marginBottom: '12px' }}>
-                            <SlicerRow options={availableCats} selected={custProductCategory} onSelect={setCustProductCategory} label="Category" />
+                            <SlicerRow options={availableCats} selected={custProductCategory} onSelect={setCustProductCategory} label="" />
                           </div>
                         )}
                         
