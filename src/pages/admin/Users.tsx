@@ -8,6 +8,7 @@ import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, getDocs } fr
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import Cropper from 'react-easy-crop';
 import 'react-easy-crop/react-easy-crop.css';
 import { getCroppedImg } from '../../utils/cropImage';
@@ -117,6 +118,11 @@ const Users: React.FC = () => {
       return;
     }
 
+    if (editingUser && formData.password && formData.password !== formData.confirmPassword) {
+      alert("New passwords do not match!");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       if (!editingUser) {
@@ -151,6 +157,13 @@ const Users: React.FC = () => {
           supervisor: formData.role === 'salesman' ? (formData.supervisor || '-') : '-',
           branch: formData.role === 'warehouse_supervisor' ? (formData.branch || '') : ''
         });
+
+        if (formData.password) {
+          const functions = getFunctions();
+          const changeUserPassword = httpsCallable(functions, 'changeUserPassword');
+          await changeUserPassword({ uid: editingUser.id, newPassword: formData.password });
+          alert("User updated and password changed successfully!");
+        }
       }
       await setDoc(doc(db, 'settings', 'global'), { lastUserUpdate: Date.now() }, { merge: true });
       setIsModalOpen(false);
@@ -408,7 +421,7 @@ const Users: React.FC = () => {
             <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required disabled={!!editingUser} style={{ width: '100%', opacity: editingUser ? 0.5 : 1 }} className="input-field" />
           </div>
           
-          {!editingUser && (
+          {!editingUser ? (
             <>
               <div>
                 <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Password</label>
@@ -419,6 +432,16 @@ const Users: React.FC = () => {
                 <input type="password" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} required style={{ width: '100%' }} className="input-field" />
               </div>
             </>
+          ) : (
+            <div style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px dashed var(--border)' }}>
+              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block', fontWeight: 600 }}>Change Password (Optional)</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <input type="password" placeholder="New Password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} style={{ width: '100%' }} className="input-field" />
+                {formData.password && (
+                  <input type="password" placeholder="Confirm New Password" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} required style={{ width: '100%' }} className="input-field" />
+                )}
+              </div>
+            </div>
           )}
 
           <div>

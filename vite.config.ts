@@ -10,8 +10,10 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: {
-        enabled: true
+        enabled: true,
+        suppressWarnings: true
       },
+
       manifest: {
         name: 'Interactive Sales Monitoring',
         short_name: 'Sales Monitor',
