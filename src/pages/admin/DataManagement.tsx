@@ -1108,6 +1108,13 @@ const DataManagement: React.FC = () => {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) return;
+
+    // 50MB limit check
+    if (selectedFile.size > 50 * 1024 * 1024) {
+      setError('File size exceeds the maximum limit of 50MB. Please reduce the file size and try again.');
+      return;
+    }
+
     setUploading(true);
     setSuccess(false);
     setError('');
@@ -1351,7 +1358,7 @@ const DataManagement: React.FC = () => {
                 <div style={{ marginBottom: '8px', fontWeight: 600, fontSize: '15px', color: selectedFile ? 'white' : 'var(--text-main)', textAlign: 'center' }}>
                   {selectedFile ? selectedFile.name : 'Click or drag file to this area to upload'}
                 </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Strictly .xlsx files only (Max 15MB)</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Strictly .xlsx files only (Max 50MB)</div>
                 <input 
                   type="file" 
                   accept=".xlsx" 
