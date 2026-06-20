@@ -144,7 +144,7 @@ const BackOrder: React.FC = () => {
     setCustProductCategory('all');
   }, [selectedCustomer]);
 
-  const canSeeAdminTabs = role === 'admin' || role === 'manager' || role === 'supervisor';
+  const canSeeAdminTabs = role === 'admin' || role === 'manager' || role === 'supervisor' || role === 'warehouse_supervisor';
 
   const { loading: priceLoading, priceMap } = usePricelist();
   const { categoryMap } = useItemCategories();

@@ -82,9 +82,11 @@ const Layout: React.FC = () => {
             <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/bo" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
               <AlertTriangle size={18} /> B.O.
             </NavLink>
-            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/performance" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-              <Medal size={18} /> Gamification
-            </NavLink>
+            {role !== 'warehouse_supervisor' && (
+              <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/performance" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+                <Medal size={18} /> Gamification
+              </NavLink>
+            )}
           </>
         )}
       </div>
