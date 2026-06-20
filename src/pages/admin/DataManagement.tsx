@@ -5,29 +5,23 @@ import { collection, writeBatch, doc, getDocs, getDoc, setDoc } from 'firebase/f
 import { db } from '../../firebase/config';
 import { Modal } from '../../components/ui/Modal';
 
-const uploadGroups = [
-  {
-    name: 'Transactional Data',
-    items: ['Net Invoiced', 'Ageing Report', 'Warehouse B.O.', 'Van B.O.', 'CML (Customer Master List)']
-  },
-  {
-    name: 'Targets',
-    items: ['STT & UBA Target', 'VD30 Target']
-  },
-  {
-    name: 'References',
-    items: [
-      'Item Masterlist', 
-      'Channel Reference', 
-      'VD30 Items Reference', 
-      'Geo Hierarchy Reference', 
-      'Team & Service Model Reference', 
-      'NPD & Promo Pack Items', 
-      'Pricelist',
-      'Product ADS Reference'
-    ]
-  }
-];
+const TABS = ['Transactional Data', 'Inventory Related', 'Targets', 'References', 'System Settings'];
+
+const uploadGroups: Record<string, string[]> = {
+  'Transactional Data': ['Net Invoiced', 'CML (Customer Master List)'],
+  'Inventory Related': ['Ageing Report', 'Warehouse B.O.', 'Van B.O.'],
+  'Targets': ['STT & UBA Target', 'VD30 Target'],
+  'References': [
+    'Item Masterlist', 
+    'VD30 Items Reference', 
+    'Pricelist',
+    'Product ADS Reference',
+    'NPD & Promo Pack Items', 
+    'Channel Reference', 
+    'Team & Service Model Reference', 
+    'Geo Hierarchy Reference'
+  ]
+};
 
 interface AggregatedMetrics {
   salesman_code: string;
@@ -79,9 +73,10 @@ const parseExcelWithSmartHeaders = (worksheet: XLSX.WorkSheet) => {
 
 const DATE_PICKER_CATEGORIES = ['Net Invoiced', 'Ageing Report', 'Warehouse B.O.', 'Van B.O.'];
 
-const DataUpload: React.FC = () => {
+const DataManagement: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string>(uploadGroups[0].items[0]);
+  const [activeTab, setActiveTab] = useState(TABS[0]);
+  const [activeCategory, setActiveCategory] = useState<string>(uploadGroups['Transactional Data'][0]);
   const [uploading, setUploading] = useState(false);
   const [clearingData, setClearingData] = useState(false);
   const [progress, setProgress] = useState<{ step: string; current: number; total: number } | null>(null);
@@ -89,6 +84,7 @@ const DataUpload: React.FC = () => {
   const [error, setError] = useState('');
   const [cobDate, setCobDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [systemAnnouncement, setSystemAnnouncement] = useState('');
+  const [systemAnnouncementLink, setSystemAnnouncementLink] = useState('');
   const [savingAnnouncement, setSavingAnnouncement] = useState(false);
 
   const [isSnapshotting, setIsSnapshotting] = useState(false);
@@ -160,8 +156,9 @@ const DataUpload: React.FC = () => {
   React.useEffect(() => {
     const fetchSettings = async () => {
       const docSnap = await getDoc(doc(db, 'settings', 'global'));
-      if (docSnap.exists() && docSnap.data().systemAnnouncement) {
-        setSystemAnnouncement(docSnap.data().systemAnnouncement);
+      if (docSnap.exists()) {
+        setSystemAnnouncement(docSnap.data().systemAnnouncement || '');
+        setSystemAnnouncementLink(docSnap.data().systemAnnouncementLink || '');
       }
     };
     fetchSettings();
@@ -170,7 +167,7 @@ const DataUpload: React.FC = () => {
   const handleSaveAnnouncement = async () => {
     setSavingAnnouncement(true);
     try {
-      await setDoc(doc(db, 'settings', 'global'), { systemAnnouncement }, { merge: true });
+      await setDoc(doc(db, 'settings', 'global'), { systemAnnouncement, systemAnnouncementLink }, { merge: true });
       alert("System announcement updated successfully!");
     } catch (e: any) {
       console.error(e);
@@ -1179,203 +1176,252 @@ const DataUpload: React.FC = () => {
     }
   };
 
+  const handleTabClick = (tab: string) => {
+    setActiveTab(tab);
+    if (tab !== 'System Settings') {
+      setActiveCategory(uploadGroups[tab][0]);
+      setSuccess(false);
+      setError('');
+    }
+  };
+
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in" style={{ paddingBottom: '40px' }}>
       <div style={{ marginBottom: '24px' }}>
         <h2>Data Management</h2>
-        <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>Upload Excel (.xlsx) files to update platform data.</p>
+        <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>Update platform data, configure system settings, and manage historical archives.</p>
       </div>
 
-      {/* System Announcement Settings */}
-      <div className="glass-panel" style={{ marginBottom: '32px', padding: '24px' }}>
-        <h3 style={{ marginBottom: '16px', fontSize: '16px', color: 'var(--accent-primary)' }}>System Announcement</h3>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-          Broadcast a global message to all users (e.g. for maintenance or data updates). Leave empty to clear the announcement.
-        </p>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <input 
-            type="text" 
-            placeholder="Type a message..."
-            value={systemAnnouncement}
-            onChange={e => setSystemAnnouncement(e.target.value)}
-            style={{ flex: 1, padding: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'white' }}
-          />
-          <button 
-            onClick={handleSaveAnnouncement}
-            className="btn btn-primary"
-            disabled={savingAnnouncement}
+      {/* Tabs */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '8px', 
+        marginBottom: '24px', 
+        overflowX: 'auto', 
+        paddingBottom: '8px',
+        borderBottom: '1px solid var(--border)'
+      }}>
+        {TABS.map(tab => (
+          <button
+            key={tab}
+            onClick={() => handleTabClick(tab)}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: activeTab === tab ? 'var(--bg-panel-hover)' : 'transparent',
+              color: activeTab === tab ? 'var(--accent-primary)' : 'var(--text-main)',
+              border: 'none',
+              borderBottom: activeTab === tab ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              borderRadius: '8px 8px 0 0',
+              fontWeight: 600,
+              fontSize: '14px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.2s ease'
+            }}
           >
-            {savingAnnouncement ? 'Saving...' : 'Broadcast'}
+            {tab}
           </button>
-        </div>
+        ))}
       </div>
 
-      <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-        {/* Categories Sidebar */}
-        <div className="glass-panel" style={{ width: '300px', flexShrink: 0 }}>
-          <h3 style={{ marginBottom: '16px', fontSize: '16px' }}>Data Categories</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {uploadGroups.map(group => (
-              <div key={group.name} style={{ marginBottom: '8px' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', paddingLeft: '12px', marginBottom: '4px', fontWeight: 600 }}>{group.name}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {group.items.map(cat => (
-                    <button 
-                      key={cat}
-                      onClick={() => { setActiveCategory(cat); setSuccess(false); setError(''); }}
-                      className="btn"
-                      style={{ 
-                        justifyContent: 'flex-start', 
-                        backgroundColor: activeCategory === cat ? 'var(--bg-panel-hover)' : 'transparent',
-                        color: activeCategory === cat ? 'var(--accent-primary)' : 'var(--text-main)',
-                        border: activeCategory === cat ? '1px solid var(--border)' : '1px solid transparent',
-                        padding: '6px 12px',
-                        fontSize: '13px'
-                      }}
-                    >
-                      <FileSpreadsheet size={16} style={{ flexShrink: 0 }} />
-                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
+      {activeTab === 'System Settings' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* System Announcement Settings */}
+          <div className="glass-panel" style={{ padding: '24px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '16px', color: 'var(--accent-primary)' }}>System Announcement</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Broadcast a global message to all users. Leave empty to clear the announcement. Optionally, provide a URL to make the announcement clickable.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <input 
+                type="text" 
+                placeholder="Type a message..."
+                value={systemAnnouncement}
+                onChange={e => setSystemAnnouncement(e.target.value)}
+                style={{ width: '100%', padding: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'white' }}
+              />
+              <input 
+                type="url" 
+                placeholder="Link URL (e.g., https://example.com) - Optional"
+                value={systemAnnouncementLink}
+                onChange={e => setSystemAnnouncementLink(e.target.value)}
+                style={{ width: '100%', padding: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'white' }}
+              />
+              <button 
+                onClick={handleSaveAnnouncement}
+                className="btn btn-primary"
+                disabled={savingAnnouncement}
+                style={{ alignSelf: 'flex-start', padding: '10px 24px' }}
+              >
+                {savingAnnouncement ? 'Saving...' : 'Broadcast Announcement'}
+              </button>
+            </div>
+          </div>
+
+          {/* Snapshot Zone */}
+          <div className="glass-panel" style={{ padding: '24px' }}>
+            <h3 style={{ color: 'var(--accent-primary)', fontSize: '16px', marginBottom: '8px' }}>Monthly Data Snapshot</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Create a highly compressed archive of the current month's performance and references. Managers and Admins can view this historical data later.
+            </p>
+            <button 
+              type="button"
+              className="btn"
+              onClick={() => setShowSnapshotModal(true)}
+              disabled={clearingData || uploading || isSnapshotting}
+              style={{ padding: '12px 24px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
+            >
+              <Camera size={18} /> Snapshot Current Data
+            </button>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="glass-panel" style={{ padding: '24px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+            <h3 style={{ color: 'var(--accent-danger)', fontSize: '16px', marginBottom: '8px' }}>Danger Zone</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Clearing transactional data will delete all Net Invoiced metrics, customer progress, gamification medals, warehouse and van B.O., and ageing data. This is useful for starting a fresh month. Reference data and Targets will NOT be deleted.
+            </p>
+            <button 
+              type="button"
+              className="btn"
+              onClick={handleClearTransactionalData}
+              disabled={clearingData || uploading}
+              style={{ padding: '12px 24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
+            >
+              {clearingData ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
+              {clearingData ? 'Clearing Data...' : 'Clear All Transactional Data'}
+            </button>
           </div>
         </div>
-
-        {/* Upload Area */}
-        <div className="glass-panel" style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ marginBottom: '24px', fontSize: '18px', color: 'var(--accent-primary)' }}>
-            Upload: {activeCategory}
-          </h3>
-          
-          <form onSubmit={handleUpload} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ 
-              flex: 1, 
-              border: '2px dashed var(--border)', 
-              borderRadius: '12px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              flexDirection: 'column',
-              padding: '40px',
-              backgroundColor: 'rgba(0,0,0,0.2)',
-              marginBottom: '24px',
-              position: 'relative',
-            }}>
-              <Upload size={48} color="var(--text-muted)" style={{ marginBottom: '16px' }} />
-              <div style={{ marginBottom: '8px', fontWeight: 500 }}>
-                {selectedFile ? selectedFile.name : 'Click or drag file to this area to upload'}
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Strictly .xlsx files only (Max 15MB)</div>
-              <input 
-                type="file" 
-                accept=".xlsx" 
-                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                disabled={uploading}
-                style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: uploading ? 'not-allowed' : 'pointer', top: 0, left: 0 }} 
-              />
-            </div>
-
-            {DATE_PICKER_CATEGORIES.includes(activeCategory) && (
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: 'var(--text-muted)' }}>
-                  {activeCategory === 'Net Invoiced' ? 'COB Date (Closing of Business)' : 'Report / Upload Date'}
-                </label>
-                <input 
-                  type="date" 
-                  value={cobDate}
-                  onChange={(e) => setCobDate(e.target.value)}
-                  disabled={uploading}
+      ) : (
+        <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+          {/* Categories Sub-nav */}
+          <div className="glass-panel" style={{ width: '250px', flexShrink: 0, padding: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {uploadGroups[activeTab]?.map(cat => (
+                <button 
+                  key={cat}
+                  onClick={() => { setActiveCategory(cat); setSuccess(false); setError(''); }}
+                  className="btn"
                   style={{ 
-                    width: '100%', 
-                    padding: '12px', 
-                    background: 'rgba(0,0,0,0.2)', 
-                    border: '1px solid var(--border)', 
-                    borderRadius: '8px', 
-                    color: 'white',
-                    colorScheme: 'dark'
+                    justifyContent: 'flex-start', 
+                    backgroundColor: activeCategory === cat ? 'var(--bg-panel-hover)' : 'transparent',
+                    color: activeCategory === cat ? 'var(--accent-primary)' : 'var(--text-main)',
+                    border: activeCategory === cat ? '1px solid var(--border)' : '1px solid transparent',
+                    padding: '10px 12px',
+                    fontSize: '13px',
+                    fontWeight: activeCategory === cat ? 600 : 500,
+                    borderRadius: '8px',
+                    transition: 'all 0.2s'
                   }}
+                >
+                  <FileSpreadsheet size={16} style={{ flexShrink: 0 }} />
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Upload Area */}
+          <div className="glass-panel" style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column', padding: '32px' }}>
+            <h3 style={{ marginBottom: '24px', fontSize: '20px', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Upload size={24} /> Upload {activeCategory}
+            </h3>
+            
+            <form onSubmit={handleUpload} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ 
+                flex: 1, 
+                border: '2px dashed var(--border)', 
+                borderRadius: '16px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                flexDirection: 'column',
+                padding: '60px 40px',
+                backgroundColor: 'rgba(0,0,0,0.2)',
+                marginBottom: '24px',
+                position: 'relative',
+                transition: 'border 0.3s ease',
+              }}
+              onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--accent-primary)'; }}
+              onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; }}
+              onDrop={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; if (e.dataTransfer.files?.[0]) setSelectedFile(e.dataTransfer.files[0]); }}
+              >
+                <Upload size={48} color={selectedFile ? "var(--accent-primary)" : "var(--text-muted)"} style={{ marginBottom: '16px', transition: 'color 0.3s' }} />
+                <div style={{ marginBottom: '8px', fontWeight: 600, fontSize: '15px', color: selectedFile ? 'white' : 'var(--text-main)', textAlign: 'center' }}>
+                  {selectedFile ? selectedFile.name : 'Click or drag file to this area to upload'}
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Strictly .xlsx files only (Max 15MB)</div>
+                <input 
+                  type="file" 
+                  accept=".xlsx" 
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  disabled={uploading}
+                  style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: uploading ? 'not-allowed' : 'pointer', top: 0, left: 0 }} 
                 />
               </div>
-            )}
 
-            {progress && (
-              <div style={{ marginBottom: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '8px', color: 'var(--text-muted)' }}>
-                  <span>{progress.step}</span>
-                  <span>{progress.current} / {progress.total}</span>
+              {DATE_PICKER_CATEGORIES.includes(activeCategory) && (
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: 'var(--text-muted)' }}>
+                    {activeCategory === 'Net Invoiced' ? 'COB Date (Closing of Business)' : 'Report / Upload Date'}
+                  </label>
+                  <input 
+                    type="date" 
+                    value={cobDate}
+                    onChange={(e) => setCobDate(e.target.value)}
+                    disabled={uploading}
+                    style={{ 
+                      width: '100%', 
+                      padding: '14px', 
+                      background: 'rgba(0,0,0,0.2)', 
+                      border: '1px solid var(--border)', 
+                      borderRadius: '10px', 
+                      color: 'white',
+                      colorScheme: 'dark',
+                      fontSize: '14px'
+                    }}
+                  />
                 </div>
-                <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-dark)', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', backgroundColor: 'var(--accent-primary)', width: `${(progress.current / progress.total) * 100}%`, transition: 'width 0.3s' }}></div>
-                </div>
-              </div>
-            )}
+              )}
 
-            {error && (
-              <div style={{ padding: '16px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--accent-danger)', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--accent-danger)' }}>
-                <AlertCircle size={20} />
-                <span>{error}</span>
-              </div>
-            )}
-
-            {success && (
-              <div style={{ padding: '16px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--accent-success)', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--accent-success)' }}>
-                <CheckCircle size={20} />
-                <span>{activeCategory} updated successfully in Firestore!</span>
-              </div>
-            )}
-
-            <button type="submit" className="btn btn-primary" disabled={!selectedFile || uploading || clearingData} style={{ width: '100%' }}>
-              {uploading ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Loader2 size={18} className="animate-spin" /> Processing Data...
-                </div>
-              ) : 'Upload Data'}
-            </button>
-
-            {/* Snapshot Zone */}
-            <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
-              <h3 style={{ color: 'var(--accent-primary)', fontSize: '16px', marginBottom: '8px' }}>Monthly Data Snapshot</h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                Create a highly compressed archive of the current month's Net Invoiced performance and references. Managers and Admins can view this historical data later.
-              </p>
-              <button 
-                type="button"
-                className="btn"
-                onClick={() => setShowSnapshotModal(true)}
-                disabled={clearingData || uploading || isSnapshotting}
-                style={{ width: '100%', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)', justifyContent: 'center' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Camera size={18} /> Snapshot Current Data
-                </div>
-              </button>
-            </div>
-
-            {/* Danger Zone */}
-            <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
-              <h3 style={{ color: 'var(--accent-danger)', fontSize: '16px', marginBottom: '8px' }}>Danger Zone</h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                Clearing transactional data will delete all Net Invoiced metrics, customer progress, gamification medals, warehouse and van B.O., and ageing data. This is useful for starting a fresh month. Reference data and Targets will NOT be deleted.
-              </p>
-              <button 
-                type="button"
-                className="btn"
-                onClick={handleClearTransactionalData}
-                disabled={clearingData || uploading}
-                style={{ width: '100%', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', justifyContent: 'center' }}
-              >
-                {clearingData ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Loader2 size={18} className="animate-spin" /> Clearing Data...
+              {progress && (
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px', color: 'var(--text-muted)' }}>
+                    <span>{progress.step}</span>
+                    <span style={{ fontWeight: 600 }}>{progress.current} / {progress.total}</span>
                   </div>
-                ) : 'Clear All Transactional Data'}
+                  <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--bg-dark)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', backgroundColor: 'var(--accent-primary)', width: `${(progress.current / progress.total) * 100}%`, transition: 'width 0.3s ease-out' }}></div>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div style={{ padding: '16px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--accent-danger)', borderRadius: '10px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--accent-danger)' }}>
+                  <AlertCircle size={20} />
+                  <span style={{ fontWeight: 500 }}>{error}</span>
+                </div>
+              )}
+
+              {success && (
+                <div style={{ padding: '16px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--accent-success)', borderRadius: '10px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--accent-success)' }}>
+                  <CheckCircle size={20} />
+                  <span style={{ fontWeight: 500 }}>{activeCategory} updated successfully in Firestore!</span>
+                </div>
+              )}
+
+              <button type="submit" className="btn btn-primary" disabled={!selectedFile || uploading || clearingData} style={{ width: '100%', padding: '14px', fontSize: '15px', borderRadius: '10px' }}>
+                {uploading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                    <Loader2 size={20} className="animate-spin" /> Processing Data...
+                  </div>
+                ) : 'Upload Data'}
               </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
 
       <Modal isOpen={showSnapshotModal} onClose={() => setShowSnapshotModal(false)} title="Create Monthly Snapshot">
         <form onSubmit={handleCreateSnapshot} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1420,4 +1466,4 @@ const DataUpload: React.FC = () => {
   );
 };
 
-export default DataUpload;
+export default DataManagement;

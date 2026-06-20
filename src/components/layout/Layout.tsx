@@ -14,6 +14,7 @@ const Layout: React.FC = () => {
   const [isPerformancePanelOpen, setIsPerformancePanelOpen] = useState(false);
   const [cobDate, setCobDate] = useState<string>('');
   const [systemAnnouncement, setSystemAnnouncement] = useState<string>('');
+  const [systemAnnouncementLink, setSystemAnnouncementLink] = useState<string>('');
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
 
   useEffect(() => {
@@ -39,6 +40,7 @@ const Layout: React.FC = () => {
         const data = docSnap.data();
         if (data.cobDate) setCobDate(data.cobDate);
         setSystemAnnouncement(data.systemAnnouncement || '');
+        setSystemAnnouncementLink(data.systemAnnouncementLink || '');
       }
     });
     return () => unsub();
@@ -92,7 +94,7 @@ const Layout: React.FC = () => {
           <div style={{ margin: '8px 0', height: '1px', background: 'var(--border)' }} />
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', paddingLeft: '12px' }}>ADMIN</div>
           <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/data" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-            <Database size={18} /> Data Upload
+            <Database size={18} /> Data Management
           </NavLink>
           <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/users" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
             <Settings size={18} /> Users
@@ -224,7 +226,13 @@ const Layout: React.FC = () => {
               <div className="marquee-container" style={{ flex: 1, fontSize: '15px', fontWeight: '500' }}>
                 <div className="marquee-content">
                   <span style={{ marginRight: '8px', opacity: 0.8 }}>Announcement:</span>
-                  {systemAnnouncement}
+                  {systemAnnouncementLink ? (
+                    <a href={systemAnnouncementLink} target="_blank" rel="noopener noreferrer" style={{ color: '#facc15', textDecoration: 'underline', '&:hover': { opacity: 0.8 } } as any}>
+                      {systemAnnouncement}
+                    </a>
+                  ) : (
+                    systemAnnouncement
+                  )}
                 </div>
               </div>
             </div>

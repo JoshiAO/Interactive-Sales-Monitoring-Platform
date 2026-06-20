@@ -12,7 +12,7 @@ import PerformancePage from './pages/dashboard/PerformancePage';
 import NpdPromoPacks from './pages/dashboard/NpdPromoPacks';
 import Ageing from './pages/dashboard/Ageing';
 import BackOrder from './pages/dashboard/BackOrder';
-import DataUpload from './pages/admin/DataUpload';
+import DataManagement from './pages/admin/DataManagement';
 import Users from './pages/admin/Users';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -40,7 +40,7 @@ function AppRoutes() {
         <Route path="npd" element={<NpdPromoPacks />} />
         <Route path="ageing" element={<Ageing />} />
         <Route path="bo" element={<BackOrder />} />
-        <Route path="data" element={<DataUpload />} />
+        <Route path="data" element={<DataManagement />} />
         <Route path="users" element={<Users />} />
         <Route path="performance" element={<PerformancePage />} />
       </Route>
