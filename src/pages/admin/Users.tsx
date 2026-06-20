@@ -433,15 +433,18 @@ const Users: React.FC = () => {
               </div>
             </>
           ) : (
-            <div style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px dashed var(--border)' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block', fontWeight: 600 }}>Change Password (Optional)</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <input type="password" placeholder="New Password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} style={{ width: '100%' }} className="input-field" />
-                {formData.password && (
-                  <input type="password" placeholder="Confirm New Password" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} required style={{ width: '100%' }} className="input-field" />
-                )}
+            <>
+              <div>
+                <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Change Password (Optional)</label>
+                <input type="password" placeholder="Leave blank to keep current password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} style={{ width: '100%' }} className="input-field" />
               </div>
-            </div>
+              {formData.password && (
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Confirm New Password</label>
+                  <input type="password" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} required style={{ width: '100%' }} className="input-field" />
+                </div>
+              )}
+            </>
           )}
 
           <div>
