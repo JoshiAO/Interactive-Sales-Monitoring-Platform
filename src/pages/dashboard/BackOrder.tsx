@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { Search, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Calendar, ArrowLeft } from 'lucide-react';
+import { Search, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Calendar, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeams } from '../../hooks/useTeams';
 import { useTradeBoData, useTradeBoCustomers, type TradeCustomer } from '../../hooks/useTradeBoData';
@@ -104,25 +104,51 @@ const SortableTable: React.FC<SortableTableProps> = ({ columns, rows, emptyMsg }
   );
 };
 
-const SlicerRow: React.FC<{ options: string[], selected: string, onSelect: (val: string) => void, label: string }> = ({ options, selected, onSelect, label }) => (
-  <div className="hide-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', alignItems: 'center', paddingBottom: '8px' }}>
-    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginRight: '4px', whiteSpace: 'nowrap' }}>{label}</span>
-    {options.map(opt => (
-      <button key={opt} onClick={() => onSelect(opt === selected ? 'all' : opt)} style={{
-        flexShrink: 0, padding: '6px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.2s', border: '1px solid',
-        borderColor: selected === opt ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)',
-        background: selected === opt ? 'var(--accent-primary)' : 'rgba(0,0,0,0.3)',
-        color: selected === opt ? '#fff' : 'var(--text-muted)'
-      }}>{opt}</button>
-    ))}
-    {selected !== 'all' && (
-      <button onClick={() => onSelect('all')} style={{
-        flexShrink: 0, padding: '6px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.2s',
-        border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)'
-      }}>Clear</button>
-    )}
-  </div>
-);
+const SlicerRow: React.FC<{ options: string[], selected: string, onSelect: (val: string) => void, label: string }> = ({ options, selected, onSelect, label }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const scrollAmount = 200;
+      scrollRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '8px', width: '100%' }}>
+      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{label}</span>
+      
+      {options.length > 0 && (
+        <button onClick={() => scroll('left')} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: 'var(--text-muted)' }}>
+          <ChevronLeft size={14} />
+        </button>
+      )}
+      
+      <div ref={scrollRef} className="hide-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', alignItems: 'center', flex: 1, scrollBehavior: 'smooth' }}>
+        {options.map(opt => (
+          <button key={opt} onClick={() => onSelect(opt === selected ? 'all' : opt)} style={{
+            flexShrink: 0, padding: '6px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.2s', border: '1px solid',
+            borderColor: selected === opt ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)',
+            background: selected === opt ? 'var(--accent-primary)' : 'rgba(0,0,0,0.3)',
+            color: selected === opt ? '#fff' : 'var(--text-muted)'
+          }}>{opt}</button>
+        ))}
+        {selected !== 'all' && (
+          <button onClick={() => onSelect('all')} style={{
+            flexShrink: 0, padding: '6px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.2s',
+            border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)'
+          }}>Clear</button>
+        )}
+      </div>
+
+      {options.length > 0 && (
+        <button onClick={() => scroll('right')} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: 'var(--text-muted)' }}>
+          <ChevronRight size={14} />
+        </button>
+      )}
+    </div>
+  );
+};
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const BackOrder: React.FC = () => {
