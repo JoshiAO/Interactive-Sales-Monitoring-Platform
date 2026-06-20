@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Camera } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { collection, writeBatch, doc, getDocs, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { Modal } from '../../components/ui/Modal';
 
 const uploadGroups = [
   {
@@ -89,6 +90,71 @@ const DataUpload: React.FC = () => {
   const [cobDate, setCobDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [systemAnnouncement, setSystemAnnouncement] = useState('');
   const [savingAnnouncement, setSavingAnnouncement] = useState(false);
+
+  const [isSnapshotting, setIsSnapshotting] = useState(false);
+  const [snapshotMonth, setSnapshotMonth] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().slice(0, 7);
+  });
+  const [showSnapshotModal, setShowSnapshotModal] = useState(false);
+
+  const handleCreateSnapshot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!snapshotMonth) return;
+    
+    setIsSnapshotting(true);
+    setProgress({ step: 'Fetching live data for snapshot...', current: 0, total: 100 });
+    
+    try {
+      const [
+        metricsSnap, sttSnap, vd30TargetSnap, teamSnap, refVd30Snap, custSnap
+      ] = await Promise.all([
+        getDoc(doc(db, 'dashboard_metrics', 'all')),
+        getDoc(doc(db, 'salesman_targets', 'all')),
+        getDoc(doc(db, 'vd30_targets', 'all')),
+        getDoc(doc(db, 'reference_team_service', 'all')),
+        getDoc(doc(db, 'reference_vd30', 'all')),
+        getDocs(collection(db, 'customer_data'))
+      ]);
+
+      setProgress({ step: 'Compressing snapshot...', current: 50, total: 100 });
+
+      const metricsDocData = {
+        timestamp: Date.now(),
+        dashboard_metrics: metricsSnap.exists() ? metricsSnap.data() : {},
+        salesman_targets: sttSnap.exists() ? sttSnap.data() : {},
+        vd30_targets: vd30TargetSnap.exists() ? vd30TargetSnap.data() : {},
+        reference_team_service: teamSnap.exists() ? teamSnap.data() : {},
+        reference_vd30: refVd30Snap.exists() ? refVd30Snap.data() : {}
+      };
+
+      const customersDocData: Record<string, string> = {};
+      custSnap.forEach(d => {
+        const data = d.data();
+        if (data.customers) {
+          customersDocData[d.id] = data.customers;
+        }
+      });
+
+      setProgress({ step: 'Writing snapshot buckets...', current: 80, total: 100 });
+      
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'snapshots', snapshotMonth), metricsDocData);
+      batch.set(doc(db, 'snapshots', `${snapshotMonth}_customers`), customersDocData);
+      await batch.commit();
+
+      setShowSnapshotModal(false);
+      setSuccess(true);
+      setActiveCategory(`Snapshot: ${snapshotMonth}`);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to create snapshot');
+    } finally {
+      setIsSnapshotting(false);
+      setProgress(null);
+    }
+  };
 
   // Fetch current announcement on mount
   React.useEffect(() => {
@@ -1268,8 +1334,27 @@ const DataUpload: React.FC = () => {
               ) : 'Upload Data'}
             </button>
 
+            {/* Snapshot Zone */}
+            <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
+              <h3 style={{ color: 'var(--accent-primary)', fontSize: '16px', marginBottom: '8px' }}>Monthly Data Snapshot</h3>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                Create a highly compressed archive of the current month's Net Invoiced performance and references. Managers and Admins can view this historical data later.
+              </p>
+              <button 
+                type="button"
+                className="btn"
+                onClick={() => setShowSnapshotModal(true)}
+                disabled={clearingData || uploading || isSnapshotting}
+                style={{ width: '100%', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)', justifyContent: 'center' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Camera size={18} /> Snapshot Current Data
+                </div>
+              </button>
+            </div>
+
             {/* Danger Zone */}
-            <div style={{ marginTop: '48px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
               <h3 style={{ color: 'var(--accent-danger)', fontSize: '16px', marginBottom: '8px' }}>Danger Zone</h3>
               <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
                 Clearing transactional data will delete all Net Invoiced metrics, customer progress, gamification medals, warehouse and van B.O., and ageing data. This is useful for starting a fresh month. Reference data and Targets will NOT be deleted.
@@ -1291,6 +1376,46 @@ const DataUpload: React.FC = () => {
           </form>
         </div>
       </div>
+
+      <Modal isOpen={showSnapshotModal} onClose={() => setShowSnapshotModal(false)} title="Create Monthly Snapshot">
+        <form onSubmit={handleCreateSnapshot} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            This will package the current Dashboard Metrics, Customer Performances, and current monthly Targets/References into a historical archive.
+            <br/><br/>
+            <strong>Note:</strong> If a snapshot for this month already exists, it will be completely overwritten with the current live data.
+          </p>
+          
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Select Month to Tag
+            </label>
+            <input 
+              type="month" 
+              value={snapshotMonth}
+              onChange={(e) => setSnapshotMonth(e.target.value)}
+              disabled={isSnapshotting}
+              style={{ 
+                width: '100%', 
+                padding: '12px', 
+                background: 'rgba(0,0,0,0.2)', 
+                border: '1px solid var(--border)', 
+                borderRadius: '8px', 
+                color: 'white',
+                colorScheme: 'dark'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+            <button type="button" onClick={() => setShowSnapshotModal(false)} disabled={isSnapshotting} className="btn" style={{ flex: 1, justifyContent: 'center' }}>
+              Cancel
+            </button>
+            <button type="submit" disabled={isSnapshotting || !snapshotMonth} className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
+              {isSnapshotting ? <Loader2 size={18} className="animate-spin" /> : 'Confirm Snapshot'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

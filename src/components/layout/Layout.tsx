@@ -3,16 +3,34 @@ import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { LayoutDashboard, ShoppingCart, Target, Users, Database, Settings, LogOut, Menu, BarChart2, Package, Clock, AlertTriangle, Medal, X } from 'lucide-react';
 import { logout } from '../../firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import PerformancePanel from './PerformancePanel';
 
 const Layout: React.FC = () => {
-  const { role, currentUser, name, photoURL } = useAuth();
+  const { role, currentUser, name, photoURL, selectedMonth, setSelectedMonth } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isPerformancePanelOpen, setIsPerformancePanelOpen] = useState(false);
   const [cobDate, setCobDate] = useState<string>('');
   const [systemAnnouncement, setSystemAnnouncement] = useState<string>('');
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchMonths = async () => {
+      if (role === 'admin' || role === 'manager') {
+        const snap = await getDocs(collection(db, 'snapshots'));
+        const months = new Set<string>();
+        snap.forEach(d => {
+          if (!d.id.endsWith('_customers')) {
+            months.add(d.id);
+          }
+        });
+        const sorted = Array.from(months).sort((a,b) => b.localeCompare(a));
+        setAvailableMonths(sorted);
+      }
+    };
+    fetchMonths();
+  }, [role]);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
@@ -56,14 +74,16 @@ const Layout: React.FC = () => {
             <Clock size={18} /> Ageing
           </NavLink>
         )}
-        <>
-          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/bo" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-            <AlertTriangle size={18} /> B.O.
-          </NavLink>
-          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/performance" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-            <Medal size={18} /> Gamification
-          </NavLink>
-        </>
+        {selectedMonth === 'current' && (
+          <>
+            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/bo" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+              <AlertTriangle size={18} /> B.O.
+            </NavLink>
+            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/performance" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+              <Medal size={18} /> Gamification
+            </NavLink>
+          </>
+        )}
       </div>
 
       {role === 'admin' && (
@@ -119,6 +139,31 @@ const Layout: React.FC = () => {
             </div>
           </div>
 
+          {(role === 'admin' || role === 'manager') && (
+            <div style={{ padding: '0 12px 16px 12px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', fontWeight: 600 }}>Data View</div>
+              <select 
+                value={selectedMonth} 
+                onChange={e => setSelectedMonth(e.target.value)}
+                style={{ 
+                  width: '100%', 
+                  padding: '8px 12px', 
+                  background: 'var(--bg-dark)', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: '8px', 
+                  color: selectedMonth === 'current' ? 'var(--accent-primary)' : 'var(--accent-warning)',
+                  fontSize: '13px',
+                  fontWeight: 600
+                }}
+              >
+                <option value="current">Current Month (Live)</option>
+                {availableMonths.map(m => (
+                  <option key={m} value={m}>Snapshot: {m}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {navLinks}
 
           <div style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
@@ -156,6 +201,31 @@ const Layout: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {(role === 'admin' || role === 'manager') && (
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', fontWeight: 600, paddingLeft: '8px' }}>Data View</div>
+            <select 
+              value={selectedMonth} 
+              onChange={e => setSelectedMonth(e.target.value)}
+              style={{ 
+                width: '100%', 
+                padding: '8px 12px', 
+                background: 'var(--bg-dark)', 
+                border: '1px solid var(--border)', 
+                borderRadius: '8px', 
+                color: selectedMonth === 'current' ? 'var(--accent-primary)' : 'var(--accent-warning)',
+                fontSize: '13px',
+                fontWeight: 600
+              }}
+            >
+              <option value="current">Current Month (Live)</option>
+              {availableMonths.map(m => (
+                <option key={m} value={m}>Snapshot: {m}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {navLinks}
 

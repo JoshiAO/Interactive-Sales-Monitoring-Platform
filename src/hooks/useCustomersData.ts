@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { get, set } from 'idb-keyval';
 
 export const useCustomersData = (selectedTeam: string = 'all') => {
-  const { currentUser, role, salesmanId, team } = useAuth();
+  const { currentUser, role, salesmanId, team, selectedMonth } = useAuth();
   const [loading, setLoading] = useState(true);
   const [customers, setCustomers] = useState<any[]>([]);
 
@@ -31,19 +31,33 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
           return;
         }
 
-        const teamCacheKey = 'customers_team_ref_cache_v1';
-        const cachedTeamRef = await get(teamCacheKey);
-        const cachedRefUpload = await get('customers_lastReferenceUpload');
-
         let teamSnapDocs: any[] = [];
-        if (cachedTeamRef && cachedRefUpload === lastReferenceUpload) {
-          teamSnapDocs = cachedTeamRef;
+        let customersRawData: Record<string, string> = {};
+
+        if (selectedMonth && selectedMonth !== 'current') {
+          const snapSnap = await getDoc(doc(db, 'snapshots', selectedMonth));
+          if (snapSnap.exists()) {
+             const teamRaw = snapSnap.data().reference_team_service || {};
+             teamSnapDocs = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
+          }
+          const custSnapSnap = await getDoc(doc(db, 'snapshots', `${selectedMonth}_customers`));
+          if (custSnapSnap.exists()) {
+             customersRawData = custSnapSnap.data() || {};
+          }
         } else {
-          const teamSnap = await getDoc(doc(db, 'reference_team_service', 'all'));
-          const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
-          teamSnapDocs = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
-          await set(teamCacheKey, teamSnapDocs);
-          await set('customers_lastReferenceUpload', lastReferenceUpload);
+          const teamCacheKey = 'customers_team_ref_cache_v1';
+          const cachedTeamRef = await get(teamCacheKey);
+          const cachedRefUpload = await get('customers_lastReferenceUpload');
+
+          if (cachedTeamRef && cachedRefUpload === lastReferenceUpload) {
+            teamSnapDocs = cachedTeamRef;
+          } else {
+            const teamSnap = await getDoc(doc(db, 'reference_team_service', 'all'));
+            const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
+            teamSnapDocs = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
+            await set(teamCacheKey, teamSnapDocs);
+            await set('customers_lastReferenceUpload', lastReferenceUpload);
+          }
         }
 
         let allowedSalesmen = new Set<string>();
@@ -71,48 +85,76 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         }
 
         const customerList: any[] = [];
-        const chunkSize = 10;
-        const chunks = [];
-        
-        for (let i = 0; i < salesmenArray.length; i += chunkSize) {
-          chunks.push(salesmenArray.slice(i, i + chunkSize));
-        }
+        if (selectedMonth && selectedMonth !== 'current') {
+          salesmenArray.forEach(id => {
+            const cData = customersRawData[id];
+            if (cData) {
+              const parsed = JSON.parse(cData);
+              parsed.forEach((c: any) => {
+                customerList.push({
+                  id: c['CUSTOMER CODE'],
+                  name: c['STORE NAME / OWNER'] || c['STORE NAME'] || c['CUSTOMER NAME'] || 'Unknown Store',
+                  barangay: c['BARANGAY'] || '-',
+                  city: c['CITY'] || '-',
+                  province: c['PROVINCE'] || c['REGION'] || '-',
+                  status: c['STATUS'] || '',
+                  salesmanId: String(c['SALES REP ID'] || ''),
+                  volume: c.volume || 0,
+                  netValue: c.netValue || 0,
+                  gsr: c.gsr || 0,
+                  bsr: c.bsr || 0,
+                  isBuying: c.isBuying || false,
+                  newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
+                  coverageDay: String(c['COVERAGE DAY'] || '').trim().toUpperCase(),
+                  wklyCoverage: String(c['WKLY COVERAGE'] || '').trim().toUpperCase()
+                });
+              });
+            }
+          });
+        } else {
+          const chunkSize = 10;
+          const chunks = [];
+          
+          for (let i = 0; i < salesmenArray.length; i += chunkSize) {
+            chunks.push(salesmenArray.slice(i, i + chunkSize));
+          }
 
-        // Use Promise.all to fetch chunks concurrently
-        const fetchPromises = chunks.map(chunk => {
-          const safeChunk = chunk.map(id => String(id).replace(/[^a-zA-Z0-9_]/g, ''));
-          return getDocs(query(collection(db, 'customer_data'), where(documentId(), 'in', safeChunk)));
-        });
+          // Use Promise.all to fetch chunks concurrently
+          const fetchPromises = chunks.map(chunk => {
+            const safeChunk = chunk.map(id => String(id).replace(/[^a-zA-Z0-9_]/g, ''));
+            return getDocs(query(collection(db, 'customer_data'), where(documentId(), 'in', safeChunk)));
+          });
 
-        const snapshots = await Promise.all(fetchPromises);
-        
-        snapshots.forEach(snap => {
-          snap.forEach(d => {
-            const data = d.data();
-            if (!data.customers) return;
-            
-            const parsed = JSON.parse(data.customers);
-            parsed.forEach((c: any) => {
-              customerList.push({
-                id: c['CUSTOMER CODE'],
-                name: c['STORE NAME / OWNER'] || c['STORE NAME'] || c['CUSTOMER NAME'] || 'Unknown Store',
-                barangay: c['BARANGAY'] || '-',
-                city: c['CITY'] || '-',
-                province: c['PROVINCE'] || c['REGION'] || '-',
-                status: c['STATUS'] || '',
-                salesmanId: String(c['SALES REP ID'] || ''),
-                volume: c.volume || 0,
-                netValue: c.netValue || 0,
-                gsr: c.gsr || 0,
-                bsr: c.bsr || 0,
-                isBuying: c.isBuying || false,
-                newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
-                coverageDay: String(c['COVERAGE DAY'] || '').trim().toUpperCase(),
-                wklyCoverage: String(c['WKLY COVERAGE'] || '').trim().toUpperCase()
+          const snapshots = await Promise.all(fetchPromises);
+          
+          snapshots.forEach(snap => {
+            snap.forEach(d => {
+              const data = d.data();
+              if (!data.customers) return;
+              
+              const parsed = JSON.parse(data.customers);
+              parsed.forEach((c: any) => {
+                customerList.push({
+                  id: c['CUSTOMER CODE'],
+                  name: c['STORE NAME / OWNER'] || c['STORE NAME'] || c['CUSTOMER NAME'] || 'Unknown Store',
+                  barangay: c['BARANGAY'] || '-',
+                  city: c['CITY'] || '-',
+                  province: c['PROVINCE'] || c['REGION'] || '-',
+                  status: c['STATUS'] || '',
+                  salesmanId: String(c['SALES REP ID'] || ''),
+                  volume: c.volume || 0,
+                  netValue: c.netValue || 0,
+                  gsr: c.gsr || 0,
+                  bsr: c.bsr || 0,
+                  isBuying: c.isBuying || false,
+                  newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
+                  coverageDay: String(c['COVERAGE DAY'] || '').trim().toUpperCase(),
+                  wklyCoverage: String(c['WKLY COVERAGE'] || '').trim().toUpperCase()
+                });
               });
             });
           });
-        });
+        }
 
         // Sort alphabetically
         customerList.sort((a, b) => a.name.localeCompare(b.name));
@@ -136,7 +178,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
     };
     
     fetchData();
-  }, [currentUser, role, selectedTeam]);
+  }, [currentUser, role, selectedTeam, selectedMonth]);
 
   return { loading, customers };
 };

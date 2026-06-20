@@ -32,7 +32,7 @@ interface DashboardData {
 }
 
 export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen: boolean | 'team' = false) => {
-  const { currentUser, role, salesmanId, team } = useAuth();
+  const { currentUser, role, salesmanId, team, selectedMonth } = useAuth();
   const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData>({
@@ -90,45 +90,67 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         let teamData: any[] = [];
         let refVd30Data: any[] = [];
 
-        // 1. Fast Cache: Dashboard Metrics (Hourly updates)
-        if (cachedMetrics && cachedMetricsUpload === lastDataUpload) {
-          metricsData = cachedMetrics;
+        if (selectedMonth && selectedMonth !== 'current') {
+          const snapshotSnap = await getDoc(doc(db, 'snapshots', selectedMonth));
+          if (snapshotSnap.exists()) {
+            const snapData = snapshotSnap.data();
+            
+            const metricsRaw = snapData.dashboard_metrics || {};
+            metricsData = Object.keys(metricsRaw).map(k => ({ id: k, ...metricsRaw[k] }));
+
+            const sttRaw = snapData.salesman_targets || {};
+            sttData = Object.keys(sttRaw).map(k => ({ id: k, ...sttRaw[k] }));
+
+            const vd30Raw = snapData.vd30_targets || {};
+            vd30Data = Object.keys(vd30Raw).map(k => ({ id: k, ...vd30Raw[k] }));
+
+            const teamRaw = snapData.reference_team_service || {};
+            teamData = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
+
+            const refVd30Raw = snapData.reference_vd30 || {};
+            refVd30Data = Object.keys(refVd30Raw).map(k => ({ id: k, ...refVd30Raw[k] }));
+          }
         } else {
-          const metricsSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
-          const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
-          metricsData = Object.keys(metricsRaw).map(k => ({ id: k, ...metricsRaw[k] }));
-          await withTimeout(set(metricsCacheKey, metricsData));
-          await withTimeout(set('dashboard_lastDataUpload', lastDataUpload));
-        }
+          // 1. Fast Cache: Dashboard Metrics (Hourly updates)
+          if (cachedMetrics && cachedMetricsUpload === lastDataUpload) {
+            metricsData = cachedMetrics;
+          } else {
+            const metricsSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
+            const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
+            metricsData = Object.keys(metricsRaw).map(k => ({ id: k, ...metricsRaw[k] }));
+            await withTimeout(set(metricsCacheKey, metricsData));
+            await withTimeout(set('dashboard_lastDataUpload', lastDataUpload));
+          }
 
-        // 2. Deep Cache: Targets and References (Monthly updates)
-        if (cachedReference && cachedRefUpload === lastReferenceUpload) {
-          sttData = cachedReference.sttData;
-          vd30Data = cachedReference.vd30Data;
-          teamData = cachedReference.teamData;
-          refVd30Data = cachedReference.refVd30Data;
-        } else {
-          const [sttSnap, vd30Snap, teamSnap, refVd30Snap] = await Promise.all([
-            getDoc(doc(db, 'salesman_targets', 'all')),
-            getDoc(doc(db, 'vd30_targets', 'all')),
-            getDoc(doc(db, 'reference_team_service', 'all')),
-            getDoc(doc(db, 'reference_vd30', 'all'))
-          ]);
+          // 2. Deep Cache: Targets and References (Monthly updates)
+          if (cachedReference && cachedRefUpload === lastReferenceUpload) {
+            sttData = cachedReference.sttData;
+            vd30Data = cachedReference.vd30Data;
+            teamData = cachedReference.teamData;
+            refVd30Data = cachedReference.refVd30Data;
+          } else {
+            const [sttSnap, vd30Snap, teamSnap, refVd30Snap] = await Promise.all([
+              getDoc(doc(db, 'salesman_targets', 'all')),
+              getDoc(doc(db, 'vd30_targets', 'all')),
+              getDoc(doc(db, 'reference_team_service', 'all')),
+              getDoc(doc(db, 'reference_vd30', 'all'))
+            ]);
 
-          const sttRaw = sttSnap.exists() ? sttSnap.data() : {};
-          sttData = Object.keys(sttRaw).map(k => ({ id: k, ...sttRaw[k] }));
+            const sttRaw = sttSnap.exists() ? sttSnap.data() : {};
+            sttData = Object.keys(sttRaw).map(k => ({ id: k, ...sttRaw[k] }));
 
-          const vd30Raw = vd30Snap.exists() ? vd30Snap.data() : {};
-          vd30Data = Object.keys(vd30Raw).map(k => ({ id: k, ...vd30Raw[k] }));
+            const vd30Raw = vd30Snap.exists() ? vd30Snap.data() : {};
+            vd30Data = Object.keys(vd30Raw).map(k => ({ id: k, ...vd30Raw[k] }));
 
-          const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
-          teamData = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
+            const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
+            teamData = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
 
-          const refVd30Raw = refVd30Snap.exists() ? refVd30Snap.data() : {};
-          refVd30Data = Object.keys(refVd30Raw).map(k => ({ id: k, ...refVd30Raw[k] }));
+            const refVd30Raw = refVd30Snap.exists() ? refVd30Snap.data() : {};
+            refVd30Data = Object.keys(refVd30Raw).map(k => ({ id: k, ...refVd30Raw[k] }));
 
-          await withTimeout(set(referenceCacheKey, { sttData, vd30Data, teamData, refVd30Data }));
-          await withTimeout(set('dashboard_lastReferenceUpload', lastReferenceUpload));
+            await withTimeout(set(referenceCacheKey, { sttData, vd30Data, teamData, refVd30Data }));
+            await withTimeout(set('dashboard_lastReferenceUpload', lastReferenceUpload));
+          }
         }
 
         // Fetch non-cached data
@@ -436,7 +458,7 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
     };
 
     fetchData();
-  }, [currentUser, role, selectedTeam, forceAllSalesmen, usersLoading]);
+  }, [currentUser, role, selectedTeam, forceAllSalesmen, usersLoading, selectedMonth]);
 
   const forceEvaluateGamification = async (week: number) => {
     if (!data.salesmen || data.salesmen.length === 0) return;

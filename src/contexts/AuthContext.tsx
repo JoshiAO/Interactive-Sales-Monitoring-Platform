@@ -15,6 +15,8 @@ interface AuthContextType {
   branch: string | null;
   team: string | null;
   loading: boolean;
+  selectedMonth: string;
+  setSelectedMonth: (m: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -27,6 +29,8 @@ const AuthContext = createContext<AuthContextType>({
   branch: null,
   team: null,
   loading: true,
+  selectedMonth: 'current',
+  setSelectedMonth: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -41,6 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [branch, setBranch] = useState<string | null>(null);
   const [team, setTeam] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState<string>('current');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -95,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, role, companyCode, name, photoURL, salesmanId, branch, team, loading }}>
+    <AuthContext.Provider value={{ currentUser, role, companyCode, name, photoURL, salesmanId, branch, team, loading, selectedMonth, setSelectedMonth }}>
       {!loading && children}
     </AuthContext.Provider>
   );

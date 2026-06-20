@@ -32,7 +32,7 @@ export interface TradeCustomer {
 }
 
 export const useTradeBoData = (selectedTeam: string = 'all') => {
-  const { currentUser, role, salesmanId, team } = useAuth();
+  const { currentUser, role, salesmanId, team, selectedMonth } = useAuth();
   const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
   const [salesmen, setSalesmen] = useState<TradeSalesman[]>([]);
@@ -44,17 +44,31 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [globalDoc, teamSnap, metricsSnap] = await Promise.all([
-          getDoc(doc(db, 'settings', 'global')),
-          getDoc(doc(db, 'reference_team_service', 'all')),
-          getDoc(doc(db, 'dashboard_metrics', 'all'))
-        ]);
+        let globalData = null;
+        let teamRaw: any = {};
+        let metricsRaw: any = {};
 
-        const globalData = globalDoc.exists() ? globalDoc.data() : null;
+        if (selectedMonth && selectedMonth !== 'current') {
+          const snapSnap = await getDoc(doc(db, 'snapshots', selectedMonth));
+          if (snapSnap.exists()) {
+            const snapData = snapSnap.data();
+            teamRaw = snapData.reference_team_service || {};
+            metricsRaw = snapData.dashboard_metrics || {};
+          }
+        } else {
+          const [globalDoc, teamSnap, metricsSnap] = await Promise.all([
+            getDoc(doc(db, 'settings', 'global')),
+            getDoc(doc(db, 'reference_team_service', 'all')),
+            getDoc(doc(db, 'dashboard_metrics', 'all'))
+          ]);
+          globalData = globalDoc.exists() ? globalDoc.data() : null;
+          teamRaw = teamSnap.exists() ? teamSnap.data() : {};
+          metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
+        }
+
         const cobDate = globalData?.cobDate || new Date().toISOString().split('T')[0];
 
         // Build allowed salesmen set
-        const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
         const teamRows = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
         
         const teamByCode: Record<string, string> = {};
@@ -89,7 +103,6 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
         });
 
         // Fetch metrics (BSR + STT)
-        const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
         const salesmenList: TradeSalesman[] = [];
         let bsrTotal = 0;
         
@@ -136,13 +149,14 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
       }
     };
     fetchData();
-  }, [currentUser, role, selectedTeam, usersLoading]);
+  }, [currentUser, role, selectedTeam, usersLoading, selectedMonth]);
 
   return { loading, salesmen, history, totalBsr };
 };
 
 // Fetch BSR customers for a specific salesman
 export const useTradeBoCustomers = (salesmanCode: string | null) => {
+  const { selectedMonth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<TradeCustomer[]>([]);
 
@@ -152,11 +166,22 @@ export const useTradeBoCustomers = (salesmanCode: string | null) => {
       setLoading(true);
       try {
         const safeId = salesmanCode.replace(/[^a-zA-Z0-9_]/g, '');
-        const custDoc = await getDoc(doc(db, 'customer_data', safeId));
-        if (!custDoc.exists()) { setCustomers([]); return; }
-        const data = custDoc.data();
-        if (!data.customers) { setCustomers([]); return; }
-        const parsed = JSON.parse(data.customers);
+        let customersStr = null;
+
+        if (selectedMonth && selectedMonth !== 'current') {
+          const custSnapSnap = await getDoc(doc(db, 'snapshots', `${selectedMonth}_customers`));
+          if (custSnapSnap.exists()) {
+            customersStr = custSnapSnap.data()[safeId];
+          }
+        } else {
+          const custDoc = await getDoc(doc(db, 'customer_data', safeId));
+          if (custDoc.exists()) {
+            customersStr = custDoc.data().customers;
+          }
+        }
+
+        if (!customersStr) { setCustomers([]); return; }
+        const parsed = JSON.parse(customersStr);
         const result: TradeCustomer[] = parsed
           .filter((c: any) => (c.bsr || 0) > 0)
           .map((c: any) => ({
@@ -178,7 +203,7 @@ export const useTradeBoCustomers = (salesmanCode: string | null) => {
       }
     };
     fetchData();
-  }, [salesmanCode]);
+  }, [salesmanCode, selectedMonth]);
 
   return { loading, customers };
 };
