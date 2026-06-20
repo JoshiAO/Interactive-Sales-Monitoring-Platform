@@ -6,6 +6,7 @@ import { logout } from '../../firebase/auth';
 import { doc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import PerformancePanel from './PerformancePanel';
+import { MonthPicker } from '../ui/MonthPicker';
 
 const Layout: React.FC = () => {
   const { role, currentUser, name, photoURL, selectedMonth, setSelectedMonth } = useAuth();
@@ -142,25 +143,11 @@ const Layout: React.FC = () => {
           {(role === 'admin' || role === 'manager') && (
             <div style={{ padding: '0 12px 16px 12px' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', fontWeight: 600 }}>Data View</div>
-              <select 
-                value={selectedMonth} 
-                onChange={e => setSelectedMonth(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  padding: '8px 12px', 
-                  background: 'var(--bg-dark)', 
-                  border: '1px solid var(--border)', 
-                  borderRadius: '8px', 
-                  color: selectedMonth === 'current' ? 'var(--accent-primary)' : 'var(--accent-warning)',
-                  fontSize: '13px',
-                  fontWeight: 600
-                }}
-              >
-                <option value="current">Current Month (Live)</option>
-                {availableMonths.map(m => (
-                  <option key={m} value={m}>Snapshot: {m}</option>
-                ))}
-              </select>
+              <MonthPicker 
+                selectedMonth={selectedMonth}
+                availableMonths={availableMonths}
+                onChange={setSelectedMonth}
+              />
             </div>
           )}
 
@@ -205,25 +192,11 @@ const Layout: React.FC = () => {
         {(role === 'admin' || role === 'manager') && (
           <div style={{ marginBottom: '16px' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', fontWeight: 600, paddingLeft: '8px' }}>Data View</div>
-            <select 
-              value={selectedMonth} 
-              onChange={e => setSelectedMonth(e.target.value)}
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px', 
-                background: 'var(--bg-dark)', 
-                border: '1px solid var(--border)', 
-                borderRadius: '8px', 
-                color: selectedMonth === 'current' ? 'var(--accent-primary)' : 'var(--accent-warning)',
-                fontSize: '13px',
-                fontWeight: 600
-              }}
-            >
-              <option value="current">Current Month (Live)</option>
-              {availableMonths.map(m => (
-                <option key={m} value={m}>Snapshot: {m}</option>
-              ))}
-            </select>
+            <MonthPicker 
+              selectedMonth={selectedMonth}
+              availableMonths={availableMonths}
+              onChange={setSelectedMonth}
+            />
           </div>
         )}
 
