@@ -17,9 +17,19 @@
 
 <table>
   <tr>
-    <td><img height="400" alt="Dashboard View" src="https://placehold.co/400x800/222222/00d4ff.png?text=Dashboard+Mobile+View" /></td>
-    <td><img height="400" alt="Performance Panel" src="https://placehold.co/400x800/222222/00d4ff.png?text=Top+10+Gamification" /></td>
-    <td><img height="400" alt="Analytics" src="https://placehold.co/400x800/222222/00d4ff.png?text=Data+Analytics+Charts" /></td>
+    <td><img width="100%" alt="Dashboard Overview" src="./public/sample/01.png" /></td>
+    <td><img width="100%" alt="Sales Performance" src="./public/sample/02.png" /></td>
+    <td><img width="100%" alt="Category Breakdown" src="./public/sample/03.png" /></td>
+  </tr>
+  <tr>
+    <td><img width="100%" alt="Customer Insights" src="./public/sample/04.png" /></td>
+    <td><img width="100%" alt="Value Drivers" src="./public/sample/05.png" /></td>
+    <td><img width="100%" alt="NPD & Promo" src="./public/sample/06.png" /></td>
+  </tr>
+  <tr>
+    <td><img width="100%" alt="Team Ranking" src="./public/sample/07.png" /></td>
+    <td><img width="100%" alt="Ageing Data" src="./public/sample/08.png" /></td>
+    <td><img width="100%" alt="Data Management" src="./public/sample/09.png" /></td>
   </tr>
 </table>
 
