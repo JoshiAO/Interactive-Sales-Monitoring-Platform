@@ -23,7 +23,7 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     const companyCode = localStorage.getItem('companyCode');
-    if (!companyCode) {
+    if (!companyCode && import.meta.env.VITE_DEMO_MODE !== 'true') {
       navigate('/activation', { replace: true });
     }
     // Preload reCAPTCHA script
@@ -140,6 +140,19 @@ const Login: React.FC = () => {
           </p>
         </div>
         
+        {import.meta.env.VITE_DEMO_MODE === 'true' && (
+          <div className="mb-4" style={{
+            padding: '16px', borderRadius: '8px', fontSize: '13px',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)',
+            color: 'var(--text-primary)', textAlign: 'left', lineHeight: '1.5'
+          }}>
+            <strong style={{ color: 'var(--accent-success)', display: 'block', marginBottom: '8px' }}>🚀 Demo Mode Active</strong>
+            <p style={{ margin: 0 }}><strong>Manager:</strong> manager@demo.com</p>
+            <p style={{ margin: 0 }}><strong>Admin:</strong> admin@demo.com</p>
+            <p style={{ margin: 0 }}><strong>Salesman:</strong> salesman@demo.com</p>
+            <p style={{ margin: '8px 0 0' }}><strong>Password:</strong> demo@1234</p>
+          </div>
+        )}
         {isLockedOut && (
           <div className="mb-4" style={{
             display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center',

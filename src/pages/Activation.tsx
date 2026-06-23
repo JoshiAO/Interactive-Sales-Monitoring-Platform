@@ -10,9 +10,16 @@ const Activation: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // If in demo mode, skip activation completely
+    if (import.meta.env.VITE_DEMO_MODE === 'true') {
+      localStorage.setItem('companyCode', 'DEMO-CPNY-CODE-0000');
+      navigate('/login', { replace: true });
+      return;
+    }
+
     // Preload reCAPTCHA script on mount
     loadRecaptcha().catch(() => {});
-  }, []);
+  }, [navigate]);
 
   const hashString = async (message: string) => {
     const msgBuffer = new TextEncoder().encode(message);
