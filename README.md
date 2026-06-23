@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  <img src="./public/pwa-192x192.png" alt="Sales Monitoring" width="120">
+  <img src="./public/JoshiAO.jpg" alt="Sales Monitoring" width="120">
   <br>
   Interactive Sales Monitoring Platform
   <br>
