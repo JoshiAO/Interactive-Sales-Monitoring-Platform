@@ -52,6 +52,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(user);
       if (user) {
         try {
+          // DEMO MODE BYPASS: Hardcode roles based on email
+          if (import.meta.env.VITE_DEMO_MODE === 'true') {
+            const email = user.email || '';
+            let demoRole: UserRole = null;
+            if (email.includes('admin')) demoRole = 'admin';
+            else if (email.includes('manager')) demoRole = 'manager';
+            else if (email.includes('salesman')) demoRole = 'salesman';
+            else if (email.includes('supervisor') && !email.includes('warehouse')) demoRole = 'supervisor';
+            else if (email.includes('warehouse')) demoRole = 'warehouse_supervisor';
+
+            setRole(demoRole);
+            setCompanyCode('DEMO-CPNY-CODE-0000');
+            setName(user.displayName || email.split('@')[0]);
+            setPhotoURL(user.photoURL || null);
+            setSalesmanId(demoRole === 'salesman' ? 'S-DEMO-001' : null);
+            setBranch('Demo Branch');
+            setTeam(demoRole === 'salesman' || demoRole === 'supervisor' ? 'Team Alpha' : null);
+            setLoading(false);
+            return;
+          }
+
           // First check Firestore users collection
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
