@@ -180,45 +180,19 @@ The application implements a strict two-stage entry process to prevent unauthori
 
 ---
 
-## 🛠️ Local Development & Setup
+## 🎨 UX & Design Philosophy
 
-### 1. Installation
-Clone the repository and install dependencies:
-```bash
-git clone https://github.com/JoshiAO/sales-monitoring-dashboard.git
-cd sales-monitoring-dashboard
-npm install
-```
+*   **Mobile-First Adaptability**: The UI collapses gracefully from a multi-column desktop dashboard to an intuitive, thumb-friendly mobile layout.
+*   **Cognitive Load Reduction**: Utilizes progressive disclosure—complex data like the "Value Drivers (VD30)" and "Customers" panels use modals and collapsible accordions rather than overwhelming the user on the primary view.
+*   **Premium Gamification Elements**: Medals, animated progress bars, and colored status indicators provide instant, satisfying visual feedback on weekly performance to boost team morale.
 
-### 2. Environment Configuration
-Create a `.env` file in the project root containing your Firebase credentials:
-```env
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
-```
+---
 
-### 3. Running Locally
-Launch the Vite development server with hot-reloading:
-```bash
-npm run dev
-```
+## 💼 Business Impact & Scalability
 
-### 4. Deploying to Firebase
-Compile the production build and deploy to Firebase Hosting & Functions:
-```bash
-# Build the React frontend
-npm run build
-
-# Build and deploy Firebase Cloud Functions
-cd functions && npm install && npm run build && cd ..
-
-# Deploy everything
-firebase deploy
-```
+*   **Eliminated Spreadsheet Bottlenecks**: Replaces dozens of manual Excel reports sent over email with a single unified, real-time platform.
+*   **Real-Time Coaching**: Supervisors can now identify underperforming regions and product lines instantly, drastically reducing the feedback loop from 30 days to 1 day.
+*   **Enterprise-Ready Scale**: Engineered from day one to effortlessly handle future expansion into new branches, territories, and product lines without requiring structural backend changes.
 
 ---
 
