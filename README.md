@@ -1,4 +1,4 @@
-# 📊 Enterprise Sales Monitoring Platform
+# 📊 Interactive Sales Monitoring Platform
 
 > **Transforming chaotic spreadsheet reporting into a real-time, high-performance web platform.**
 
@@ -61,7 +61,7 @@ I architected this platform to handle massive enterprise data dumps without brea
 
 I specialize in building full-stack applications that solve real business problems with elegant, scalable code. If you are looking for an engineer who understands both deep technical architecture and high-level business impact, I would love to chat.
 
-[**Contact Me via Email**](mailto:your.email@example.com) | [**View My Portfolio**](#)
+[**Contact Me via Email**](mailto:joshi.ao@outlook.ph) | [**View My Portfolio**](https://eikofisherman.web.app/)
 
 ---
 
