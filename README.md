@@ -27,7 +27,7 @@ An enterprise-grade, highly optimized **Progressive Web App (PWA)** engineered t
 
 This platform was built to solve a critical business problem: the painful, 30-day feedback loop caused by manual Excel reports. By centralizing data ingestion and applying real-time analytics, this platform enables instant coaching, automated leaderboards, and zero-trust data security.
 
-[**View Live Platform Demo**](https://rd-sales-monitoring-demo.web.app/) | [**Connect on LinkedIn**](#)
+[**View Live Platform Demo**](https://rd-sales-monitoring-demo.web.app/) | [**Connect on LinkedIn**](https://www.linkedin.com/in/joshua-ocampo-b67210384)
 
 ---
 
