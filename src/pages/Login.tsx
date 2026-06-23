@@ -147,9 +147,11 @@ const Login: React.FC = () => {
             color: 'var(--text-primary)', textAlign: 'left', lineHeight: '1.5'
           }}>
             <strong style={{ color: 'var(--accent-success)', display: 'block', marginBottom: '8px' }}>🚀 Demo Mode Active</strong>
-            <p style={{ margin: 0 }}><strong>Manager:</strong> manager@demo.com</p>
             <p style={{ margin: 0 }}><strong>Admin:</strong> admin@demo.com</p>
+            <p style={{ margin: 0 }}><strong>Manager:</strong> manager@demo.com</p>
+            <p style={{ margin: 0 }}><strong>Supervisor:</strong> supervisor@demo.com</p>
             <p style={{ margin: 0 }}><strong>Salesman:</strong> salesman@demo.com</p>
+            <p style={{ margin: 0 }}><strong>Warehouse:</strong> warehousesupervisor@demo.com</p>
             <p style={{ margin: '8px 0 0' }}><strong>Password:</strong> demo@1234</p>
           </div>
         )}
