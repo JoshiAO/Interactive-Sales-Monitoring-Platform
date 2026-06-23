@@ -37,7 +37,7 @@ The sidebar navigation dynamically filters modules based on the logged-in user's
 | **NPD & Promo** (Launch KPIs) | Yes | Yes | Yes | Yes | No |
 | **Ageing** (Inventory Expiry) | No | Yes | Yes | Yes | Yes |
 | **B.O.** (Back Orders) | Yes | Yes | Yes | Yes | Yes |
-| **Gamification** (Leaderboard) | Yes | Yes | Yes | Yes | Yes |
+| **Gamification** (Leaderboard) | Yes | Yes | Yes | Yes | No |
 | **Data Upload** (Admin Panel) | No | No | No | Yes | No |
 | **Users** (CRUD Management) | No | No | No | Yes | No |
 
