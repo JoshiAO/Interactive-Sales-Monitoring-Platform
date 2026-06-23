@@ -104,14 +104,18 @@ const DataManagement: React.FC = () => {
     
     try {
       const [
-        metricsSnap, sttSnap, vd30TargetSnap, teamSnap, refVd30Snap, custSnap
+        metricsSnap, sttSnap, vd30TargetSnap, teamSnap, refVd30Snap, custSnap,
+        achievementsSnap, commitmentsSnap, historicalMedalsSnap
       ] = await Promise.all([
         getDoc(doc(db, 'dashboard_metrics', 'all')),
         getDoc(doc(db, 'salesman_targets', 'all')),
         getDoc(doc(db, 'vd30_targets', 'all')),
         getDoc(doc(db, 'reference_team_service', 'all')),
         getDoc(doc(db, 'reference_vd30', 'all')),
-        getDocs(collection(db, 'customer_data'))
+        getDocs(collection(db, 'customer_data')),
+        getDoc(doc(db, 'achievements', snapshotMonth)),
+        getDoc(doc(db, 'weekly_commitments', snapshotMonth)),
+        getDoc(doc(db, 'historical_medals', snapshotMonth))
       ]);
 
       setProgress({ step: 'Compressing snapshot...', current: 50, total: 100 });
@@ -122,7 +126,10 @@ const DataManagement: React.FC = () => {
         salesman_targets: sttSnap.exists() ? sttSnap.data() : {},
         vd30_targets: vd30TargetSnap.exists() ? vd30TargetSnap.data() : {},
         reference_team_service: teamSnap.exists() ? teamSnap.data() : {},
-        reference_vd30: refVd30Snap.exists() ? refVd30Snap.data() : {}
+        reference_vd30: refVd30Snap.exists() ? refVd30Snap.data() : {},
+        achievements: achievementsSnap.exists() ? achievementsSnap.data() : {},
+        weekly_commitments: commitmentsSnap.exists() ? commitmentsSnap.data() : {},
+        historical_medals: historicalMedalsSnap.exists() ? historicalMedalsSnap.data() : {}
       };
 
       const customersDocData: Record<string, string> = {};
@@ -137,8 +144,18 @@ const DataManagement: React.FC = () => {
       
       const batch = writeBatch(db);
       batch.set(doc(db, 'snapshots', snapshotMonth), metricsDocData);
-      batch.set(doc(db, 'snapshots', `${snapshotMonth}_customers`), customersDocData);
       await batch.commit();
+
+      // Chunk write customer subcollection
+      const cKeys = Object.keys(customersDocData);
+      for (let i = 0; i < cKeys.length; i += 450) {
+        const cBatch = writeBatch(db);
+        cKeys.slice(i, i + 450).forEach(salesmanId => {
+           const safeId = String(salesmanId).replace(/[^a-zA-Z0-9_]/g, '');
+           cBatch.set(doc(db, 'snapshots', snapshotMonth, 'customers', safeId), { customers: customersDocData[salesmanId] });
+        });
+        await cBatch.commit();
+      }
 
       setShowSnapshotModal(false);
       setSuccess(true);
@@ -740,15 +757,18 @@ const DataManagement: React.FC = () => {
             });
 
             // Save metrics to individual docs (legacy) AND to the 'all' doc
-            const cmlBatch = writeBatch(db);
-            Object.keys(cmlCounts).forEach(salesmanCode => {
-              const docRef = doc(collection(db, 'dashboard_metrics'), salesmanCode);
-              cmlBatch.set(docRef, {
-                cml_count: cmlCounts[salesmanCode],
-                last_updated: new Date().toISOString()
-              }, { merge: true });
-            });
-            await cmlBatch.commit();
+            const cmlKeys = Object.keys(cmlCounts);
+            for (let i = 0; i < cmlKeys.length; i += 450) {
+              const cmlBatch = writeBatch(db);
+              cmlKeys.slice(i, i + 450).forEach(salesmanCode => {
+                const docRef = doc(collection(db, 'dashboard_metrics'), salesmanCode);
+                cmlBatch.set(docRef, {
+                  cml_count: cmlCounts[salesmanCode],
+                  last_updated: new Date().toISOString()
+                }, { merge: true });
+              });
+              await cmlBatch.commit();
+            }
 
             // Also merge cml_count into the 'all' doc so the Sales page can read it
             const allDocSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
@@ -765,13 +785,16 @@ const DataManagement: React.FC = () => {
             
             // Save Chunks
             setProgress({ step: 'Saving Customer Chunks...', current: 50, total: 100 });
-            const cBatch = writeBatch(db);
-            Object.keys(salesmanGroups).forEach(salesmanCode => {
-              const safeId = String(salesmanCode).replace(/[^a-zA-Z0-9_]/g, '');
-              const docRef = doc(collection(db, 'customer_data'), safeId);
-              cBatch.set(docRef, { customers: JSON.stringify(salesmanGroups[salesmanCode]) }, { merge: true });
-            });
-            await cBatch.commit();
+            const groupKeys = Object.keys(salesmanGroups);
+            for (let i = 0; i < groupKeys.length; i += 450) {
+              const cBatch = writeBatch(db);
+              groupKeys.slice(i, i + 450).forEach(salesmanCode => {
+                const safeId = String(salesmanCode).replace(/[^a-zA-Z0-9_]/g, '');
+                const docRef = doc(collection(db, 'customer_data'), safeId);
+                cBatch.set(docRef, { customers: JSON.stringify(salesmanGroups[salesmanCode]) }, { merge: true });
+              });
+              await cBatch.commit();
+            }
           }
 
           // === NPD & PROMO PACK ITEMS UPLOAD ===

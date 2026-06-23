@@ -37,7 +37,7 @@ The sidebar navigation dynamically filters modules based on the logged-in user's
 | **NPD & Promo** (Launch KPIs) | Yes | Yes | Yes | Yes | No |
 | **Ageing** (Inventory Expiry) | No | Yes | Yes | Yes | Yes |
 | **B.O.** (Back Orders) | Yes | Yes | Yes | Yes | Yes |
-| **Gamification** (Leaderboard) | Yes | Yes | Yes | Yes | No |
+| **Gamification** (Leaderboard) | Yes | Yes | Yes | Yes | Yes |
 | **Data Upload** (Admin Panel) | No | No | No | Yes | No |
 | **Users** (CRUD Management) | No | No | No | Yes | No |
 
@@ -153,16 +153,30 @@ product_code | product_description | vd30_code | vd30_description
 
 ---
 
-## ⚙️ Technical Architecture & Stack
+## ⚙️ Technical Stack
 
-*   **Frontend Library**: React 19 (Vite, TypeScript)
+**Frontend**
+*   **Framework**: React 19 (Vite, TypeScript)
+*   **Styling**: Custom CSS (CSS Variables, Flexbox/Grid, Animations)
 *   **State Management**: React Context (`AuthContext`)
-*   **Styling**: Custom Vanilla CSS with responsive Flex/Grid layouts, glassmorphism tokens, and micro-animations.
-*   **Charts**: Recharts (dynamic line graphs, stacked/grouped bar charts, inner-donut pie charts)
+*   **Data Visualization**: Recharts (Line, Stacked Bar, Inner-Donut Pie)
 *   **Icons**: Lucide React
-*   **Database & Auth**: Firebase Auth, Firestore, and Firebase Storage
-*   **Offline / Install Support**: Vite PWA Plugin
-*   **Local Processing**: SheetJS (Excel ingestion), React Easy Crop (avatar adjustments)
+*   **PWA Engine**: Vite PWA Plugin
+
+**Backend & Data Processing**
+*   **BaaS**: Firebase (Auth, Firestore, Storage)
+*   **Serverless**: Firebase Cloud Functions v2 (Node.js 20)
+*   **Data Parsing**: SheetJS (`xlsx`) for client-side Excel ingestion
+*   **Image Processing**: React Easy Crop for profile avatars
+
+---
+
+## 🔒 Security Architecture
+
+The application implements a strict two-stage entry process to prevent unauthorized corporate access:
+1.  **Device Activation**: Devices must submit a valid **Company Code**. The code is hashed (`SHA-256`) and verified via a REST API against a centralized `joshiao-active-projects` database before the login screen is even rendered.
+2.  **Firebase Authentication**: Standard Email/Password login.
+3.  **Strict Firestore Rules**: All collections are explicitly mapped and locked down. The `users` and `snapshots` collections are fully protected against unauthorized wildcard reads.
 
 ---
 
@@ -193,10 +207,16 @@ Launch the Vite development server with hot-reloading:
 npm run dev
 ```
 
-### 4. Deploying to Firebase Hosting
-Compile the production build and deploy to Firebase:
+### 4. Deploying to Firebase
+Compile the production build and deploy to Firebase Hosting & Functions:
 ```bash
+# Build the React frontend
 npm run build
+
+# Build and deploy Firebase Cloud Functions
+cd functions && npm install && npm run build && cd ..
+
+# Deploy everything
 firebase deploy
 ```
 

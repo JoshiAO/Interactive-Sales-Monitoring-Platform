@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions/v2';
+import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 
 admin.initializeApp();
@@ -38,5 +39,47 @@ export const changeUserPassword = functions.https.onCall(async (request) => {
   } catch (error: any) {
     console.error('Error changing password for uid:', uid, error);
     throw new functions.https.HttpsError('internal', error.message || 'Error updating password.');
+  }
+});
+
+// Sync Firestore role to Firebase Auth custom claims
+export const syncUserRoleClaims = onDocumentWritten("users/{userId}", async (event) => {
+  const snapshot = event.data;
+  if (!snapshot) {
+    console.log("No data associated with the event");
+    return;
+  }
+
+  const userId = event.params.userId;
+  
+  // If document was deleted
+  if (!snapshot.after.exists) {
+    console.log(`User ${userId} deleted. Cannot update custom claims for deleted user.`);
+    return;
+  }
+
+  const data = snapshot.after.data();
+  if (!data) return;
+  const role = data.role;
+
+  try {
+    const userRecord = await admin.auth().getUser(userId);
+    const currentClaims = userRecord.customClaims || {};
+
+    if (currentClaims.role !== role) {
+      await admin.auth().setCustomUserClaims(userId, {
+        ...currentClaims,
+        role: role
+      });
+      console.log(`Successfully synced role '${role}' to custom claims for user ${userId}.`);
+    } else {
+      console.log(`User ${userId} already has role '${role}' in custom claims. Skipping update.`);
+    }
+  } catch (error: any) {
+    if (error.code === 'auth/user-not-found') {
+      console.warn(`User ${userId} not found in Firebase Auth.`);
+    } else {
+      console.error(`Error syncing custom claims for user ${userId}:`, error);
+    }
   }
 });

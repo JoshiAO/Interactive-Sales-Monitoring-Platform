@@ -89,6 +89,9 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         let vd30Data: any[] = [];
         let teamData: any[] = [];
         let refVd30Data: any[] = [];
+        let snapAchievementsData: any = null;
+        let snapWeeklyCommitmentsData: any = null;
+        let snapHistoricalMedalsData: any = null;
 
         if (selectedMonth && selectedMonth !== 'current') {
           const snapshotSnap = await getDoc(doc(db, 'snapshots', selectedMonth));
@@ -109,6 +112,10 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
 
             const refVd30Raw = snapData.reference_vd30 || {};
             refVd30Data = Object.keys(refVd30Raw).map(k => ({ id: k, ...refVd30Raw[k] }));
+
+            snapAchievementsData = snapData.achievements || {};
+            snapWeeklyCommitmentsData = snapData.weekly_commitments || {};
+            snapHistoricalMedalsData = snapData.historical_medals || {};
           }
         } else {
           // 1. Fast Cache: Dashboard Metrics (Hourly updates)
@@ -376,22 +383,27 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         let rawDailyPoints: Record<string, any> = {};
 
         try {
-          const achDoc = await getDoc(doc(db, 'achievements', monthKey));
-          if (achDoc.exists()) {
-            const weeklyMedals = achDoc.data().weekly_medals || {};
-            rawDailyPoints = achDoc.data().daily_points || {};
-            rawWeeklyAchievements = weeklyMedals;
-            // Aggregate all weeks for the month
-            Object.values(weeklyMedals).forEach((weekMap: any) => {
-              Object.keys(weekMap).forEach(salesmanId => {
-                if (!globalPointsMap[salesmanId]) globalPointsMap[salesmanId] = { gold: 0, silver: 0, bronze: 0, points: 0 };
-                globalPointsMap[salesmanId].gold += weekMap[salesmanId].gold || 0;
-                globalPointsMap[salesmanId].silver += weekMap[salesmanId].silver || 0;
-                globalPointsMap[salesmanId].bronze += weekMap[salesmanId].bronze || 0;
-                globalPointsMap[salesmanId].points += weekMap[salesmanId].points || 0;
-              });
-            });
+          let achData: any = {};
+          if (selectedMonth && selectedMonth !== 'current') {
+            achData = snapAchievementsData || {};
+          } else {
+            const achDoc = await getDoc(doc(db, 'achievements', monthKey));
+            if (achDoc.exists()) achData = achDoc.data();
           }
+
+          const weeklyMedals = achData.weekly_medals || {};
+          rawDailyPoints = achData.daily_points || {};
+          rawWeeklyAchievements = weeklyMedals;
+          // Aggregate all weeks for the month
+          Object.values(weeklyMedals).forEach((weekMap: any) => {
+            Object.keys(weekMap).forEach(salesmanId => {
+              if (!globalPointsMap[salesmanId]) globalPointsMap[salesmanId] = { gold: 0, silver: 0, bronze: 0, points: 0 };
+              globalPointsMap[salesmanId].gold += weekMap[salesmanId].gold || 0;
+              globalPointsMap[salesmanId].silver += weekMap[salesmanId].silver || 0;
+              globalPointsMap[salesmanId].bronze += weekMap[salesmanId].bronze || 0;
+              globalPointsMap[salesmanId].points += weekMap[salesmanId].points || 0;
+            });
+          });
         } catch (err) {
           console.error("Error fetching achievements:", err);
         }
@@ -399,12 +411,17 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         let weeklyCommitments = {};
         let historicalMedals = {};
         try {
-          const [commDoc, medDoc] = await Promise.all([
-            getDoc(doc(db, 'weekly_commitments', monthKey)),
-            getDoc(doc(db, 'historical_medals', monthKey))
-          ]);
-          if (commDoc.exists()) weeklyCommitments = commDoc.data();
-          if (medDoc.exists()) historicalMedals = medDoc.data();
+          if (selectedMonth && selectedMonth !== 'current') {
+            weeklyCommitments = snapWeeklyCommitmentsData || {};
+            historicalMedals = snapHistoricalMedalsData || {};
+          } else {
+            const [commDoc, medDoc] = await Promise.all([
+              getDoc(doc(db, 'weekly_commitments', monthKey)),
+              getDoc(doc(db, 'historical_medals', monthKey))
+            ]);
+            if (commDoc.exists()) weeklyCommitments = commDoc.data();
+            if (medDoc.exists()) historicalMedals = medDoc.data();
+          }
         } catch (err) {
           console.error("Error fetching gamification data:", err);
         }

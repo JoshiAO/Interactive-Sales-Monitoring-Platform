@@ -5,40 +5,50 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-    }
-
     function isAdmin() {
-      return isAuthenticated() && (request.auth.token.role == 'admin' || getUserRole() == 'admin');
+      return isAuthenticated() && request.auth.token.role == 'admin';
     }
 
     function isWarehouseSupervisor() {
-      return isAuthenticated() && (request.auth.token.role == 'warehouse_supervisor' || getUserRole() == 'warehouse_supervisor');
+      return isAuthenticated() && request.auth.token.role == 'warehouse_supervisor';
     }
 
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
+    // Publicly readable collections (for all authenticated users)
+    match /users/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /settings/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin() || isWarehouseSupervisor(); }
+    match /dashboard_metrics/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /salesman_targets/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /vd30_targets/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /reference_team_service/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /reference_vd30/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /customer_data/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /npd_promopack_metrics/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /achievements/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /historical_medals/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /trade_bo_history/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /van_bo_history/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /warehouse_bo_history/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /van_bo_data/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /snapshots/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     
     match /ageing_data/{document=**} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isWarehouseSupervisor();
     }
-
-    match /settings/{document=**} {
+    
+    match /warehouse_bo_data/{document=**} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isWarehouseSupervisor();
     }
 
+    // Gamification commitments (users can write their own, or admin can write all. For now we keep it open for authenticated)
     match /weekly_commitments/{document=**} {
       allow read, write: if isAuthenticated();
     }
     
+    // Default deny for any other collections
     match /{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow read, write: if false;
     }
   }
 }

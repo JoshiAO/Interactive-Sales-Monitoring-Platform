@@ -40,10 +40,13 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
              const teamRaw = snapSnap.data().reference_team_service || {};
              teamSnapDocs = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
           }
-          const custSnapSnap = await getDoc(doc(db, 'snapshots', `${selectedMonth}_customers`));
-          if (custSnapSnap.exists()) {
-             customersRawData = custSnapSnap.data() || {};
-          }
+          const custSnapSnap = await getDocs(collection(db, 'snapshots', selectedMonth, 'customers'));
+          custSnapSnap.forEach(d => {
+             const custData = d.data();
+             if (custData.customers) {
+               customersRawData[d.id] = custData.customers;
+             }
+          });
         } else {
           const teamCacheKey = 'customers_team_ref_cache_v1';
           const cachedTeamRef = await get(teamCacheKey);
