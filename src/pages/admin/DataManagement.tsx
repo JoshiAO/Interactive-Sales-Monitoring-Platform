@@ -278,7 +278,19 @@ const DataManagement: React.FC = () => {
                 m.uba_customers.add(cNumStr); // Track all customers seen for this salesman
 
                 if (!customerMetrics[cNumStr]) {
-                  customerMetrics[cNumStr] = { volume: 0, netValue: 0, gsr: 0, bsr: 0, isBuying: false, bsr_products: {}, bsr_categories: {} };
+                  customerMetrics[cNumStr] = { 
+                    volume: 0, 
+                    netValue: 0, 
+                    gsr: 0, 
+                    bsr: 0, 
+                    isBuying: false, 
+                    bsr_products: {}, 
+                    bsr_categories: {},
+                    salesmanCode: salesmanCode,
+                    custName: row['Sold-to Customer Name'] || row['Sold To Customer Name'] || custNum,
+                    brgy: brgy,
+                    city: town
+                  };
                 }
                 customerMetrics[cNumStr].volume += volume;
                 customerMetrics[cNumStr].netValue += netValue;
@@ -337,6 +349,9 @@ const DataManagement: React.FC = () => {
             const allCustSnap = await getDocs(collection(db, 'customer_data'));
             const chunkBatch = writeBatch(db);
             
+            const foundInCml = new Set<string>();
+            const salesmenCustomers: Record<string, any[]> = {};
+            
             allCustSnap.forEach(d => {
               const data = d.data();
               if (!data.customers) return;
@@ -348,6 +363,7 @@ const DataManagement: React.FC = () => {
                 const metrics = customerMetrics[safeId];
                 
                 if (metrics) {
+                   foundInCml.add(safeId);
                    c.volume = metrics.volume;
                    c.netValue = metrics.netValue;
                    c.gsr = metrics.gsr;
@@ -366,7 +382,41 @@ const DataManagement: React.FC = () => {
                 }
               });
               
-              chunkBatch.set(d.ref, { customers: JSON.stringify(parsedCustomers) }, { merge: true });
+              salesmenCustomers[d.id] = parsedCustomers;
+            });
+
+            // Append missing customers found in Net Invoiced but not in CML
+            Object.keys(customerMetrics).forEach(cNumStr => {
+              if (!foundInCml.has(cNumStr)) {
+                const m = customerMetrics[cNumStr];
+                const sCode = String(m.salesmanCode).replace(/[^a-zA-Z0-9_]/g, '');
+                if (!salesmenCustomers[sCode]) {
+                   salesmenCustomers[sCode] = [];
+                }
+                salesmenCustomers[sCode].push({
+                   'CUSTOMER CODE': cNumStr,
+                   'STORE NAME': m.custName,
+                   'BARANGAY': m.brgy,
+                   'CITY': m.city,
+                   'SALES REP ID': m.salesmanCode,
+                   'STATUS': 'Active',
+                   'NEW CUSTOMER': 'YES',
+                   volume: m.volume,
+                   netValue: m.netValue,
+                   gsr: m.gsr,
+                   bsr: m.bsr,
+                   isBuying: m.netValue >= 1,
+                   bsr_products: m.bsr_products,
+                   bsr_categories: m.bsr_categories,
+                   'COVERAGE DAY': 'WKLY',
+                   'WKLY COVERAGE': 'WKLY'
+                });
+              }
+            });
+
+            Object.keys(salesmenCustomers).forEach(sCode => {
+               const docRef = doc(collection(db, 'customer_data'), sCode);
+               chunkBatch.set(docRef, { customers: JSON.stringify(salesmenCustomers[sCode]) }, { merge: true });
             });
             
             await chunkBatch.commit();
