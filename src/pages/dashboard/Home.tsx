@@ -124,7 +124,12 @@ const Home: React.FC = () => {
           </span>
         } value={formatCurrency(data.mtdSales)} icon={<PhilippinePeso size={20} />} subtitle="Current Month" />
         <Card title="Balance" value={formatCurrency(data.balance)} icon={<Activity size={20} />} subtitle="Remaining to Target" />
-        <Card title="UBA" value={data.uba.toLocaleString()} icon={<TrendingUp size={20} />} subtitle="Unique Buying Accounts" />
+        <Card title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            UBA
+            <span style={{ color: 'var(--text-main)', fontSize: '13px' }}>{data.ubaTarget > 0 ? ((data.uba / data.ubaTarget) * 100).toFixed(1) + '%' : '0.0%'}</span>
+          </span>
+        } value={data.uba.toLocaleString()} icon={<TrendingUp size={20} />} subtitle="Unique Buying Accounts" />
       </div>
 
       {/* Charts Section */}
