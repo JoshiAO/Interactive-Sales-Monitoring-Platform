@@ -4,16 +4,15 @@ import { useDashboardData } from '../../hooks/useDashboardData';
 import { Loader2, AlertCircle } from 'lucide-react';
 import DualLeaderboard from '../../components/performance/DualLeaderboard';
 import CommitmentManager from '../../components/performance/CommitmentManager';
+import { getCurrentWeek } from '../../utils/dateUtils';
 
 const PerformancePage: React.FC = () => {
   const { role } = useAuth();
   const { loading, data, forceEvaluateGamification } = useDashboardData('all', false);
   const [activeTab, setActiveTab] = useState<'STT' | 'UBA' | 'VD30'>('STT');
 
-  // Determine current week based on date (roughly)
-  const today = new Date();
-  const date = today.getDate();
-  const currentWeek = Math.min(Math.ceil(date / 7), 5); // 1 to 5
+  // Determine current week based on date and settings
+  const currentWeek = getCurrentWeek(data.cobDate, data.weekMapping);
 
   const [selectedWeek, setSelectedWeek] = useState<number>(currentWeek);
 

@@ -87,6 +87,15 @@ const DataManagement: React.FC = () => {
   const [systemAnnouncementLink, setSystemAnnouncementLink] = useState('');
   const [savingAnnouncement, setSavingAnnouncement] = useState(false);
 
+  const [weekMapping, setWeekMapping] = useState<Record<string, { start: string; end: string }>>({
+    '1': { start: '', end: '' },
+    '2': { start: '', end: '' },
+    '3': { start: '', end: '' },
+    '4': { start: '', end: '' },
+    '5': { start: '', end: '' },
+  });
+  const [savingWeekMapping, setSavingWeekMapping] = useState(false);
+
   const [isSnapshotting, setIsSnapshotting] = useState(false);
   const [snapshotMonth, setSnapshotMonth] = useState(() => {
     const d = new Date();
@@ -169,13 +178,14 @@ const DataManagement: React.FC = () => {
     }
   };
 
-  // Fetch current announcement on mount
   React.useEffect(() => {
     const fetchSettings = async () => {
       const docSnap = await getDoc(doc(db, 'settings', 'global'));
       if (docSnap.exists()) {
-        setSystemAnnouncement(docSnap.data().systemAnnouncement || '');
-        setSystemAnnouncementLink(docSnap.data().systemAnnouncementLink || '');
+        const d = docSnap.data();
+        setSystemAnnouncement(d.systemAnnouncement || '');
+        setSystemAnnouncementLink(d.systemAnnouncementLink || '');
+        if (d.weekMapping) setWeekMapping(d.weekMapping);
       }
     };
     fetchSettings();
@@ -191,6 +201,46 @@ const DataManagement: React.FC = () => {
       alert("Failed to update announcement: " + e.message);
     } finally {
       setSavingAnnouncement(false);
+    }
+  };
+
+  const handleSaveWeekMapping = async () => {
+    // Validation
+    for (let i = 2; i <= 5; i++) {
+      const prevEndStr = weekMapping[String(i - 1)]?.end;
+      const currStartStr = weekMapping[String(i)]?.start;
+      const currEndStr = weekMapping[String(i)]?.end;
+
+      const prevEnd = prevEndStr ? parseInt(prevEndStr) : 0;
+      const currStart = currStartStr ? parseInt(currStartStr) : 0;
+      const currEnd = currEndStr ? parseInt(currEndStr) : 0;
+
+      // if a week has values, validate it
+      if (currStart || currEnd) {
+        if (!currStart || !currEnd) {
+          alert(`Week ${i} must have both Start and End dates if partially filled.`);
+          return;
+        }
+        if (currStart > currEnd) {
+           alert(`Week ${i} Start Date cannot be after End Date.`);
+           return;
+        }
+        if (prevEnd && currStart !== prevEnd + 1) {
+          alert(`Week ${i} Start Date (${currStart}) must be exactly 1 day after Week ${i - 1} End Date (${prevEnd}).`);
+          return;
+        }
+      }
+    }
+
+    setSavingWeekMapping(true);
+    try {
+      await setDoc(doc(db, 'settings', 'global'), { weekMapping }, { merge: true });
+      alert("Week Mapping updated successfully!");
+    } catch (e: any) {
+      console.error(e);
+      alert("Failed to update Week Mapping: " + e.message);
+    } finally {
+      setSavingWeekMapping(false);
     }
   };
 
@@ -1353,6 +1403,48 @@ const DataManagement: React.FC = () => {
             >
               <Camera size={18} /> Snapshot Current Data
             </button>
+          </div>
+
+          {/* Week Date Configuration */}
+          <div className="glass-panel" style={{ padding: '24px' }}>
+            <h3 style={{ color: 'var(--accent-primary)', fontSize: '16px', marginBottom: '8px' }}>Week Date Configuration</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Define the exact start and end dates (1-31) for each week. This overrides the default 7-day math. If a week (like Week 5) is disabled or merged into Week 4, simply extend Week 4's End Date and leave Week 5 blank.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {[1, 2, 3, 4, 5].map((w) => (
+                <div key={w} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '80px', color: 'var(--text-main)', fontSize: '14px', fontWeight: 500 }}>Week {w}</div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    placeholder="Start (e.g. 1)"
+                    value={weekMapping[w.toString()]?.start || ''}
+                    onChange={(e) => setWeekMapping(prev => ({ ...prev, [w.toString()]: { ...prev[w.toString()], start: e.target.value } }))}
+                    style={{ width: '120px', padding: '8px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '6px', color: 'white' }}
+                  />
+                  <span style={{ color: 'var(--text-muted)' }}>to</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    placeholder="End (e.g. 7)"
+                    value={weekMapping[w.toString()]?.end || ''}
+                    onChange={(e) => setWeekMapping(prev => ({ ...prev, [w.toString()]: { ...prev[w.toString()], end: e.target.value } }))}
+                    style={{ width: '120px', padding: '8px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '6px', color: 'white' }}
+                  />
+                </div>
+              ))}
+              <button 
+                onClick={handleSaveWeekMapping}
+                className="btn btn-primary"
+                disabled={savingWeekMapping}
+                style={{ alignSelf: 'flex-start', padding: '10px 24px', marginTop: '8px' }}
+              >
+                {savingWeekMapping ? 'Saving...' : 'Save Week Mapping'}
+              </button>
+            </div>
           </div>
 
           {/* Danger Zone */}

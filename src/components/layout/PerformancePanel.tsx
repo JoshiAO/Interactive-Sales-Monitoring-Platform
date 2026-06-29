@@ -6,6 +6,7 @@ import { useUsersCache } from '../../hooks/useUsersCache';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import SalesmanPerformanceModal from './SalesmanPerformanceModal';
+import { getCurrentWeek, getActiveWeeksCount } from '../../utils/dateUtils';
 
 const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperties; isMobileView?: boolean }> = ({ className = '', style, isMobileView = false }) => {
   const { role, salesmanId } = useAuth();
@@ -31,9 +32,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
   const excludedHouseAccounts = data.excludedSalesmen || [];
   const excludedVd30Accounts = data.excludedVd30Salesmen || [];
 
-  const today = new Date();
-  const date = today.getDate();
-  const currentWeek = Math.min(Math.ceil(date / 7), 5);
+  const currentWeek = getCurrentWeek(data.cobDate, data.weekMapping);
 
   const eligibleSalesmen = [...data.salesmen]
     .filter(s => {
@@ -76,21 +75,24 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
       const vd30Pct = (s.vd30 / (s.vd30Target || 1)) * 100;
       const actualPct = activeTab === 'STT' ? sttPct : activeTab === 'UBA' ? ubaPct : vd30Pct;
 
+      s._hasApprovedTarget = isApproved;
+
       if (activeTab === 'STT') {
-        if (!isApproved || actualPct < teamCommitment) {
+        if (isApproved && actualPct < teamCommitment) {
           return false;
         }
       }
 
       if (commitments && commitments[activeTab.toLowerCase()]) {
         const trajectory = [];
-        for (let i = 1; i <= 5; i++) {
+        const maxWeeks = getActiveWeeksCount(data.weekMapping);
+        for (let i = 1; i <= maxWeeks; i++) {
           const wData = commitments[activeTab.toLowerCase()][i.toString()];
           trajectory.push(wData && wData.status === 'approved' ? wData.target : null);
         }
         s._commitmentTrajectory = trajectory;
       } else {
-        s._commitmentTrajectory = [0, 0, 0, 0, 0];
+        s._commitmentTrajectory = Array(getActiveWeeksCount(data.weekMapping)).fill(0);
       }
 
       return true;
@@ -236,9 +238,11 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
                   const displayValue = activeTab === 'VD30' ? `${salesman.vd30}/${salesman.vd30Target}` : `${displayPct}%`;
 
                   let borderColor = 'transparent';
-                  if (rank === 1) borderColor = '#FBBF24';
-                  else if (rank === 2) borderColor = '#9CA3AF';
-                  else if (rank === 3) borderColor = '#B45309';
+                  if (salesman._hasApprovedTarget) {
+                    if (rank === 1) borderColor = '#FBBF24';
+                    else if (rank === 2) borderColor = '#9CA3AF';
+                    else if (rank === 3) borderColor = '#B45309';
+                  }
 
                   const ach = salesman.achievements || { gold: 0, silver: 0, bronze: 0 };
 
@@ -254,7 +258,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
                       }}>
 
                       {/* Giant Medal Watermark */}
-                      {rank <= 3 && (
+                      {salesman._hasApprovedTarget && rank <= 3 && (
                         <div style={{ position: 'absolute', right: '40px', top: '50%', transform: 'translateY(-50%)', opacity: 0.04, zIndex: 0 }}>
                           <Medal size={120} color={borderColor} fill={borderColor} />
                         </div>
@@ -275,7 +279,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
                         )}
                         {/* Avatar Rank Badge */}
                         <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: borderColor !== 'transparent' ? borderColor : 'var(--bg-dark)', borderRadius: '12px', padding: '2px 6px', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '10px', fontWeight: 'bold', color: borderColor !== 'transparent' ? 'var(--bg-dark)' : 'var(--text-muted)', border: '2px solid var(--bg-dark)', zIndex: 2 }}>
-                          {rank <= 3 && <Medal size={10} fill="currentColor" color="transparent" />}
+                          {salesman._hasApprovedTarget && rank <= 3 && <Medal size={10} fill="currentColor" color="transparent" />}
                           <span>{rank}</span>
                         </div>
                       </div>

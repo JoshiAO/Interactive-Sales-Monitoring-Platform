@@ -29,6 +29,8 @@ interface DashboardData {
   weeklyCommitments?: any;
   historicalMedals?: any;
   refVd30Items: any[];
+  cobDate?: string;
+  weekMapping?: Record<string, { start: string; end: string }>;
 }
 
 export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen: boolean | 'team' = false) => {
@@ -55,7 +57,9 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
     frequency: { f1: 0, f2: 0, f3: 0, f4: 0 },
     weeklyCommitments: {},
     historicalMedals: {},
-    refVd30Items: []
+    refVd30Items: [],
+    cobDate: new Date().toISOString().split('T')[0],
+    weekMapping: {}
   });
 
   useEffect(() => {
@@ -68,6 +72,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         const globalData = globalDoc.exists() ? globalDoc.data() : null;
         const lastDataUpload = globalData?.lastDataUpload || 0;
         const lastReferenceUpload = globalData?.lastReferenceUpload || 0;
+        const cobDate = globalData?.cobDate || new Date().toISOString().split('T')[0];
+        const weekMapping = globalData?.weekMapping || {};
 
         const metricsCacheKey = 'dashboard_metrics_cache_v2';
         const referenceCacheKey = 'dashboard_reference_cache_v2';
@@ -375,7 +381,6 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         const sortMap = (map: Record<string, number>) => Object.keys(map).map(k => ({ name: k, value: map[k] })).sort((a, b) => b.value - a.value);
 
         // Fetch Weekly Achievements from Firestore
-        const cobDate = globalData?.cobDate || new Date().toISOString().split('T')[0];
         const monthKey = cobDate.substring(0, 7); // e.g. "2026-06"
         const globalPointsMap: Record<string, { gold: number, silver: number, bronze: number, points: number }> = {};
         let rawWeeklyAchievements: Record<string, any> = {};
@@ -465,7 +470,9 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
           rawDailyPoints,
           weeklyCommitments,
           historicalMedals,
-          refVd30Items: refVd30ItemsWithStats
+          refVd30Items: refVd30ItemsWithStats,
+          cobDate,
+          weekMapping
         });
       } catch (err) {
         console.error("Error fetching dashboard data:", err);

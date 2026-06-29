@@ -9,9 +9,10 @@ interface SalesmanPerformanceCardProps {
   commitmentTrajectory: number[]; // e.g. [17, 43, 73, 100]
   currentWeek: number;
   metTarget?: boolean;
+  hasApprovedTarget?: boolean;
 }
 
-const SalesmanPerformanceCard: React.FC<SalesmanPerformanceCardProps> = ({ salesman, rank, activeTab, commitmentTrajectory, currentWeek, metTarget = true }) => {
+const SalesmanPerformanceCard: React.FC<SalesmanPerformanceCardProps> = ({ salesman, rank, activeTab, commitmentTrajectory, currentWeek, metTarget = true, hasApprovedTarget = true }) => {
   const isHistorical = salesman._isHistorical;
   
   const sttPct = isHistorical ? salesman._historicalActualPct.toFixed(1) : ((salesman.mtdSales / (salesman.target || 1)) * 100).toFixed(1);
@@ -32,7 +33,7 @@ const SalesmanPerformanceCard: React.FC<SalesmanPerformanceCardProps> = ({ sales
   const bronze = salesman.achievements?.bronze || 0;
 
   let borderColor = 'transparent';
-  if (metTarget) {
+  if (metTarget && hasApprovedTarget) {
     if (isHistorical) {
       const medal = salesman._historicalMedal;
       if (medal === 'gold') borderColor = '#FBBF24';
@@ -76,7 +77,7 @@ const SalesmanPerformanceCard: React.FC<SalesmanPerformanceCardProps> = ({ sales
               {salesman.name.charAt(0)}
             </div>
           )}
-          {metTarget && rank <= 3 && (
+          {metTarget && hasApprovedTarget && rank <= 3 && (
             <div style={{ position: 'absolute', bottom: '-8px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--bg-dark)', borderRadius: '12px', padding: '2px 8px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 'bold', border: `1px solid ${borderColor}`, color: borderColor, zIndex: 2 }}>
               <Medal size={14} fill={borderColor} color="var(--bg-dark)" />
               <span>{rank}</span>

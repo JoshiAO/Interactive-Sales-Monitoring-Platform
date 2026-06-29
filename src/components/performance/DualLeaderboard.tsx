@@ -2,6 +2,7 @@ import React from 'react';
 import SalesmanPerformanceCard from './SalesmanPerformanceCard';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUsersCache } from '../../hooks/useUsersCache';
+import { getActiveWeeksCount } from '../../utils/dateUtils';
 
 interface DualLeaderboardProps {
   data: any;
@@ -36,7 +37,8 @@ const DualLeaderboard: React.FC<DualLeaderboardProps> = ({ data, activeTab, curr
           
           if (commitments && commitments[activeMetricKey]) {
             trajectory = [];
-            for (let i = 1; i <= 5; i++) {
+            const maxWeeks = getActiveWeeksCount(data.weekMapping);
+            for (let i = 1; i <= maxWeeks; i++) {
               const wData = commitments[activeMetricKey][i.toString()];
               trajectory.push(wData && wData.status === 'approved' ? wData.target : null);
             }
@@ -48,6 +50,7 @@ const DualLeaderboard: React.FC<DualLeaderboardProps> = ({ data, activeTab, curr
             _historicalRank: metricData.rank,
             _historicalMedal: metricData.medal,
             _isHistorical: true,
+            _hasApprovedTarget: true,
             _commitmentTrajectory: trajectory
           });
         }
@@ -93,21 +96,24 @@ const DualLeaderboard: React.FC<DualLeaderboardProps> = ({ data, activeTab, curr
         const sttPct = (s.mtdSales / (s.target || 1)) * 100;
         const actualVal = activeTab === 'STT' ? sttPct : activeTab === 'UBA' ? s.uba : s.vd30;
 
+        s._hasApprovedTarget = isApproved;
+
         if (activeTab === 'STT') {
-          if (!isApproved || actualVal < teamCommitment) {
+          if (isApproved && actualVal < teamCommitment) {
             return false;
           }
         }
 
         if (commitments && commitments[activeMetricKey]) {
           const trajectory = [];
-          for (let i = 1; i <= 5; i++) {
+          const maxWeeks = getActiveWeeksCount(data.weekMapping);
+          for (let i = 1; i <= maxWeeks; i++) {
             const wData = commitments[activeMetricKey][i.toString()];
             trajectory.push(wData && wData.status === 'approved' ? wData.target : null);
           }
           s._commitmentTrajectory = trajectory;
         } else {
-          s._commitmentTrajectory = [0,0,0,0,0];
+          s._commitmentTrajectory = Array(getActiveWeeksCount(data.weekMapping)).fill(0);
         }
 
         return true;
@@ -151,6 +157,7 @@ const DualLeaderboard: React.FC<DualLeaderboardProps> = ({ data, activeTab, curr
         currentWeek={selectedWeek}
         commitmentTrajectory={s._commitmentTrajectory}
         metTarget={metTarget}
+        hasApprovedTarget={s._hasApprovedTarget}
       />
     );
   };
