@@ -1217,7 +1217,7 @@ const DataManagement: React.FC = () => {
             }
             await setDoc(doc(db, 'settings', 'global'), { lastReferenceUpload: Date.now() }, { merge: true });
           }
-
+          setProgress({ step: 'Completed successfully', current: 100, total: 100 });
           resolve();
         } catch (err: any) {
           reject(err);
