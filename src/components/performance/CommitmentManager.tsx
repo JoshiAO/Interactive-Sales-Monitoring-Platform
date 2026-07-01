@@ -19,7 +19,7 @@ const CommitmentManager: React.FC<CommitmentManagerProps> = ({ data, activeTab, 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
 
-  const monthKey = new Date().toISOString().substring(0, 7); // e.g. "2026-06"
+  const monthKey = data?.cobDate ? data.cobDate.substring(0, 7) : new Date().toISOString().substring(0, 7); // e.g. "2026-06"
   const metricKey = activeTab.toLowerCase();
 
   const [liveCommitments, setLiveCommitments] = useState<any>(data.weeklyCommitments || {});
