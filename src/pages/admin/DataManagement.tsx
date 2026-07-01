@@ -1306,6 +1306,113 @@ const DataManagement: React.FC = () => {
     }
   };
 
+  const handleClearInventoryData = async () => {
+    if (!window.confirm("WARNING: Are you absolutely sure you want to clear ALL Inventory data? This cannot be undone!")) return;
+    setClearingData(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      const collectionsToClear = [
+        'warehouse_bo_data',
+        'van_bo_data',
+        'ageing_data',
+        'trade_bo_history',
+        'van_bo_history',
+        'warehouse_bo_history'
+      ];
+      for (const collName of collectionsToClear) {
+        const snap = await getDocs(collection(db, collName));
+        const docs = snap.docs;
+        for (let i = 0; i < docs.length; i += 450) {
+          const chunk = docs.slice(i, i + 450);
+          const batch = writeBatch(db);
+          chunk.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+      }
+      await setDoc(doc(db, 'settings', 'global'), { 
+        lastAgeingUpload: Date.now(),
+        lastWarehouseBoUpload: Date.now(),
+        lastVanBoUpload: Date.now()
+      }, { merge: true });
+      alert("All Inventory data successfully cleared.");
+      setSuccess(true);
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to clear Inventory data: " + err.message);
+    } finally {
+      setClearingData(false);
+    }
+  };
+
+  const handleClearTargetData = async () => {
+    if (!window.confirm("WARNING: Are you absolutely sure you want to clear ALL Target data? This cannot be undone!")) return;
+    setClearingData(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      const collectionsToClear = ['salesman_targets', 'vd30_targets'];
+      for (const collName of collectionsToClear) {
+        const snap = await getDocs(collection(db, collName));
+        const docs = snap.docs;
+        for (let i = 0; i < docs.length; i += 450) {
+          const chunk = docs.slice(i, i + 450);
+          const batch = writeBatch(db);
+          chunk.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+      }
+      alert("All Target data successfully cleared.");
+      setSuccess(true);
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to clear Target data: " + err.message);
+    } finally {
+      setClearingData(false);
+    }
+  };
+
+  const handleClearReferenceData = async () => {
+    if (!window.confirm("WARNING: Are you absolutely sure you want to clear ALL Reference data? This cannot be undone!")) return;
+    setClearingData(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      const collectionsToClear = [
+        'reference_team_service',
+        'reference_channels',
+        'reference_vd30',
+        'reference_geo',
+        'reference_customer_classes',
+        'npd_promopack_items',
+        'reference_masterlist',
+        'reference_ads',
+        'reference_pricelist'
+      ];
+      for (const collName of collectionsToClear) {
+        const snap = await getDocs(collection(db, collName));
+        const docs = snap.docs;
+        for (let i = 0; i < docs.length; i += 450) {
+          const chunk = docs.slice(i, i + 450);
+          const batch = writeBatch(db);
+          chunk.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+      }
+      await setDoc(doc(db, 'settings', 'global'), { lastReferenceUpload: Date.now() }, { merge: true });
+      alert("All Reference data successfully cleared.");
+      setSuccess(true);
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to clear Reference data: " + err.message);
+    } finally {
+      setClearingData(false);
+    }
+  };
+
   const handleTabClick = (tab: string) => {
     setActiveTab(tab);
     if (tab !== 'System Settings') {
@@ -1453,16 +1560,51 @@ const DataManagement: React.FC = () => {
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
               Clearing transactional data will delete all Net Invoiced metrics, customer progress, gamification medals, warehouse and van B.O., and ageing data. This is useful for starting a fresh month. Reference data and Targets will NOT be deleted.
             </p>
-            <button 
-              type="button"
-              className="btn"
-              onClick={handleClearTransactionalData}
-              disabled={clearingData || uploading}
-              style={{ padding: '12px 24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
-            >
-              {clearingData ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
-              {clearingData ? 'Clearing Data...' : 'Clear All Transactional Data'}
-            </button>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <button 
+                type="button"
+                className="btn"
+                onClick={handleClearTransactionalData}
+                disabled={clearingData || uploading}
+                style={{ padding: '12px 24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
+              >
+                {clearingData ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
+                {clearingData ? 'Clearing Data...' : 'Clear All Transactional Data'}
+              </button>
+              
+              <button 
+                type="button"
+                className="btn"
+                onClick={handleClearInventoryData}
+                disabled={clearingData || uploading}
+                style={{ padding: '12px 24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
+              >
+                {clearingData ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
+                {clearingData ? 'Clearing...' : 'Clear All Inventory Related Data'}
+              </button>
+
+              <button 
+                type="button"
+                className="btn"
+                onClick={handleClearTargetData}
+                disabled={clearingData || uploading}
+                style={{ padding: '12px 24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
+              >
+                {clearingData ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
+                {clearingData ? 'Clearing...' : 'Clear All Target Data'}
+              </button>
+
+              <button 
+                type="button"
+                className="btn"
+                onClick={handleClearReferenceData}
+                disabled={clearingData || uploading}
+                style={{ padding: '12px 24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
+              >
+                {clearingData ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
+                {clearingData ? 'Clearing...' : 'Clear All Reference Data'}
+              </button>
+            </div>
           </div>
         </div>
       ) : (
