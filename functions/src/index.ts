@@ -61,19 +61,30 @@ export const syncUserRoleClaims = onDocumentWritten("users/{userId}", async (eve
   const data = snapshot.after.data();
   if (!data) return;
   const role = data.role;
+  const salesmanId = data.salesmanId || null;
+  const team = data.team || null;
+  const supervisor = data.supervisor || null;
 
   try {
     const userRecord = await admin.auth().getUser(userId);
     const currentClaims = userRecord.customClaims || {};
 
-    if (currentClaims.role !== role) {
+    if (
+      currentClaims.role !== role ||
+      currentClaims.salesmanId !== salesmanId ||
+      currentClaims.team !== team ||
+      currentClaims.supervisor !== supervisor
+    ) {
       await admin.auth().setCustomUserClaims(userId, {
         ...currentClaims,
-        role: role
+        role: role,
+        salesmanId: salesmanId,
+        team: team,
+        supervisor: supervisor
       });
-      console.log(`Successfully synced role '${role}' to custom claims for user ${userId}.`);
+      console.log(`Successfully synced claims (role: ${role}, salesmanId: ${salesmanId}, team: ${team}) for user ${userId}.`);
     } else {
-      console.log(`User ${userId} already has role '${role}' in custom claims. Skipping update.`);
+      console.log(`User ${userId} claims are already up to date. Skipping update.`);
     }
   } catch (error: any) {
     if (error.code === 'auth/user-not-found') {

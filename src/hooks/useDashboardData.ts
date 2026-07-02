@@ -124,18 +124,7 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
             snapHistoricalMedalsData = snapData.historical_medals || {};
           }
         } else {
-          // 1. Fast Cache: Dashboard Metrics (Hourly updates)
-          if (cachedMetrics && cachedMetricsUpload === lastDataUpload) {
-            metricsData = cachedMetrics;
-          } else {
-            const metricsSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
-            const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
-            metricsData = Object.keys(metricsRaw).map(k => ({ id: k, ...metricsRaw[k] }));
-            await withTimeout(set(metricsCacheKey, metricsData));
-            await withTimeout(set('dashboard_lastDataUpload', lastDataUpload));
-          }
-
-          // 2. Deep Cache: Targets and References (Monthly updates)
+          // 1. Deep Cache: Targets and References (Monthly updates) - FETCH FIRST to know teams
           if (cachedReference && cachedRefUpload === lastReferenceUpload) {
             sttData = cachedReference.sttData;
             vd30Data = cachedReference.vd30Data;
@@ -163,6 +152,49 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
 
             await withTimeout(set(referenceCacheKey, { sttData, vd30Data, teamData, refVd30Data }));
             await withTimeout(set('dashboard_lastReferenceUpload', lastReferenceUpload));
+          }
+
+          // 2. Fast Cache: Dashboard Metrics (Hourly updates)
+          if (cachedMetrics && cachedMetricsUpload === lastDataUpload) {
+            metricsData = cachedMetrics;
+          } else {
+            let metricsRaw: Record<string, any> = {};
+            if (role === 'admin' || role === 'manager') {
+              const metricsSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
+              metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
+            } else {
+              // Salesmen and Supervisors get the summary doc for leaderboard
+              const summarySnap = await getDoc(doc(db, 'dashboard_metrics_summary', 'all'));
+              metricsRaw = summarySnap.exists() ? summarySnap.data() : {};
+
+              // Determine which specific salesmen we are allowed to fetch granular data for
+              const targetSalesmen: string[] = [];
+              if (role === 'salesman' && salesmanId) {
+                targetSalesmen.push(String(salesmanId));
+              } else if (role === 'supervisor') {
+                const supervisorTeams = team ? team.split(',').map((t: string) => t.trim()) : [];
+                teamData.forEach((row: any) => {
+                  if (supervisorTeams.includes(row.team)) {
+                    targetSalesmen.push(String(row.salesman_code));
+                  }
+                });
+              }
+
+              // Fetch granular data individually
+              if (targetSalesmen.length > 0) {
+                const granularPromises = targetSalesmen.map(id => getDoc(doc(db, 'dashboard_metrics', id)));
+                const granularSnaps = await Promise.all(granularPromises);
+                granularSnaps.forEach(snap => {
+                   if (snap.exists()) {
+                      // Merge granular properties (categories, channels, brgy, etc.) into the summary object
+                      metricsRaw[snap.id] = { ...metricsRaw[snap.id], ...snap.data() };
+                   }
+                });
+              }
+            }
+            metricsData = Object.keys(metricsRaw).map(k => ({ id: k, ...metricsRaw[k] }));
+            await withTimeout(set(metricsCacheKey, metricsData));
+            await withTimeout(set('dashboard_lastDataUpload', lastDataUpload));
           }
         }
 

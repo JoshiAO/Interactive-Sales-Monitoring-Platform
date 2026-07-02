@@ -492,6 +492,10 @@ const DataManagement: React.FC = () => {
             // Read existing metrics to preserve cml_count (set by CML upload)
             const existingMetricsSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
             const existingMetricsAll = existingMetricsSnap.exists() ? existingMetricsSnap.data() : {};
+            
+            // Read team reference to embed team into metrics for Row-Level Security
+            const teamSnap = await getDoc(doc(db, 'reference_team_service', 'all'));
+            const teamRef = teamSnap.exists() ? teamSnap.data() : {};
 
             const allMetricsDoc: Record<string, any> = {};
             Object.keys(metrics).forEach(salesmanCode => {
@@ -561,11 +565,45 @@ const DataManagement: React.FC = () => {
                 town: m.town,
                 frequency: { f1, f2, f3, f4 },
                 ...(existingCml !== undefined ? { cml_count: existingCml } : {}),
+                team: teamRef[salesmanCode]?.team || '',
                 last_updated: new Date().toISOString()
               };
             });
 
+            // Save granular data individually and build the lightweight summary document
+            const summaryMetricsDoc: Record<string, any> = {};
+            
+            const salesmanCodes = Object.keys(allMetricsDoc);
+            for (let i = 0; i < salesmanCodes.length; i += 400) {
+               const chunk = salesmanCodes.slice(i, i + 400);
+               const chunkBatch = writeBatch(db);
+               chunk.forEach(code => {
+                  const m = allMetricsDoc[code];
+                  
+                  // Save full granular data to individual doc
+                  chunkBatch.set(doc(db, 'dashboard_metrics', code), m, { merge: true });
+                  
+                  // Add stripped-down version to summary doc
+                  summaryMetricsDoc[code] = {
+                     salesman_code: m.salesman_code,
+                     salesman_name: m.salesman_name,
+                     mtd_net_value: m.mtd_net_value,
+                     mtd_volume: m.mtd_volume,
+                     uba: m.uba,
+                     cml_count: m.cml_count || 0,
+                     frequency: m.frequency || { f1:0, f2:0, f3:0, f4:0 },
+                     vd30_placements: m.vd30_placements, // Safe lightweight map: { "F01": 15 }
+                     last_updated: m.last_updated
+                  };
+               });
+               await chunkBatch.commit();
+            }
+
+            // Save the full 'all' document for Admins/Managers
             await setDoc(doc(db, 'dashboard_metrics', 'all'), allMetricsDoc, { merge: true });
+            
+            // Save the new lightweight 'summary' document for Salesmen Leaderboard
+            await setDoc(doc(db, 'dashboard_metrics_summary', 'all'), summaryMetricsDoc, { merge: true });
             
             // Save COB Date globally
             await setDoc(doc(db, 'settings', 'global'), { cobDate, lastDataUpload: Date.now() }, { merge: true });
@@ -817,6 +855,8 @@ const DataManagement: React.FC = () => {
                   });
 
                   const safeId = prodCode.replace(/[^a-zA-Z0-9_]/g, '');
+                  if (!safeId) return; // Skip if ID becomes empty
+                  
                   npdBatch.set(doc(collection(db, 'npd_promopack_metrics'), safeId), {
                     product_code: prodCode,
                     product_description: info.product_description,
@@ -850,6 +890,11 @@ const DataManagement: React.FC = () => {
           } 
           else if (category === 'CML (Customer Master List)') {
             setProgress({ step: 'Aggregating CML Baseline & Chunking...', current: 0, total: 100 });
+            
+            // Read team reference to embed team into metrics for Row-Level Security
+            const teamSnap = await getDoc(doc(db, 'reference_team_service', 'all'));
+            const teamRef = teamSnap.exists() ? teamSnap.data() : {};
+            
             // Calculate active customers per salesman and group them
             const cmlCounts: Record<string, number> = {};
             const salesmanGroups: Record<string, any[]> = {};
@@ -881,6 +926,7 @@ const DataManagement: React.FC = () => {
                 const docRef = doc(collection(db, 'dashboard_metrics'), salesmanCode);
                 cmlBatch.set(docRef, {
                   cml_count: cmlCounts[salesmanCode],
+                  team: teamRef[salesmanCode]?.team || '',
                   last_updated: new Date().toISOString()
                 }, { merge: true });
               });
@@ -890,14 +936,25 @@ const DataManagement: React.FC = () => {
             // Also merge cml_count into the 'all' doc so the Sales page can read it
             const allDocSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
             const existingAll = allDocSnap.exists() ? allDocSnap.data() : {};
+            
+            const summaryDocSnap = await getDoc(doc(db, 'dashboard_metrics_summary', 'all'));
+            const existingSummary = summaryDocSnap.exists() ? summaryDocSnap.data() : {};
+
             const updatedAll: Record<string, any> = {};
+            const updatedSummary: Record<string, any> = {};
+            
             Object.keys(cmlCounts).forEach(salesmanCode => {
               updatedAll[salesmanCode] = {
                 ...(existingAll[salesmanCode] || {}),
                 cml_count: cmlCounts[salesmanCode]
               };
+              updatedSummary[salesmanCode] = {
+                ...(existingSummary[salesmanCode] || {}),
+                cml_count: cmlCounts[salesmanCode]
+              };
             });
             await setDoc(doc(db, 'dashboard_metrics', 'all'), updatedAll, { merge: true });
+            await setDoc(doc(db, 'dashboard_metrics_summary', 'all'), updatedSummary, { merge: true });
             await setDoc(doc(db, 'settings', 'global'), { lastDataUpload: Date.now() }, { merge: true });
             
             // Save Chunks
@@ -908,7 +965,10 @@ const DataManagement: React.FC = () => {
               groupKeys.slice(i, i + 450).forEach(salesmanCode => {
                 const safeId = String(salesmanCode).replace(/[^a-zA-Z0-9_]/g, '');
                 const docRef = doc(collection(db, 'customer_data'), safeId);
-                cBatch.set(docRef, { customers: JSON.stringify(salesmanGroups[salesmanCode]) }, { merge: true });
+                cBatch.set(docRef, { 
+                  customers: JSON.stringify(salesmanGroups[salesmanCode]),
+                  team: teamRef[salesmanCode]?.team || ''
+                }, { merge: true });
               });
               await cBatch.commit();
             }

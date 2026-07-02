@@ -253,6 +253,28 @@ const Users: React.FC = () => {
     }
   };
 
+  const handleForceSyncClaims = async () => {
+    if (confirm('Are you sure you want to force sync custom claims for all users? This will trigger the cloud function for every user document by making a dummy update.')) {
+      setIsSubmitting(true);
+      try {
+        const snapshot = await getDocs(collection(db, 'users'));
+        let count = 0;
+        const updates: Promise<void>[] = [];
+        snapshot.forEach(docSnap => {
+          // Trigger the onDocumentWritten cloud function by writing to a dummy field
+          updates.push(updateDoc(docSnap.ref, { _lastClaimSync: Date.now() }));
+          count++;
+        });
+        await Promise.all(updates);
+        alert(`Successfully triggered claim sync for ${count} users.`);
+      } catch (err: any) {
+        alert("Error syncing claims: " + err.message);
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-center" style={{ height: '50vh', color: 'var(--accent-primary)' }}>
@@ -271,6 +293,9 @@ const Users: React.FC = () => {
         <div style={{ display: 'flex', gap: '12px' }}>
           <button onClick={handleFixRoles} className="btn" disabled={isSubmitting} style={{ backgroundColor: 'var(--bg-panel)', border: '1px solid var(--border)', color: 'var(--text-main)' }}>
              Fix Missing Roles
+          </button>
+          <button onClick={handleForceSyncClaims} className="btn" disabled={isSubmitting} style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.2)', color: 'var(--accent-warning)' }}>
+             Force Sync Claims
           </button>
           <button onClick={handleCreate} className="btn btn-primary" disabled={isSubmitting}>
             <UserPlus size={18} /> Add User

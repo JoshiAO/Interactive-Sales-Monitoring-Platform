@@ -13,15 +13,49 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.role == 'warehouse_supervisor';
     }
 
+    function isManagerOrAdmin() {
+      return isAuthenticated() && (request.auth.token.role == 'admin' || request.auth.token.role == 'manager');
+    }
+
+    function isSupervisor() {
+      return isAuthenticated() && request.auth.token.role == 'supervisor';
+    }
+
+    function isOwner(salesmanId) {
+      return isAuthenticated() && request.auth.token.salesmanId == salesmanId;
+    }
+
+    function isSupervisorOf(teamName) {
+      return isSupervisor() && request.auth.token.team != null && teamName != null && request.auth.token.team.matches('.*' + teamName + '.*');
+    }
+
+    // Role-Based Row-Level Security (RLS)
+    match /users/{userId} { 
+      allow read: if isManagerOrAdmin() || request.auth.uid == userId || isSupervisorOf(resource.data.team);
+      allow write: if isAdmin(); 
+    }
+    
+    match /dashboard_metrics/{docId} { 
+      allow read: if isManagerOrAdmin() || isOwner(docId) || isSupervisorOf(resource.data.team); 
+      allow write: if isAdmin(); 
+    }
+    
+    match /dashboard_metrics_summary/{document=**} { 
+      allow read: if isAuthenticated(); 
+      allow write: if isAdmin(); 
+    }
+    
+    match /customer_data/{docId} { 
+      allow read: if isManagerOrAdmin() || isOwner(docId) || isSupervisorOf(resource.data.team); 
+      allow write: if isAdmin(); 
+    }
+
     // Publicly readable collections (for all authenticated users)
-    match /users/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /settings/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin() || isWarehouseSupervisor(); }
-    match /dashboard_metrics/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /salesman_targets/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /vd30_targets/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /reference_team_service/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /reference_vd30/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /customer_data/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /npd_promopack_metrics/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /achievements/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /historical_medals/{document=**} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
