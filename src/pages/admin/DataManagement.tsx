@@ -368,18 +368,35 @@ const DataManagement: React.FC = () => {
                   const isSariSari = channelLower.includes('sari-sari') || channelLower.includes('sari sari');
                   
                   if (isSariSari) {
-                    if (!m.vd30_placements[vd30Bucket]) {
-                      m.vd30_placements[vd30Bucket] = new Set<string>();
+                    let eligibleForVd30 = false;
+                    const bucketNumber = parseInt(vd30Bucket.replace(/\\D/g, ''), 10);
+                    
+                    if (channelLower.includes('small')) {
+                      // SSS Small: F1 to F19 only
+                      if (bucketNumber >= 1 && bucketNumber <= 19) {
+                        eligibleForVd30 = true;
+                      }
+                    } else {
+                      // SSS Large (or generic SSS): F1 to F30
+                      if (bucketNumber >= 1 && bucketNumber <= 30) {
+                        eligibleForVd30 = true;
+                      }
                     }
-                    m.vd30_placements[vd30Bucket].add(String(custNum));
 
-                    // Per-product detail tracking (Option B)
-                    const prodKey = String(prodCode);
-                    if (!m.vd30_product_details[prodKey]) {
-                      m.vd30_product_details[prodKey] = { customers: new Set<string>(), volume: 0 };
+                    if (eligibleForVd30) {
+                      if (!m.vd30_placements[vd30Bucket]) {
+                        m.vd30_placements[vd30Bucket] = new Set<string>();
+                      }
+                      m.vd30_placements[vd30Bucket].add(String(custNum));
+
+                      // Per-product detail tracking (Option B)
+                      const prodKey = String(prodCode);
+                      if (!m.vd30_product_details[prodKey]) {
+                        m.vd30_product_details[prodKey] = { customers: new Set<string>(), volume: 0 };
+                      }
+                      m.vd30_product_details[prodKey].customers.add(String(custNum));
+                      m.vd30_product_details[prodKey].volume += volume;
                     }
-                    m.vd30_product_details[prodKey].customers.add(String(custNum));
-                    m.vd30_product_details[prodKey].volume += volume;
                   }
                 }
               }
