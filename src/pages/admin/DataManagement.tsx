@@ -78,7 +78,7 @@ const DataManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState(TABS[0]);
   const [activeCategory, setActiveCategory] = useState<string>(uploadGroups['Transactional Data'][0]);
   const [uploading, setUploading] = useState(false);
-  const [clearingData, setClearingData] = useState(false);
+  const [clearingType, setClearingType] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ step: string; current: number; total: number } | null>(null);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -1337,12 +1337,11 @@ const DataManagement: React.FC = () => {
   };
 
   const handleClearTransactionalData = async () => {
-    if (!window.confirm("WARNING: Are you absolutely sure you want to clear ALL transactional data? This cannot be undone!")) return;
-    if (!window.confirm("Double checking: This will permanently delete Gamification, Sales, Customers, and B.O. data. Proceed?")) return;
-
-    setClearingData(true);
+    if (!window.confirm("WARNING: Are you absolutely sure you want to clear ALL Transactional data? This cannot be undone!")) return;
+    setClearingType('transactional');
     setError('');
     setSuccess(false);
+    if (!window.confirm("Double checking: This will permanently delete Gamification, Sales, Customers, and B.O. data. Proceed?")) return;
 
     try {
       const collectionsToClear = [
@@ -1384,13 +1383,13 @@ const DataManagement: React.FC = () => {
       console.error(err);
       setError("Failed to clear data: " + err.message);
     } finally {
-      setClearingData(false);
+      setClearingType(null);
     }
   };
 
   const handleClearInventoryData = async () => {
-    if (!window.confirm("WARNING: Are you absolutely sure you want to clear ALL Inventory data? This cannot be undone!")) return;
-    setClearingData(true);
+    if (!window.confirm("WARNING: Are you absolutely sure you want to clear ALL Inventory Related data? This cannot be undone!")) return;
+    setClearingType('inventory');
     setError('');
     setSuccess(false);
 
@@ -1424,13 +1423,13 @@ const DataManagement: React.FC = () => {
       console.error(err);
       setError("Failed to clear Inventory data: " + err.message);
     } finally {
-      setClearingData(false);
+      setClearingType(null);
     }
   };
 
   const handleClearTargetData = async () => {
     if (!window.confirm("WARNING: Are you absolutely sure you want to clear ALL Target data? This cannot be undone!")) return;
-    setClearingData(true);
+    setClearingType('targets');
     setError('');
     setSuccess(false);
 
@@ -1452,13 +1451,13 @@ const DataManagement: React.FC = () => {
       console.error(err);
       setError("Failed to clear Target data: " + err.message);
     } finally {
-      setClearingData(false);
+      setClearingType(null);
     }
   };
 
   const handleClearReferenceData = async () => {
     if (!window.confirm("WARNING: Are you absolutely sure you want to clear ALL Reference data? This cannot be undone!")) return;
-    setClearingData(true);
+    setClearingType('references');
     setError('');
     setSuccess(false);
 
@@ -1491,7 +1490,7 @@ const DataManagement: React.FC = () => {
       console.error(err);
       setError("Failed to clear Reference data: " + err.message);
     } finally {
-      setClearingData(false);
+      setClearingType(null);
     }
   };
 
@@ -1587,7 +1586,7 @@ const DataManagement: React.FC = () => {
               type="button"
               className="btn"
               onClick={() => setShowSnapshotModal(true)}
-              disabled={clearingData || uploading || isSnapshotting}
+              disabled={!!clearingType || uploading || isSnapshotting}
               style={{ padding: '12px 24px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
             >
               <Camera size={18} /> Snapshot Current Data
@@ -1647,44 +1646,44 @@ const DataManagement: React.FC = () => {
                 type="button"
                 className="btn"
                 onClick={handleClearTransactionalData}
-                disabled={clearingData || uploading}
+                disabled={!!clearingType || uploading}
                 style={{ padding: '12px 24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
               >
-                {clearingData ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
-                {clearingData ? 'Clearing Data...' : 'Clear All Transactional Data'}
+                {clearingType === 'transactional' ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
+                {clearingType === 'transactional' ? 'Clearing Data...' : 'Clear All Transactional Data'}
               </button>
               
               <button 
                 type="button"
                 className="btn"
                 onClick={handleClearInventoryData}
-                disabled={clearingData || uploading}
+                disabled={!!clearingType || uploading}
                 style={{ padding: '12px 24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
               >
-                {clearingData ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
-                {clearingData ? 'Clearing...' : 'Clear All Inventory Related Data'}
+                {clearingType === 'inventory' ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
+                {clearingType === 'inventory' ? 'Clearing...' : 'Clear All Inventory Related Data'}
               </button>
 
               <button 
                 type="button"
                 className="btn"
                 onClick={handleClearTargetData}
-                disabled={clearingData || uploading}
+                disabled={!!clearingType || uploading}
                 style={{ padding: '12px 24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
               >
-                {clearingData ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
-                {clearingData ? 'Clearing...' : 'Clear All Target Data'}
+                {clearingType === 'targets' ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
+                {clearingType === 'targets' ? 'Clearing...' : 'Clear All Target Data'}
               </button>
 
               <button 
                 type="button"
                 className="btn"
                 onClick={handleClearReferenceData}
-                disabled={clearingData || uploading}
+                disabled={!!clearingType || uploading}
                 style={{ padding: '12px 24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid var(--accent-danger)', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
               >
-                {clearingData ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
-                {clearingData ? 'Clearing...' : 'Clear All Reference Data'}
+                {clearingType === 'references' ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
+                {clearingType === 'references' ? 'Clearing...' : 'Clear All Reference Data'}
               </button>
             </div>
           </div>
@@ -1807,7 +1806,7 @@ const DataManagement: React.FC = () => {
                 </div>
               )}
 
-              <button type="submit" className="btn btn-primary" disabled={!selectedFile || uploading || clearingData} style={{ width: '100%', padding: '14px', fontSize: '15px', borderRadius: '10px' }}>
+              <button type="submit" className="btn btn-primary" disabled={!selectedFile || uploading || !!clearingType} style={{ width: '100%', padding: '14px', fontSize: '15px', borderRadius: '10px' }}>
                 {uploading ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                     <Loader2 size={20} className="animate-spin" /> Processing Data...
