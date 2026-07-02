@@ -225,8 +225,8 @@ const DataManagement: React.FC = () => {
            alert(`Week ${i} Start Date cannot be after End Date.`);
            return;
         }
-        if (prevEnd && currStart !== prevEnd + 1) {
-          alert(`Week ${i} Start Date (${currStart}) must be exactly 1 day after Week ${i - 1} End Date (${prevEnd}).`);
+        if (prevEnd && currStart <= prevEnd) {
+          alert(`Week ${i} Start Date (${currStart}) must be after Week ${i - 1} End Date (${prevEnd}).`);
           return;
         }
       }
