@@ -87,9 +87,9 @@ export const useNpdPromoData = (selectedTeam: string = 'all') => {
             product_description: m.product_description,
             type: m.type,
             category: m.category,
-            stt: role === 'admin' || role === 'manager' ? m.stt : stt,
-            volume: role === 'admin' || role === 'manager' ? (m.volume || 0) : volume,
-            uba: role === 'admin' || role === 'manager' ? m.uba : uba,
+            stt: (role === 'admin' || role === 'manager') && selectedTeam === 'all' ? m.stt : stt,
+            volume: (role === 'admin' || role === 'manager') && selectedTeam === 'all' ? (m.volume || 0) : volume,
+            uba: (role === 'admin' || role === 'manager') && selectedTeam === 'all' ? m.uba : uba,
             salesmen: filteredSalesmen
           });
         });

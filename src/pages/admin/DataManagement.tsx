@@ -819,57 +819,62 @@ const DataManagement: React.FC = () => {
                   }
                 });
 
-                // Write to Firestore
-                const npdBatch = writeBatch(db);
-                Object.keys(npdMetrics).forEach(prodCode => {
-                  const m = npdMetrics[prodCode];
-                  const info = npdItemMap[prodCode];
+                // Write to Firestore in chunks of 450
+                const npdKeys = Object.keys(npdMetrics);
+                for (let i = 0; i < npdKeys.length; i += 450) {
+                  const npdChunk = npdKeys.slice(i, i + 450);
+                  const npdBatch = writeBatch(db);
                   
-                  let productUba = 0;
-                  Object.values(m.customersMap).forEach(cStt => {
-                    if (cStt >= 1) productUba++;
-                  });
+                  npdChunk.forEach(prodCode => {
+                    const m = npdMetrics[prodCode];
+                    const info = npdItemMap[prodCode];
+                    
+                    let productUba = 0;
+                    Object.values(m.customersMap).forEach(cStt => {
+                      if (cStt >= 1) productUba++;
+                    });
 
-                  const salesmenArr = Object.keys(m.salesmen).map(code => {
-                    let smUba = 0;
-                    const smCustomers = Object.keys(m.salesmen[code].customersMap).map(cCode => {
-                      const c = m.salesmen[code].customersMap[cCode];
-                      const uba = c.stt >= 1 ? 1 : 0;
-                      if (uba) smUba++;
+                    const salesmenArr = Object.keys(m.salesmen).map(code => {
+                      let smUba = 0;
+                      const smCustomers = Object.keys(m.salesmen[code].customersMap).map(cCode => {
+                        const c = m.salesmen[code].customersMap[cCode];
+                        const uba = c.stt >= 1 ? 1 : 0;
+                        if (uba) smUba++;
+                        return {
+                          code: cCode,
+                          name: c.name,
+                          stt: c.stt,
+                          uba: uba
+                        };
+                      });
+
                       return {
-                        code: cCode,
-                        name: c.name,
-                        stt: c.stt,
-                        uba: uba
+                        code,
+                        name: m.salesmen[code].name,
+                        stt: m.salesmen[code].stt,
+                        volume: m.salesmen[code].volume,
+                        uba: smUba,
+                        customers: smCustomers
                       };
                     });
 
-                    return {
-                      code,
-                      name: m.salesmen[code].name,
-                      stt: m.salesmen[code].stt,
-                      volume: m.salesmen[code].volume,
-                      uba: smUba,
-                      customers: smCustomers
-                    };
+                    const safeId = prodCode.replace(/[^a-zA-Z0-9_]/g, '');
+                    if (!safeId) return;
+                    
+                    npdBatch.set(doc(collection(db, 'npd_promopack_metrics'), safeId), {
+                      product_code: prodCode,
+                      product_description: info.product_description,
+                      type: info.type,
+                      category: info.category,
+                      stt: m.stt,
+                      volume: m.volume,
+                      uba: productUba,
+                      salesmen: salesmenArr,
+                      last_updated: new Date().toISOString()
+                    }, { merge: false });
                   });
-
-                  const safeId = prodCode.replace(/[^a-zA-Z0-9_]/g, '');
-                  if (!safeId) return; // Skip if ID becomes empty
-                  
-                  npdBatch.set(doc(collection(db, 'npd_promopack_metrics'), safeId), {
-                    product_code: prodCode,
-                    product_description: info.product_description,
-                    type: info.type,
-                    category: info.category,
-                    stt: m.stt,
-                    volume: m.volume,
-                    uba: productUba,
-                    salesmen: salesmenArr,
-                    last_updated: new Date().toISOString()
-                  }, { merge: false });
-                });
-                await npdBatch.commit();
+                  await npdBatch.commit();
+                }
               }
             } catch (err) {
               console.error("Error aggregating NPD/Promo metrics:", err);
