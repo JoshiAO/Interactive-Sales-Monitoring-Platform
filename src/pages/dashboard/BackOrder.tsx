@@ -12,6 +12,7 @@ import { useVanBoData } from '../../hooks/useVanBoData';
 import { usePricelist } from '../../hooks/usePricelist';
 import { useItemCategories } from '../../hooks/useItemCategories';
 import { Modal } from '../../components/ui/Modal';
+import { PageSkeleton } from '../../components/ui/PageSkeleton';
 
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
@@ -339,7 +340,7 @@ const BackOrder: React.FC = () => {
       {/* ═══ TRADE TAB ═══════════════════════════════════════════════════════ */}
       {activeTab === 'trade' && (
         tradeLoading ? (
-          <div className="flex-center" style={{ height: '30vh', color: 'var(--accent-primary)' }}><Loader2 size={32} className="animate-spin" /></div>
+          <PageSkeleton />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
             {salesmen.map(s => (
@@ -389,7 +390,7 @@ const BackOrder: React.FC = () => {
       {/* ═══ WAREHOUSE TAB ═══════════════════════════════════════════════════ */}
       {activeTab === 'warehouse' && canSeeAdminTabs && (
         (whLoading || priceLoading) ? (
-          <div className="flex-center" style={{ height: '30vh', color: 'var(--accent-primary)' }}><Loader2 size={32} className="animate-spin" /></div>
+          <PageSkeleton />
         ) : (
           <div>
             {/* Bar + Pie Charts */}
@@ -462,7 +463,7 @@ const BackOrder: React.FC = () => {
       {/* ═══ VAN TAB ═════════════════════════════════════════════════════════ */}
       {activeTab === 'van' && canSeeAdminTabs && (
         (vanLoading || priceLoading) ? (
-          <div className="flex-center" style={{ height: '30vh', color: 'var(--accent-primary)' }}><Loader2 size={32} className="animate-spin" /></div>
+          <PageSkeleton />
         ) : (
           <div>
             {/* Bar + Pie Charts */}

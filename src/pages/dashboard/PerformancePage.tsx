@@ -5,6 +5,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import DualLeaderboard from '../../components/performance/DualLeaderboard';
 import CommitmentManager from '../../components/performance/CommitmentManager';
 import { getCurrentWeek } from '../../utils/dateUtils';
+import { PageSkeleton } from '../../components/ui/PageSkeleton';
 
 const PerformancePage: React.FC = () => {
   const { role } = useAuth();
@@ -17,11 +18,7 @@ const PerformancePage: React.FC = () => {
   const [selectedWeek, setSelectedWeek] = useState<number>(currentWeek);
 
   if (loading) {
-    return (
-      <div className="flex-center min-h-screen">
-        <Loader2 size={32} className="animate-spin" color="var(--accent-primary)" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (

@@ -6,6 +6,7 @@ import AgeingItemModal from '../../components/ageing/AgeingItemModal';
 import { collection, writeBatch, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import * as XLSX from 'xlsx';
+import { PageSkeleton } from '../../components/ui/PageSkeleton';
 
 type SortKey = keyof AgeingRow | '';
 type SortDir = 'asc' | 'desc' | 'none';
@@ -296,11 +297,7 @@ const Ageing: React.FC = () => {
       </div>
 
       {/* Table */}
-      {loading ? (
-        <div className="flex-center" style={{ height: '40vh', color: 'var(--accent-primary)' }}>
-          <Loader2 size={32} className="animate-spin" />
-        </div>
-      ) : (
+      {loading ? <PageSkeleton /> : (
         <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>

@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { useTeams } from '../../hooks/useTeams';
 import { Loader2, Package, Users, BarChart3 } from 'lucide-react';
+import { PageSkeleton } from '../../components/ui/PageSkeleton';
 
 const Meter: React.FC<{ target: number; actual: number }> = ({ target, actual }) => {
   const percent = Math.min((actual / (target || 1)) * 100, 100).toFixed(0);
@@ -49,11 +50,7 @@ const VD30: React.FC = () => {
   }, [data.refVd30Items]);
 
   if (loading && data.salesmen.length === 0) {
-    return (
-      <div className="flex-center" style={{ height: '50vh', color: 'var(--accent-primary)' }}>
-        <Loader2 size={32} className="animate-spin" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   const displayItems = data.vd30.filter(item => item.target > 0);

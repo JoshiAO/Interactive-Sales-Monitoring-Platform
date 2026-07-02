@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNpdPromoData } from '../../hooks/useNpdPromoData';
 import { useTeams } from '../../hooks/useTeams';
 import { Modal } from '../../components/ui/Modal';
+import { PageSkeleton } from '../../components/ui/PageSkeleton';
 
 const formatCurrency = (val: number) =>
   `₱${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -181,11 +182,7 @@ const NpdPromoPacks: React.FC = () => {
       </div>
 
       {/* Loading */}
-      {loading ? (
-        <div className="flex-center" style={{ height: '40vh', color: 'var(--accent-primary)' }}>
-          <Loader2 size={32} className="animate-spin" />
-        </div>
-      ) : filteredItems.length === 0 ? (
+      {loading ? <PageSkeleton /> : filteredItems.length === 0 ? (
         <div className="flex-center" style={{ height: '30vh', flexDirection: 'column', gap: '12px', color: 'var(--text-muted)' }}>
           <p>No items found{search ? ` for "${search}"` : ''}.</p>
           <p style={{ fontSize: '12px' }}>Upload NPD & Promo Pack Items in the Data page first.</p>

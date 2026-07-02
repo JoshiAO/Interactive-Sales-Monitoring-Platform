@@ -7,6 +7,7 @@ import { useDashboardData } from '../../hooks/useDashboardData';
 import { useNpdPromoData } from '../../hooks/useNpdPromoData';
 import { useTeams } from '../../hooks/useTeams';
 import { Navigate } from 'react-router-dom';
+import { PageSkeleton } from '../../components/ui/PageSkeleton';
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 const Home: React.FC = () => {
@@ -36,11 +37,7 @@ const Home: React.FC = () => {
   }
   
   if ((loading && data.salesmen.length === 0) || (npdLoading && npdItems.length === 0)) {
-    return (
-      <div className="flex-center" style={{ height: '50vh', color: 'var(--accent-primary)' }}>
-        <Loader2 size={32} className="animate-spin" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   const formatCurrency = (val: number) => `₱${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

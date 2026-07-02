@@ -3,6 +3,7 @@ import { Card } from '../../components/ui/Card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Target, PhilippinePeso, Activity, Users, Box, Loader2, Flag } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
+import { PageSkeleton } from '../../components/ui/PageSkeleton';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { useTeams } from '../../hooks/useTeams';
@@ -15,11 +16,7 @@ const Sales: React.FC = () => {
   const [selectedSalesmanVd30, setSelectedSalesmanVd30] = useState<any>(null);
 
   if (loading && data.salesmen.length === 0) {
-    return (
-      <div className="flex-center" style={{ height: '50vh', color: 'var(--accent-primary)' }}>
-        <Loader2 size={32} className="animate-spin" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   const formatCurrency = (val: number) => `₱${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

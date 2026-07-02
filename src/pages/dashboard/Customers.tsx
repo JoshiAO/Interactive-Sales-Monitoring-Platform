@@ -6,6 +6,7 @@ import { useTeams } from '../../hooks/useTeams';
 import { useSalesmenList } from '../../hooks/useSalesmenList';
 import { useUsersCache } from '../../hooks/useUsersCache';
 import { Modal } from '../../components/ui/Modal';
+import { PageSkeleton } from '../../components/ui/PageSkeleton';
 
 const Customers: React.FC = () => {
   const { role } = useAuth();
@@ -69,11 +70,7 @@ const Customers: React.FC = () => {
   const displayedCustomers = useMemo(() => filteredCustomers.slice(0, displayCount), [filteredCustomers, displayCount]);
 
   if (loading && customers.length === 0) {
-    return (
-      <div className="flex-center" style={{ height: '50vh', color: 'var(--accent-primary)' }}>
-        <Loader2 size={32} className="animate-spin" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
