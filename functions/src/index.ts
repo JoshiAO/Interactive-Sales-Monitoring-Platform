@@ -4,6 +4,48 @@ import * as admin from 'firebase-admin';
 
 admin.initializeApp();
 
+export const createUser = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+  }
+
+  if (request.auth.token.role !== 'admin') {
+    throw new functions.https.HttpsError('permission-denied', 'Only admins can create users.');
+  }
+
+  const data = request.data;
+  
+  if (!data.email || !data.password || !data.name || !data.role) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing required fields.');
+  }
+
+  try {
+    const userRecord = await admin.auth().createUser({
+      email: data.email,
+      password: data.password,
+      displayName: data.name
+    });
+
+    await admin.firestore().collection('users').doc(userRecord.uid).set({
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      team: (data.role === 'salesman' || data.role === 'supervisor') ? (data.team || '-') : '-',
+      salesmanId: data.salesmanId || '-',
+      salesmanType: data.salesmanType || '-',
+      companyCode: data.companyCode || '-',
+      supervisor: data.role === 'salesman' ? (data.supervisor || '-') : '-',
+      branch: data.role === 'warehouse_supervisor' ? (data.branch || '') : '',
+      photoURL: ''
+    });
+
+    return { success: true, uid: userRecord.uid };
+  } catch (error: any) {
+    console.error('Error creating user:', error);
+    throw new functions.https.HttpsError('internal', error.message || 'Error creating user.');
+  }
+});
+
 export const changeUserPassword = functions.https.onCall(async (request) => {
   // 1. Check if user is authenticated
   if (!request.auth) {

@@ -6,9 +6,8 @@ import { UserPlus, Edit2, Trash2, Mail, Camera, Loader2 } from 'lucide-react';
 import { db, storage, firebaseConfig } from '../../firebase/config';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+import { getAuth } from 'firebase/auth';
+
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import Cropper from 'react-easy-crop';
 import 'react-easy-crop/react-easy-crop.css';
@@ -127,37 +126,20 @@ const Users: React.FC = () => {
     setIsSubmitting(true);
     try {
       if (!editingUser) {
-        const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
-        const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-        if (recaptchaSiteKey) {
-          if (import.meta.env.DEV) {
-            (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN || true;
-          }
-          initializeAppCheck(secondaryApp, {
-            provider: new ReCaptchaV3Provider(recaptchaSiteKey),
-            isTokenAutoRefreshEnabled: true,
-          });
-        }
-        const secondaryAuth = getAuth(secondaryApp);
-        try {
-          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
-          const newUid = userCredential.user.uid;
-          
-          await setDoc(doc(db, 'users', newUid), {
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            team: (formData.role === 'salesman' || formData.role === 'supervisor') ? (formData.team || '-') : '-',
-            salesmanId: formData.salesmanId || '-',
-            salesmanType: formData.salesmanType || '-',
-            companyCode: companyCode || '-',
-            supervisor: formData.role === 'salesman' ? (formData.supervisor || '-') : '-',
-            branch: formData.role === 'warehouse_supervisor' ? (formData.branch || '') : '',
-            photoURL: ''
-          });
-        } finally {
-          await deleteApp(secondaryApp);
-        }
+        const functions = getFunctions();
+        const createUserFn = httpsCallable(functions, 'createUser');
+        await createUserFn({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+          team: formData.team,
+          salesmanId: formData.salesmanId,
+          salesmanType: formData.salesmanType,
+          companyCode: companyCode,
+          supervisor: formData.supervisor,
+          branch: formData.branch
+        });
       } else {
         await updateDoc(doc(db, 'users', editingUser.id), {
           name: formData.name,

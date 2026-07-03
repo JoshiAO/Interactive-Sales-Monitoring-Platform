@@ -1,10 +1,46 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncUserRoleClaims = exports.changeUserPassword = void 0;
+exports.syncUserRoleClaims = exports.changeUserPassword = exports.createUser = void 0;
 const functions = require("firebase-functions/v2");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 admin.initializeApp();
+exports.createUser = functions.https.onCall(async (request) => {
+    if (!request.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+    }
+    if (request.auth.token.role !== 'admin') {
+        throw new functions.https.HttpsError('permission-denied', 'Only admins can create users.');
+    }
+    const data = request.data;
+    if (!data.email || !data.password || !data.name || !data.role) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing required fields.');
+    }
+    try {
+        const userRecord = await admin.auth().createUser({
+            email: data.email,
+            password: data.password,
+            displayName: data.name
+        });
+        await admin.firestore().collection('users').doc(userRecord.uid).set({
+            name: data.name,
+            email: data.email,
+            role: data.role,
+            team: (data.role === 'salesman' || data.role === 'supervisor') ? (data.team || '-') : '-',
+            salesmanId: data.salesmanId || '-',
+            salesmanType: data.salesmanType || '-',
+            companyCode: data.companyCode || '-',
+            supervisor: data.role === 'salesman' ? (data.supervisor || '-') : '-',
+            branch: data.role === 'warehouse_supervisor' ? (data.branch || '') : '',
+            photoURL: ''
+        });
+        return { success: true, uid: userRecord.uid };
+    }
+    catch (error) {
+        console.error('Error creating user:', error);
+        throw new functions.https.HttpsError('internal', error.message || 'Error creating user.');
+    }
+});
 exports.changeUserPassword = functions.https.onCall(async (request) => {
     // 1. Check if user is authenticated
     if (!request.auth) {
@@ -49,15 +85,21 @@ exports.syncUserRoleClaims = (0, firestore_1.onDocumentWritten)("users/{userId}"
     if (!data)
         return;
     const role = data.role;
+    const salesmanId = data.salesmanId || null;
+    const team = data.team || null;
+    const supervisor = data.supervisor || null;
     try {
         const userRecord = await admin.auth().getUser(userId);
         const currentClaims = userRecord.customClaims || {};
-        if (currentClaims.role !== role) {
-            await admin.auth().setCustomUserClaims(userId, Object.assign(Object.assign({}, currentClaims), { role: role }));
-            console.log(`Successfully synced role '${role}' to custom claims for user ${userId}.`);
+        if (currentClaims.role !== role ||
+            currentClaims.salesmanId !== salesmanId ||
+            currentClaims.team !== team ||
+            currentClaims.supervisor !== supervisor) {
+            await admin.auth().setCustomUserClaims(userId, Object.assign(Object.assign({}, currentClaims), { role: role, salesmanId: salesmanId, team: team, supervisor: supervisor }));
+            console.log(`Successfully synced claims (role: ${role}, salesmanId: ${salesmanId}, team: ${team}) for user ${userId}.`);
         }
         else {
-            console.log(`User ${userId} already has role '${role}' in custom claims. Skipping update.`);
+            console.log(`User ${userId} claims are already up to date. Skipping update.`);
         }
     }
     catch (error) {
