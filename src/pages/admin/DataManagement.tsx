@@ -365,7 +365,7 @@ const DataManagement: React.FC = () => {
                 if (vd30Bucket) {
                   // VD30 is only for Sari-Sari Stores
                   const channelLower = channel.toLowerCase();
-                  const isSariSari = channelLower.includes('sari-sari') || channelLower.includes('sari sari');
+                  const isSariSari = channelLower.includes('sari-sari') || channelLower.includes('sari sari') || channelLower.includes('sss') || channelLower.includes('sari');
                   
                   if (isSariSari) {
                     let eligibleForVd30 = false;
