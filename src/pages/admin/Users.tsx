@@ -8,6 +8,7 @@ import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, getDocs } fr
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import Cropper from 'react-easy-crop';
 import 'react-easy-crop/react-easy-crop.css';
@@ -127,6 +128,16 @@ const Users: React.FC = () => {
     try {
       if (!editingUser) {
         const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+        const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+        if (recaptchaSiteKey) {
+          if (import.meta.env.DEV) {
+            (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN || true;
+          }
+          initializeAppCheck(secondaryApp, {
+            provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+            isTokenAutoRefreshEnabled: true,
+          });
+        }
         const secondaryAuth = getAuth(secondaryApp);
         try {
           const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
