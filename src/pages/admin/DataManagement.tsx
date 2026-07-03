@@ -12,13 +12,13 @@ const uploadGroups: Record<string, string[]> = {
   'Inventory Related': ['Ageing Report', 'Warehouse B.O.', 'Van B.O.'],
   'Targets': ['STT & UBA Target', 'VD30 Target'],
   'References': [
-    'Item Masterlist', 
-    'VD30 Items Reference', 
+    'Item Masterlist',
+    'VD30 Items Reference',
     'Pricelist',
     'Product ADS Reference',
-    'NPD & Promo Pack Items', 
-    'Channel Reference', 
-    'Team & Service Model Reference', 
+    'NPD & Promo Pack Items',
+    'Channel Reference',
+    'Team & Service Model Reference',
     'Geo Hierarchy Reference'
   ]
 };
@@ -43,7 +43,7 @@ interface AggregatedMetrics {
 const parseExcelWithSmartHeaders = (worksheet: XLSX.WorkSheet) => {
   // Convert sheet to array of arrays to find the real header row
   const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-  
+
   let headerRowIndex = 0;
   // Look for a row that contains known keywords
   for (let i = 0; i < Math.min(20, rawData.length); i++) {
@@ -59,7 +59,7 @@ const parseExcelWithSmartHeaders = (worksheet: XLSX.WorkSheet) => {
   // Parse properly using the found header row
   const headers = rawData[headerRowIndex] as string[];
   const dataRows = rawData.slice(headerRowIndex + 1);
-  
+
   const parsed = dataRows.map((row: any) => {
     let obj: any = {};
     headers.forEach((h, i) => {
@@ -107,10 +107,10 @@ const DataManagement: React.FC = () => {
   const handleCreateSnapshot = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!snapshotMonth) return;
-    
+
     setIsSnapshotting(true);
     setProgress({ step: 'Fetching live data for snapshot...', current: 0, total: 100 });
-    
+
     try {
       const [
         metricsSnap, sttSnap, vd30TargetSnap, teamSnap, refVd30Snap, custSnap,
@@ -150,7 +150,7 @@ const DataManagement: React.FC = () => {
       });
 
       setProgress({ step: 'Writing snapshot buckets...', current: 80, total: 100 });
-      
+
       const batch = writeBatch(db);
       batch.set(doc(db, 'snapshots', snapshotMonth), metricsDocData);
       await batch.commit();
@@ -160,8 +160,8 @@ const DataManagement: React.FC = () => {
       for (let i = 0; i < cKeys.length; i += 450) {
         const cBatch = writeBatch(db);
         cKeys.slice(i, i + 450).forEach(salesmanId => {
-           const safeId = String(salesmanId).replace(/[^a-zA-Z0-9_]/g, '');
-           cBatch.set(doc(db, 'snapshots', snapshotMonth, 'customers', safeId), { customers: customersDocData[salesmanId] });
+          const safeId = String(salesmanId).replace(/[^a-zA-Z0-9_]/g, '');
+          cBatch.set(doc(db, 'snapshots', snapshotMonth, 'customers', safeId), { customers: customersDocData[salesmanId] });
         });
         await cBatch.commit();
       }
@@ -222,8 +222,8 @@ const DataManagement: React.FC = () => {
           return;
         }
         if (currStart > currEnd) {
-           alert(`Week ${i} Start Date cannot be after End Date.`);
-           return;
+          alert(`Week ${i} Start Date cannot be after End Date.`);
+          return;
         }
         if (prevEnd && currStart <= prevEnd) {
           alert(`Week ${i} Start Date (${currStart}) must be after Week ${i - 1} End Date (${prevEnd}).`);
@@ -253,7 +253,7 @@ const DataManagement: React.FC = () => {
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
-          
+
           setProgress({ step: 'Parsing Excel file...', current: 0, total: 100 });
           const json = parseExcelWithSmartHeaders(worksheet);
 
@@ -264,12 +264,12 @@ const DataManagement: React.FC = () => {
           // === BROWSER-SIDE AGGREGATION LOGIC (For Net Invoiced & CML) ===
           if (category === 'Net Invoiced') {
             setProgress({ step: 'Aggregating Metrics...', current: 0, total: 100 });
-            
+
             // 1. Fetch reference_vd30 to map products to VD30 buckets
             const vd30Snap = await getDocs(collection(db, 'reference_vd30'));
             const vd30Map: Record<string, string> = {};
             const metrics: Record<string, AggregatedMetrics> = {};
-            
+
             const vd30Buckets = new Set<string>();
             vd30Snap.forEach(d => {
               const r = d.data();
@@ -322,19 +322,19 @@ const DataManagement: React.FC = () => {
               m.mtd_volume += volume;
               m.gsr += gsr;
               m.bsr += bsr;
-              
+
               if (custNum) {
                 const cNumStr = String(custNum).replace(/[^a-zA-Z0-9_]/g, '');
                 m.uba_customers.add(cNumStr); // Track all customers seen for this salesman
 
                 if (!customerMetrics[cNumStr]) {
-                  customerMetrics[cNumStr] = { 
-                    volume: 0, 
-                    netValue: 0, 
-                    gsr: 0, 
-                    bsr: 0, 
-                    isBuying: false, 
-                    bsr_products: {}, 
+                  customerMetrics[cNumStr] = {
+                    volume: 0,
+                    netValue: 0,
+                    gsr: 0,
+                    bsr: 0,
+                    isBuying: false,
+                    bsr_products: {},
                     bsr_categories: {},
                     salesmanCode: salesmanCode,
                     custName: row['Sold-to Customer Name'] || row['Sold To Customer Name'] || custNum,
@@ -353,7 +353,7 @@ const DataManagement: React.FC = () => {
                   customerMetrics[cNumStr].bsr_categories[category] = (customerMetrics[cNumStr].bsr_categories[category] || 0) + bsr;
                 }
               }
-              
+
               m.categories[category] = (m.categories[category] || 0) + netValue;
               m.channels[channel] = (m.channels[channel] || 0) + netValue;
               m.brgy[brgy] = (m.brgy[brgy] || 0) + netValue;
@@ -412,43 +412,43 @@ const DataManagement: React.FC = () => {
 
             // 3. Save Aggregated Metrics to Firestore
             setProgress({ step: 'Updating Customer Performances...', current: 50, total: 100 });
-            
+
             const allCustSnap = await getDocs(collection(db, 'customer_data'));
             const chunkBatch = writeBatch(db);
-            
+
             const foundInCml = new Set<string>();
             const salesmenCustomers: Record<string, any[]> = {};
-            
+
             allCustSnap.forEach(d => {
               const data = d.data();
               if (!data.customers) return;
-              
+
               const parsedCustomers = JSON.parse(data.customers);
-              
+
               parsedCustomers.forEach((c: any) => {
                 const safeId = String(c['CUSTOMER CODE']).replace(/[^a-zA-Z0-9_]/g, '');
                 const metrics = customerMetrics[safeId];
-                
+
                 if (metrics) {
-                   foundInCml.add(safeId);
-                   c.volume = metrics.volume;
-                   c.netValue = metrics.netValue;
-                   c.gsr = metrics.gsr;
-                   c.bsr = metrics.bsr;
-                   c.isBuying = metrics.netValue >= 1;
-                   if (Object.keys(metrics.bsr_products).length > 0) c.bsr_products = metrics.bsr_products;
-                   if (Object.keys(metrics.bsr_categories).length > 0) c.bsr_categories = metrics.bsr_categories;
+                  foundInCml.add(safeId);
+                  c.volume = metrics.volume;
+                  c.netValue = metrics.netValue;
+                  c.gsr = metrics.gsr;
+                  c.bsr = metrics.bsr;
+                  c.isBuying = metrics.netValue >= 1;
+                  if (Object.keys(metrics.bsr_products).length > 0) c.bsr_products = metrics.bsr_products;
+                  if (Object.keys(metrics.bsr_categories).length > 0) c.bsr_categories = metrics.bsr_categories;
                 } else {
-                   c.volume = 0;
-                   c.netValue = 0;
-                   c.gsr = 0;
-                   c.bsr = 0;
-                   c.isBuying = false;
-                   delete c.bsr_products;
-                   delete c.bsr_categories;
+                  c.volume = 0;
+                  c.netValue = 0;
+                  c.gsr = 0;
+                  c.bsr = 0;
+                  c.isBuying = false;
+                  delete c.bsr_products;
+                  delete c.bsr_categories;
                 }
               });
-              
+
               salesmenCustomers[d.id] = parsedCustomers;
             });
 
@@ -458,41 +458,41 @@ const DataManagement: React.FC = () => {
                 const m = customerMetrics[cNumStr];
                 const sCode = String(m.salesmanCode).replace(/[^a-zA-Z0-9_]/g, '');
                 if (!salesmenCustomers[sCode]) {
-                   salesmenCustomers[sCode] = [];
+                  salesmenCustomers[sCode] = [];
                 }
                 salesmenCustomers[sCode].push({
-                   'CUSTOMER CODE': cNumStr,
-                   'STORE NAME': m.custName,
-                   'BARANGAY': m.brgy,
-                   'CITY': m.city,
-                   'SALES REP ID': m.salesmanCode,
-                   'STATUS': 'Active',
-                   'NEW CUSTOMER': 'YES',
-                   volume: m.volume,
-                   netValue: m.netValue,
-                   gsr: m.gsr,
-                   bsr: m.bsr,
-                   isBuying: m.netValue >= 1,
-                   bsr_products: m.bsr_products,
-                   bsr_categories: m.bsr_categories,
-                   'COVERAGE DAY': 'WKLY',
-                   'WKLY COVERAGE': 'WKLY'
+                  'CUSTOMER CODE': cNumStr,
+                  'STORE NAME': m.custName,
+                  'BARANGAY': m.brgy,
+                  'CITY': m.city,
+                  'SALES REP ID': m.salesmanCode,
+                  'STATUS': 'Active',
+                  'NEW CUSTOMER': 'YES',
+                  volume: m.volume,
+                  netValue: m.netValue,
+                  gsr: m.gsr,
+                  bsr: m.bsr,
+                  isBuying: m.netValue >= 1,
+                  bsr_products: m.bsr_products,
+                  bsr_categories: m.bsr_categories,
+                  'COVERAGE DAY': 'WKLY',
+                  'WKLY COVERAGE': 'WKLY'
                 });
               }
             });
 
             Object.keys(salesmenCustomers).forEach(sCode => {
-               const docRef = doc(collection(db, 'customer_data'), sCode);
-               chunkBatch.set(docRef, { customers: JSON.stringify(salesmenCustomers[sCode]) }, { merge: true });
+              const docRef = doc(collection(db, 'customer_data'), sCode);
+              chunkBatch.set(docRef, { customers: JSON.stringify(salesmenCustomers[sCode]) }, { merge: true });
             });
-            
+
             await chunkBatch.commit();
 
             setProgress({ step: 'Saving Aggregated Dashboards...', current: 80, total: 100 });
             // Read existing metrics to preserve cml_count (set by CML upload)
             const existingMetricsSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
             const existingMetricsAll = existingMetricsSnap.exists() ? existingMetricsSnap.data() : {};
-            
+
             // Read team reference to embed team into metrics for Row-Level Security
             const teamSnap = await getDoc(doc(db, 'reference_team_service', 'all'));
             const teamRef = teamSnap.exists() ? teamSnap.data() : {};
@@ -501,7 +501,7 @@ const DataManagement: React.FC = () => {
             Object.keys(metrics).forEach(salesmanCode => {
               const m = metrics[salesmanCode];
               const finalVd30: Record<string, number> = {};
-              
+
               // Initialize all possible VD30 buckets to 0 to overwrite any ghost data
               vd30Buckets.forEach(bucket => {
                 finalVd30[bucket] = 0;
@@ -525,7 +525,7 @@ const DataManagement: React.FC = () => {
                   Object.values(weeklyData).forEach((weekNet: any) => {
                     if (weekNet >= 1) activeWeeks++;
                   });
-                  
+
                   // Ensure they fall into at least F1 if they are UBA
                   if (activeWeeks === 0) activeWeeks = 1;
 
@@ -572,39 +572,39 @@ const DataManagement: React.FC = () => {
 
             // Save granular data individually and build the lightweight summary document
             const summaryMetricsDoc: Record<string, any> = {};
-            
+
             const salesmanCodes = Object.keys(allMetricsDoc);
             for (let i = 0; i < salesmanCodes.length; i += 400) {
-               const chunk = salesmanCodes.slice(i, i + 400);
-               const chunkBatch = writeBatch(db);
-               chunk.forEach(code => {
-                  const m = allMetricsDoc[code];
-                  
-                  // Save full granular data to individual doc
-                  chunkBatch.set(doc(db, 'dashboard_metrics', code), m, { merge: true });
-                  
-                  // Add stripped-down version to summary doc
-                  summaryMetricsDoc[code] = {
-                     salesman_code: m.salesman_code,
-                     salesman_name: m.salesman_name,
-                     mtd_net_value: m.mtd_net_value,
-                     mtd_volume: m.mtd_volume,
-                     uba: m.uba,
-                     cml_count: m.cml_count || 0,
-                     frequency: m.frequency || { f1:0, f2:0, f3:0, f4:0 },
-                     vd30_placements: m.vd30_placements, // Safe lightweight map: { "F01": 15 }
-                     last_updated: m.last_updated
-                  };
-               });
-               await chunkBatch.commit();
+              const chunk = salesmanCodes.slice(i, i + 400);
+              const chunkBatch = writeBatch(db);
+              chunk.forEach(code => {
+                const m = allMetricsDoc[code];
+
+                // Save full granular data to individual doc
+                chunkBatch.set(doc(db, 'dashboard_metrics', code), m, { merge: true });
+
+                // Add stripped-down version to summary doc
+                summaryMetricsDoc[code] = {
+                  salesman_code: m.salesman_code,
+                  salesman_name: m.salesman_name,
+                  mtd_net_value: m.mtd_net_value,
+                  mtd_volume: m.mtd_volume,
+                  uba: m.uba,
+                  cml_count: m.cml_count || 0,
+                  frequency: m.frequency || { f1: 0, f2: 0, f3: 0, f4: 0 },
+                  vd30_placements: m.vd30_placements, // Safe lightweight map: { "F01": 15 }
+                  last_updated: m.last_updated
+                };
+              });
+              await chunkBatch.commit();
             }
 
             // Save the full 'all' document for Admins/Managers
             await setDoc(doc(db, 'dashboard_metrics', 'all'), allMetricsDoc, { merge: true });
-            
+
             // Save the new lightweight 'summary' document for Salesmen Leaderboard
             await setDoc(doc(db, 'dashboard_metrics_summary', 'all'), summaryMetricsDoc, { merge: true });
-            
+
             // Save COB Date globally
             await setDoc(doc(db, 'settings', 'global'), { cobDate, lastDataUpload: Date.now() }, { merge: true });
 
@@ -622,8 +622,8 @@ const DataManagement: React.FC = () => {
 
               const userTypes: Record<string, string> = {};
               usersSnap.forEach((u: any) => {
-                 const data = u.data();
-                 if (data.salesmanId && data.salesmanType) userTypes[String(data.salesmanId)] = data.salesmanType;
+                const data = u.data();
+                if (data.salesmanId && data.salesmanType) userTypes[String(data.salesmanId)] = data.salesmanType;
               });
 
               const excludedSalesmen = settingsSnap.exists() ? (settingsSnap.data().excluded_salesmen || []) : [];
@@ -633,69 +633,69 @@ const DataManagement: React.FC = () => {
               const targetsMap: Record<string, { target: number, ubaTarget: number, vd30TargetMap: Record<string, number> }> = {};
               const sttRaw = sttSnap.exists() ? sttSnap.data() : {};
               Object.keys(sttRaw).forEach(k => {
-                 const d = sttRaw[k];
-                 targetsMap[k] = { target: parseFloat(d.stt_target) || 0, ubaTarget: parseFloat(d['uba target']) || 0, vd30TargetMap: {} };
+                const d = sttRaw[k];
+                targetsMap[k] = { target: parseFloat(d.stt_target) || 0, ubaTarget: parseFloat(d['uba target']) || 0, vd30TargetMap: {} };
               });
-              
+
               const vd30Raw = vd30Snap.exists() ? vd30Snap.data() : {};
               Object.keys(vd30Raw).forEach(k => {
-                 const d = vd30Raw[k];
-                 if (!targetsMap[k]) targetsMap[k] = { target: 0, ubaTarget: 0, vd30TargetMap: {} };
-                 Object.keys(d).forEach(field => {
-                   if (field.startsWith('F')) {
-                     targetsMap[k].vd30TargetMap[field] = parseFloat(d[field]) || 0;
-                   }
-                 });
+                const d = vd30Raw[k];
+                if (!targetsMap[k]) targetsMap[k] = { target: 0, ubaTarget: 0, vd30TargetMap: {} };
+                Object.keys(d).forEach(field => {
+                  if (field.startsWith('F')) {
+                    targetsMap[k].vd30TargetMap[field] = parseFloat(d[field]) || 0;
+                  }
+                });
               });
 
               // Map metrics and calculate VD30 hits
               const salesmenRankingData: any[] = [];
               const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
-              
+
               Object.keys(metricsRaw).forEach(sId => {
-                 const d = metricsRaw[sId];
-                 const type = userTypes[sId];
-                 if (!type) return; // EXCLUDE UNASSIGNED
+                const d = metricsRaw[sId];
+                const type = userTypes[sId];
+                if (!type) return; // EXCLUDE UNASSIGNED
 
-                 const targetInfo = targetsMap[sId] || { target: 0, ubaTarget: 0, vd30TargetMap: {} };
-                 
-                 let vd30HitCount = 0;
-                 let vd30TargetCount = 0;
-                 Object.keys(targetInfo.vd30TargetMap).forEach(field => {
-                    const tgt = targetInfo.vd30TargetMap[field];
-                    if (tgt > 0) {
-                      vd30TargetCount++;
-                      const baseCode = field.split('_')[0];
-                      const act = (d.vd30_placements && (d.vd30_placements[baseCode] || d.vd30_placements[field])) || 0;
-                      if (act >= tgt) vd30HitCount++;
-                    }
-                 });
+                const targetInfo = targetsMap[sId] || { target: 0, ubaTarget: 0, vd30TargetMap: {} };
 
-                 salesmenRankingData.push({
-                   id: sId,
-                   type: type,
-                   mtdSales: d.mtd_net_value || 0,
-                   target: targetInfo.target || 1,
-                   uba: d.uba || 0,
-                   ubaTarget: targetInfo.ubaTarget || 1,
-                   vd30: vd30HitCount,
-                   vd30Target: vd30TargetCount || 1
-                 });
+                let vd30HitCount = 0;
+                let vd30TargetCount = 0;
+                Object.keys(targetInfo.vd30TargetMap).forEach(field => {
+                  const tgt = targetInfo.vd30TargetMap[field];
+                  if (tgt > 0) {
+                    vd30TargetCount++;
+                    const baseCode = field.split('_')[0];
+                    const act = (d.vd30_placements && (d.vd30_placements[baseCode] || d.vd30_placements[field])) || 0;
+                    if (act >= tgt) vd30HitCount++;
+                  }
+                });
+
+                salesmenRankingData.push({
+                  id: sId,
+                  type: type,
+                  mtdSales: d.mtd_net_value || 0,
+                  target: targetInfo.target || 1,
+                  uba: d.uba || 0,
+                  ubaTarget: targetInfo.ubaTarget || 1,
+                  vd30: vd30HitCount,
+                  vd30Target: vd30TargetCount || 1
+                });
               });
 
               // Helper to assign medals
               const dailyPointsMap: Record<string, any> = {};
-              
+
               // Pre-populate with indices
               salesmenRankingData.forEach(s => {
-                 dailyPointsMap[s.id] = {
-                    gold: 0, silver: 0, bronze: 0, points: 0,
-                    metrics: {
-                       stt: { medal: 'none', index: s.target > 0 ? (s.mtdSales / s.target) * 100 : 0 },
-                       uba: { medal: 'none', index: s.ubaTarget > 0 ? (s.uba / s.ubaTarget) * 100 : 0 },
-                       vd30: { medal: 'none', index: s.vd30Target > 0 ? (s.vd30 / s.vd30Target) * 100 : 0 }
-                    }
-                 };
+                dailyPointsMap[s.id] = {
+                  gold: 0, silver: 0, bronze: 0, points: 0,
+                  metrics: {
+                    stt: { medal: 'none', index: s.target > 0 ? (s.mtdSales / s.target) * 100 : 0 },
+                    uba: { medal: 'none', index: s.ubaTarget > 0 ? (s.uba / s.ubaTarget) * 100 : 0 },
+                    vd30: { medal: 'none', index: s.vd30Target > 0 ? (s.vd30 / s.vd30Target) * 100 : 0 }
+                  }
+                };
               });
 
               const assignMedals = (sortedList: any[], metricKey: 'stt' | 'uba' | 'vd30') => {
@@ -703,14 +703,14 @@ const DataManagement: React.FC = () => {
                   if (sortedList[idx]) {
                     const id = sortedList[idx].id;
                     if (!dailyPointsMap[id]) return;
-                    
+
                     dailyPointsMap[id].points += points;
-                    
+
                     let medalType = 'none';
                     if (points === 5) { dailyPointsMap[id].gold += 1; medalType = 'gold'; }
                     else if (points === 3) { dailyPointsMap[id].silver += 1; medalType = 'silver'; }
                     else if (points === 1) { dailyPointsMap[id].bronze += 1; medalType = 'bronze'; }
-                    
+
                     dailyPointsMap[id].metrics[metricKey].medal = medalType;
                   }
                 });
@@ -718,29 +718,29 @@ const DataManagement: React.FC = () => {
 
               // Calculate per service model separately
               ['Ex-Truck', 'Booking'].forEach(serviceModel => {
-                  const filtered = salesmenRankingData.filter(s => s.type === serviceModel);
-                  
-                  const sttSorted = [...filtered]
-                    .filter(s => !excludedSalesmen.includes(s.id) && s.mtdSales > 0)
-                    .sort((a, b) => (b.mtdSales / b.target) - (a.mtdSales / a.target));
-                    
-                  const ubaSorted = [...filtered]
-                    .filter(s => !excludedSalesmen.includes(s.id) && s.uba > 0)
-                    .sort((a, b) => (b.uba / b.ubaTarget) - (a.uba / a.ubaTarget));
-                    
-                  const vd30Sorted = [...filtered]
-                    .filter(s => !excludedVd30Salesmen.includes(s.id) && s.vd30 > 0)
-                    .sort((a, b) => (b.vd30 / b.vd30Target) - (a.vd30 / a.vd30Target));
+                const filtered = salesmenRankingData.filter(s => s.type === serviceModel);
 
-                  assignMedals(sttSorted, 'stt');
-                  assignMedals(ubaSorted, 'uba');
-                  assignMedals(vd30Sorted, 'vd30');
+                const sttSorted = [...filtered]
+                  .filter(s => !excludedSalesmen.includes(s.id) && s.mtdSales > 0)
+                  .sort((a, b) => (b.mtdSales / b.target) - (a.mtdSales / a.target));
+
+                const ubaSorted = [...filtered]
+                  .filter(s => !excludedSalesmen.includes(s.id) && s.uba > 0)
+                  .sort((a, b) => (b.uba / b.ubaTarget) - (a.uba / a.ubaTarget));
+
+                const vd30Sorted = [...filtered]
+                  .filter(s => !excludedVd30Salesmen.includes(s.id) && s.vd30 > 0)
+                  .sort((a, b) => (b.vd30 / b.vd30Target) - (a.vd30 / a.vd30Target));
+
+                assignMedals(sttSorted, 'stt');
+                assignMedals(ubaSorted, 'uba');
+                assignMedals(vd30Sorted, 'vd30');
               });
 
               // Save to Firestore achievements/YYYY-MM
               const monthKey = cobDate.substring(0, 7); // e.g. "2026-06"
               const achRef = doc(db, 'achievements', monthKey);
-              
+
               await setDoc(achRef, {
                 daily_points: {
                   [cobDate]: dailyPointsMap
@@ -799,7 +799,7 @@ const DataManagement: React.FC = () => {
                   if (!npdMetrics[prodCode]) npdMetrics[prodCode] = { stt: 0, volume: 0, customersMap: {}, salesmen: {} };
                   npdMetrics[prodCode].stt += netValue;
                   npdMetrics[prodCode].volume += volume;
-                  
+
                   if (custNum) {
                     npdMetrics[prodCode].customersMap[custNum] = (npdMetrics[prodCode].customersMap[custNum] || 0) + netValue;
                   }
@@ -810,7 +810,7 @@ const DataManagement: React.FC = () => {
                     }
                     npdMetrics[prodCode].salesmen[salesmanCode].stt += netValue;
                     npdMetrics[prodCode].salesmen[salesmanCode].volume += volume;
-                    
+
                     if (custNum && netValue !== 0) {
                       if (!npdMetrics[prodCode].salesmen[salesmanCode].customersMap[custNum]) {
                         npdMetrics[prodCode].salesmen[salesmanCode].customersMap[custNum] = { name: custName, stt: 0 };
@@ -825,11 +825,11 @@ const DataManagement: React.FC = () => {
                 for (let i = 0; i < npdKeys.length; i += 450) {
                   const npdChunk = npdKeys.slice(i, i + 450);
                   const npdBatch = writeBatch(db);
-                  
+
                   npdChunk.forEach(prodCode => {
                     const m = npdMetrics[prodCode];
                     const info = npdItemMap[prodCode];
-                    
+
                     let productUba = 0;
                     Object.values(m.customersMap).forEach(cStt => {
                       if (cStt >= 1) productUba++;
@@ -861,7 +861,7 @@ const DataManagement: React.FC = () => {
 
                     const safeId = prodCode.replace(/[^a-zA-Z0-9_]/g, '');
                     if (!safeId) return;
-                    
+
                     npdBatch.set(doc(collection(db, 'npd_promopack_metrics'), safeId), {
                       product_code: prodCode,
                       product_description: info.product_description,
@@ -893,26 +893,26 @@ const DataManagement: React.FC = () => {
             } catch (err) {
               console.error("Error saving Trade BO history:", err);
             }
-          } 
+          }
           else if (category === 'CML (Customer Master List)') {
             setProgress({ step: 'Aggregating CML Baseline & Chunking...', current: 0, total: 100 });
-            
+
             // Read team reference to embed team into metrics for Row-Level Security
             const teamSnap = await getDoc(doc(db, 'reference_team_service', 'all'));
             const teamRef = teamSnap.exists() ? teamSnap.data() : {};
-            
+
             // Calculate active customers per salesman and group them
             const cmlCounts: Record<string, number> = {};
             const salesmanGroups: Record<string, any[]> = {};
-            
+
             json.forEach((row: any) => {
               const cleanRow = JSON.parse(JSON.stringify(row));
               const salesmanCode = String(cleanRow['SALES REP ID'] || '');
               const status = String(cleanRow['STATUS'] || '').toLowerCase();
-              
+
               if (salesmanCode && (status === 'active/approved' || status === 'active' || status === 'approved')) {
                 cmlCounts[salesmanCode] = (cmlCounts[salesmanCode] || 0) + 1;
-                
+
                 if (!salesmanGroups[salesmanCode]) salesmanGroups[salesmanCode] = [];
                 // Ensure initial metrics are present
                 cleanRow.volume = 0;
@@ -942,13 +942,13 @@ const DataManagement: React.FC = () => {
             // Also merge cml_count into the 'all' doc so the Sales page can read it
             const allDocSnap = await getDoc(doc(db, 'dashboard_metrics', 'all'));
             const existingAll = allDocSnap.exists() ? allDocSnap.data() : {};
-            
+
             const summaryDocSnap = await getDoc(doc(db, 'dashboard_metrics_summary', 'all'));
             const existingSummary = summaryDocSnap.exists() ? summaryDocSnap.data() : {};
 
             const updatedAll: Record<string, any> = {};
             const updatedSummary: Record<string, any> = {};
-            
+
             Object.keys(cmlCounts).forEach(salesmanCode => {
               updatedAll[salesmanCode] = {
                 ...(existingAll[salesmanCode] || {}),
@@ -962,7 +962,7 @@ const DataManagement: React.FC = () => {
             await setDoc(doc(db, 'dashboard_metrics', 'all'), updatedAll, { merge: true });
             await setDoc(doc(db, 'dashboard_metrics_summary', 'all'), updatedSummary, { merge: true });
             await setDoc(doc(db, 'settings', 'global'), { lastDataUpload: Date.now() }, { merge: true });
-            
+
             // Save Chunks
             setProgress({ step: 'Saving Customer Chunks...', current: 50, total: 100 });
             const groupKeys = Object.keys(salesmanGroups);
@@ -971,7 +971,7 @@ const DataManagement: React.FC = () => {
               groupKeys.slice(i, i + 450).forEach(salesmanCode => {
                 const safeId = String(salesmanCode).replace(/[^a-zA-Z0-9_]/g, '');
                 const docRef = doc(collection(db, 'customer_data'), safeId);
-                cBatch.set(docRef, { 
+                cBatch.set(docRef, {
                   customers: JSON.stringify(salesmanGroups[salesmanCode]),
                   team: teamRef[salesmanCode]?.team || ''
                 }, { merge: true });
@@ -992,7 +992,7 @@ const DataManagement: React.FC = () => {
                 Object.keys(row).forEach(k => {
                   cleanRow[k.trim().toLowerCase().replace(/\s+/g, '_')] = row[k];
                   // Keep original too just in case
-                  cleanRow[k] = row[k]; 
+                  cleanRow[k] = row[k];
                 });
                 const prodCode = String(cleanRow['product_code'] || cleanRow['Product Code'] || '').replace(/[^a-zA-Z0-9_]/g, '');
                 if (prodCode) {
@@ -1215,7 +1215,7 @@ const DataManagement: React.FC = () => {
 
               const code = String(getValueP(['product_code', 'Product Code', 'Item Code', 'itemcode', 'item_code']) || '').trim();
               const desc = String(getValueP(['product_description', 'Product Description', 'Description', 'Item Description']) || '').trim();
-              
+
               const branchAds: Record<string, number> = {};
               let hasAnyAds = false;
 
@@ -1225,12 +1225,12 @@ const DataManagement: React.FC = () => {
                 if (!['productcode', 'productdescription', 'description', 'itemcode', 'itemdescription'].includes(lowerK)) {
                   const val = parseFloat(row[k]);
                   if (!isNaN(val) && val > 0) {
-                     branchAds[k.trim().toUpperCase()] = val;
-                     hasAnyAds = true;
+                    branchAds[k.trim().toUpperCase()] = val;
+                    hasAnyAds = true;
                   }
                 }
               });
-              
+
               if (code) {
                 // Store either the branch map, or fallback to 0 if none found
                 compactMap[code] = [desc, hasAnyAds ? branchAds : 0];
@@ -1249,7 +1249,7 @@ const DataManagement: React.FC = () => {
               const code = String(cleanRow['product_code'] || cleanRow['Product Code'] || cleanRow['Item Code'] || '').trim();
               const desc = String(cleanRow['product_description'] || cleanRow['Description'] || cleanRow['Item Description'] || '').trim();
               const cat = String(cleanRow['category'] || cleanRow['Category'] || cleanRow['CATEGORY'] || '').trim();
-              
+
               if (code) {
                 masterMap[code] = [desc, cat];
               }
@@ -1325,7 +1325,7 @@ const DataManagement: React.FC = () => {
     setSuccess(false);
     setError('');
     setProgress(null);
-    
+
     try {
       await processAndUpload(selectedFile, activeCategory);
       setSuccess(true);
@@ -1371,7 +1371,7 @@ const DataManagement: React.FC = () => {
         }
       }
 
-      await setDoc(doc(db, 'settings', 'global'), { 
+      await setDoc(doc(db, 'settings', 'global'), {
         lastDataUpload: Date.now(),
         lastAgeingUpload: Date.now(),
         lastWarehouseBoUpload: Date.now(),
@@ -1413,7 +1413,7 @@ const DataManagement: React.FC = () => {
           await batch.commit();
         }
       }
-      await setDoc(doc(db, 'settings', 'global'), { 
+      await setDoc(doc(db, 'settings', 'global'), {
         lastAgeingUpload: Date.now(),
         lastWarehouseBoUpload: Date.now(),
         lastVanBoUpload: Date.now()
@@ -1512,11 +1512,11 @@ const DataManagement: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '8px', 
-        marginBottom: '24px', 
-        overflowX: 'auto', 
+      <div style={{
+        display: 'flex',
+        gap: '8px',
+        marginBottom: '24px',
+        overflowX: 'auto',
         paddingBottom: '8px',
         borderBottom: '1px solid var(--border)'
       }}>
@@ -1552,21 +1552,21 @@ const DataManagement: React.FC = () => {
               Broadcast a global message to all users. Leave empty to clear the announcement. Optionally, provide a URL to make the announcement clickable.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Type a message..."
                 value={systemAnnouncement}
                 onChange={e => setSystemAnnouncement(e.target.value)}
                 style={{ width: '100%', padding: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'white' }}
               />
-              <input 
-                type="url" 
+              <input
+                type="url"
                 placeholder="Link URL (e.g., https://example.com) - Optional"
                 value={systemAnnouncementLink}
                 onChange={e => setSystemAnnouncementLink(e.target.value)}
                 style={{ width: '100%', padding: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'white' }}
               />
-              <button 
+              <button
                 onClick={handleSaveAnnouncement}
                 className="btn btn-primary"
                 disabled={savingAnnouncement}
@@ -1583,7 +1583,7 @@ const DataManagement: React.FC = () => {
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
               Create a highly compressed archive of the current month's performance and references. Managers and Admins can view this historical data later.
             </p>
-            <button 
+            <button
               type="button"
               className="btn"
               onClick={() => setShowSnapshotModal(true)}
@@ -1625,7 +1625,7 @@ const DataManagement: React.FC = () => {
                   />
                 </div>
               ))}
-              <button 
+              <button
                 onClick={handleSaveWeekMapping}
                 className="btn btn-primary"
                 disabled={savingWeekMapping}
@@ -1643,7 +1643,7 @@ const DataManagement: React.FC = () => {
               Clearing transactional data will delete all Net Invoiced metrics, customer progress, gamification medals, warehouse and van B.O., and ageing data. This is useful for starting a fresh month. Reference data and Targets will NOT be deleted.
             </p>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <button 
+              <button
                 type="button"
                 className="btn"
                 onClick={handleClearTransactionalData}
@@ -1653,8 +1653,8 @@ const DataManagement: React.FC = () => {
                 {clearingType === 'transactional' ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
                 {clearingType === 'transactional' ? 'Clearing Data...' : 'Clear All Transactional Data'}
               </button>
-              
-              <button 
+
+              <button
                 type="button"
                 className="btn"
                 onClick={handleClearInventoryData}
@@ -1665,7 +1665,7 @@ const DataManagement: React.FC = () => {
                 {clearingType === 'inventory' ? 'Clearing...' : 'Clear All Inventory Related Data'}
               </button>
 
-              <button 
+              <button
                 type="button"
                 className="btn"
                 onClick={handleClearTargetData}
@@ -1676,7 +1676,7 @@ const DataManagement: React.FC = () => {
                 {clearingType === 'targets' ? 'Clearing...' : 'Clear All Target Data'}
               </button>
 
-              <button 
+              <button
                 type="button"
                 className="btn"
                 onClick={handleClearReferenceData}
@@ -1695,12 +1695,12 @@ const DataManagement: React.FC = () => {
           <div className="glass-panel" style={{ width: '250px', flexShrink: 0, padding: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {uploadGroups[activeTab]?.map(cat => (
-                <button 
+                <button
                   key={cat}
                   onClick={() => { setActiveCategory(cat); setSuccess(false); setError(''); }}
                   className="btn"
-                  style={{ 
-                    justifyContent: 'flex-start', 
+                  style={{
+                    justifyContent: 'flex-start',
                     backgroundColor: activeCategory === cat ? 'var(--bg-panel-hover)' : 'transparent',
                     color: activeCategory === cat ? 'var(--accent-primary)' : 'var(--text-main)',
                     border: activeCategory === cat ? '1px solid var(--border)' : '1px solid transparent',
@@ -1723,14 +1723,14 @@ const DataManagement: React.FC = () => {
             <h3 style={{ marginBottom: '24px', fontSize: '20px', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Upload size={24} /> Upload {activeCategory}
             </h3>
-            
+
             <form onSubmit={handleUpload} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ 
-                flex: 1, 
-                border: '2px dashed var(--border)', 
-                borderRadius: '16px', 
-                display: 'flex', 
-                alignItems: 'center', 
+              <div style={{
+                flex: 1,
+                border: '2px dashed var(--border)',
+                borderRadius: '16px',
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'center',
                 flexDirection: 'column',
                 padding: '60px 40px',
@@ -1739,21 +1739,21 @@ const DataManagement: React.FC = () => {
                 position: 'relative',
                 transition: 'border 0.3s ease',
               }}
-              onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--accent-primary)'; }}
-              onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; }}
-              onDrop={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; if (e.dataTransfer.files?.[0]) setSelectedFile(e.dataTransfer.files[0]); }}
+                onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--accent-primary)'; }}
+                onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; }}
+                onDrop={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; if (e.dataTransfer.files?.[0]) setSelectedFile(e.dataTransfer.files[0]); }}
               >
                 <Upload size={48} color={selectedFile ? "var(--accent-primary)" : "var(--text-muted)"} style={{ marginBottom: '16px', transition: 'color 0.3s' }} />
                 <div style={{ marginBottom: '8px', fontWeight: 600, fontSize: '15px', color: selectedFile ? 'white' : 'var(--text-main)', textAlign: 'center' }}>
                   {selectedFile ? selectedFile.name : 'Click or drag file to this area to upload'}
                 </div>
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Strictly .xlsx files only (Max 50MB)</div>
-                <input 
-                  type="file" 
-                  accept=".xlsx" 
+                <input
+                  type="file"
+                  accept=".xlsx"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                   disabled={uploading}
-                  style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: uploading ? 'not-allowed' : 'pointer', top: 0, left: 0 }} 
+                  style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: uploading ? 'not-allowed' : 'pointer', top: 0, left: 0 }}
                 />
               </div>
 
@@ -1762,17 +1762,17 @@ const DataManagement: React.FC = () => {
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: 'var(--text-muted)' }}>
                     {activeCategory === 'Net Invoiced' ? 'COB Date (Closing of Business)' : 'Report / Upload Date'}
                   </label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     value={cobDate}
                     onChange={(e) => setCobDate(e.target.value)}
                     disabled={uploading}
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px', 
-                      background: 'rgba(0,0,0,0.2)', 
-                      border: '1px solid var(--border)', 
-                      borderRadius: '10px', 
+                    style={{
+                      width: '100%',
+                      padding: '14px',
+                      background: 'rgba(0,0,0,0.2)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '10px',
                       color: 'white',
                       colorScheme: 'dark',
                       fontSize: '14px'
@@ -1823,25 +1823,25 @@ const DataManagement: React.FC = () => {
         <form onSubmit={handleCreateSnapshot} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
             This will package the current Dashboard Metrics, Customer Performances, and current monthly Targets/References into a historical archive.
-            <br/><br/>
+            <br /><br />
             <strong>Note:</strong> If a snapshot for this month already exists, it will be completely overwritten with the current live data.
           </p>
-          
+
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Select Month to Tag
             </label>
-            <input 
-              type="month" 
+            <input
+              type="month"
               value={snapshotMonth}
               onChange={(e) => setSnapshotMonth(e.target.value)}
               disabled={isSnapshotting}
-              style={{ 
-                width: '100%', 
-                padding: '12px', 
-                background: 'rgba(0,0,0,0.2)', 
-                border: '1px solid var(--border)', 
-                borderRadius: '8px', 
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'rgba(0,0,0,0.2)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
                 color: 'white',
                 colorScheme: 'dark'
               }}
