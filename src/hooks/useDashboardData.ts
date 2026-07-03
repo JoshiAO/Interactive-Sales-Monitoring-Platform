@@ -387,7 +387,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
               const tgt = s.vd30TargetMap[k];
               if (tgt > 0) {
                 targetCount++;
-                const act = (s.vd30ActualMap && s.vd30ActualMap[k]) || 0;
+                const baseCode = k.split('_')[0];
+                const act = (s.vd30ActualMap && (s.vd30ActualMap[baseCode] || s.vd30ActualMap[k])) || 0;
                 if (act >= tgt) hitCount++;
               }
             });
@@ -402,13 +403,16 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
 
         const balance = Math.max(totalTarget - totalMtdSales, 0);
 
-        const vd30Formatted = Object.keys(vd30Targets).map(k => ({
-          name: k.split('_')[0], // e.g. "F01"
-          code: k,
-          description: vd30DescMap[k] || '',
-          target: Math.round(vd30Targets[k] || 0),
-          actual: vd30Actuals[k] || 0,
-        })).sort((a, b) => a.name.localeCompare(b.name));
+        const vd30Formatted = Object.keys(vd30Targets).map(k => {
+          const baseCode = k.split('_')[0]; // e.g. "F01"
+          return {
+            name: baseCode, 
+            code: k,
+            description: vd30DescMap[k] || '',
+            target: Math.round(vd30Targets[k] || 0),
+            actual: vd30Actuals[baseCode] || vd30Actuals[k] || 0,
+          };
+        }).sort((a, b) => a.name.localeCompare(b.name));
 
         const sortMap = (map: Record<string, number>) => Object.keys(map).map(k => ({ name: k, value: map[k] })).sort((a, b) => b.value - a.value);
 

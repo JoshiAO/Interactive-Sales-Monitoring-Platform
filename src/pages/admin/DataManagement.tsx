@@ -665,7 +665,8 @@ const DataManagement: React.FC = () => {
                     const tgt = targetInfo.vd30TargetMap[field];
                     if (tgt > 0) {
                       vd30TargetCount++;
-                      const act = (d.vd30_placements && d.vd30_placements[field]) || 0;
+                      const baseCode = field.split('_')[0];
+                      const act = (d.vd30_placements && (d.vd30_placements[baseCode] || d.vd30_placements[field])) || 0;
                       if (act >= tgt) vd30HitCount++;
                     }
                  });
