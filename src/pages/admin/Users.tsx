@@ -3,10 +3,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTeams } from '../../hooks/useTeams';
 import { Modal } from '../../components/ui/Modal';
 import { UserPlus, Edit2, Trash2, Mail, Camera, Loader2 } from 'lucide-react';
-import { db, storage, firebaseConfig } from '../../firebase/config';
+import { db, storage } from '../../firebase/config';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getAuth } from 'firebase/auth';
 
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import Cropper from 'react-easy-crop';
