@@ -313,7 +313,7 @@ const DataManagement: React.FC = () => {
               const custNum = row['Sold To Customer number'];
               const prodCode = row['Product Code'];
               const category = row['Category'] || 'Uncategorized';
-              const channel = row['Channel_Classification'] || row['Channel'] || 'Uncategorized';
+              const channel = row['Channel Classification'] || row['Channel_Classification'] || row['Channel'] || 'Uncategorized';
               const brgy = row['Brgy'] || 'Unknown';
               const town = row['Town'] || 'Unknown';
               const week = row['Week'];
