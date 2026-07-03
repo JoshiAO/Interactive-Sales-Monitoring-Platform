@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Loader2, ChevronLeft } from 'lucide-react';
+import { Search, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNpdPromoData } from '../../hooks/useNpdPromoData';
 import { useTeams } from '../../hooks/useTeams';

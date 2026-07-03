@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card } from '../../components/ui/Card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Target, TrendingUp, PhilippinePeso, Activity, Loader2 } from 'lucide-react';
+import { Target, TrendingUp, PhilippinePeso, Activity } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { useNpdPromoData } from '../../hooks/useNpdPromoData';

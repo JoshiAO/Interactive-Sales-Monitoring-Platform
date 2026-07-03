@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Search, MapPin, Loader2, UserRound } from 'lucide-react';
+import { Search, MapPin, UserRound } from 'lucide-react';
 import { useCustomersData } from '../../hooks/useCustomersData';
 import { useTeams } from '../../hooks/useTeams';
 import { useSalesmenList } from '../../hooks/useSalesmenList';

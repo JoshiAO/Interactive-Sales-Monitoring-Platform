@@ -4,7 +4,7 @@ import { Modal } from '../../components/ui/Modal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { useTeams } from '../../hooks/useTeams';
-import { Loader2, Package, Users, BarChart3 } from 'lucide-react';
+import { Package, Users, BarChart3 } from 'lucide-react';
 import { PageSkeleton } from '../../components/ui/PageSkeleton';
 
 const Meter: React.FC<{ target: number; actual: number }> = ({ target, actual }) => {

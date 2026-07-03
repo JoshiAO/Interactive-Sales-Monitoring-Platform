@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card } from '../../components/ui/Card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Target, PhilippinePeso, Activity, Users, Box, Loader2, Flag } from 'lucide-react';
+import { Target, PhilippinePeso, Activity, Users, Box, Flag } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { PageSkeleton } from '../../components/ui/PageSkeleton';
 import { useAuth } from '../../contexts/AuthContext';

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import DualLeaderboard from '../../components/performance/DualLeaderboard';
 import CommitmentManager from '../../components/performance/CommitmentManager';
 import { getCurrentWeek } from '../../utils/dateUtils';
