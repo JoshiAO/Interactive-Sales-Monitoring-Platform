@@ -266,13 +266,13 @@ const DataManagement: React.FC = () => {
             setProgress({ step: 'Aggregating Metrics...', current: 0, total: 100 });
 
             // 1. Fetch reference_vd30 to map products to VD30 buckets
-            const vd30Snap = await getDocs(collection(db, 'reference_vd30'));
+            const vd30Snap = await getDoc(doc(db, 'reference_vd30', 'all'));
             const vd30Map: Record<string, string> = {};
             const metrics: Record<string, AggregatedMetrics> = {};
 
             const vd30Buckets = new Set<string>();
-            vd30Snap.forEach(d => {
-              const r = d.data();
+            const vd30Data = vd30Snap.exists() ? vd30Snap.data() : {};
+            Object.values(vd30Data).forEach((r: any) => {
               if (r.product_code && r.vd30_code) {
                 vd30Map[String(r.product_code)] = r.vd30_code;
                 vd30Buckets.add(r.vd30_code);
@@ -313,7 +313,7 @@ const DataManagement: React.FC = () => {
               const custNum = row['Sold To Customer number'];
               const prodCode = row['Product Code'];
               const category = row['Category'] || 'Uncategorized';
-              const channel = row['Channel Classification'] || row['Channel_Classification'] || row['Channel'] || 'Uncategorized';
+              const channel = row['Channel Classification'] || row['Channel_Classification'] || 'Uncategorized';
               const brgy = row['Brgy'] || 'Unknown';
               const town = row['Town'] || 'Unknown';
               const week = row['Week'];
