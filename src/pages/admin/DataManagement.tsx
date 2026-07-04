@@ -273,9 +273,11 @@ const DataManagement: React.FC = () => {
             const vd30Buckets = new Set<string>();
             const vd30Data = vd30Snap.exists() ? vd30Snap.data() : {};
             Object.values(vd30Data).forEach((r: any) => {
-              if (r.product_code && r.vd30_code) {
-                vd30Map[String(r.product_code)] = r.vd30_code;
-                vd30Buckets.add(r.vd30_code);
+              const pCode = r.product_code || r['Product Code'] || r['Item Code'] || r.item_code;
+              const vCode = r.vd30_code || r['VD30 Bucket'] || r['VD30 Code'];
+              if (pCode && vCode) {
+                vd30Map[String(pCode)] = vCode;
+                vd30Buckets.add(vCode);
               }
             });
 
@@ -313,7 +315,9 @@ const DataManagement: React.FC = () => {
               const custNum = row['Sold To Customer number'];
               const prodCode = row['Product Code'];
               const category = row['Category'] || 'Uncategorized';
-              const channel = row['Channel Classification'] || row['Channel_Classification'] || 'Uncategorized';
+              
+              // Look specifically for Channel_Classification first to avoid hitting 'Channel' or 'GT Channel'
+              const channel = row['Channel_Classification'] || row['Channel Classification'] || row['Channel'] || 'Uncategorized';
               const brgy = row['Brgy'] || 'Unknown';
               const town = row['Town'] || 'Unknown';
               const week = row['Week'];
@@ -365,22 +369,17 @@ const DataManagement: React.FC = () => {
                 if (vd30Bucket) {
                   const channelLower = channel.toLowerCase();
                   const isSariSari = channelLower.includes('sari') || channelLower.includes('sss');
-                  const isLarge = channelLower.includes('large');
-
+                  
                   if (isSariSari) {
-                    const bucketNumber = parseInt(vd30Bucket.replace(/\D/g, ''), 10);
+                    const isLarge = channelLower.includes('large');
+                    const baseCodeMatch = vd30Bucket.match(/F(\d+)/i);
+                    const bucketNumber = baseCodeMatch ? parseInt(baseCodeMatch[1], 10) : 0;
                     let eligibleForVd30 = false;
 
                     if (isLarge) {
-                      // Sari-sari Stores - Large: F1 to F30
-                      if (bucketNumber >= 1 && bucketNumber <= 30) {
-                        eligibleForVd30 = true;
-                      }
+                      if (bucketNumber >= 1 && bucketNumber <= 30) eligibleForVd30 = true;
                     } else {
-                      // General Sari-sari Stores: F1 to F19 only
-                      if (bucketNumber >= 1 && bucketNumber <= 19) {
-                        eligibleForVd30 = true;
-                      }
+                      if (bucketNumber >= 1 && bucketNumber <= 19) eligibleForVd30 = true;
                     }
 
                     if (eligibleForVd30) {
