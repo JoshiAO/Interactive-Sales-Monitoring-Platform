@@ -55,9 +55,7 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
 
         if (role === 'salesman' && salesmanId) {
           allowedSalesmen.add(String(salesmanId));
-          teamData.forEach((row: any) => {
-             leaderboardSalesmen.add(String(row.salesman_code));
-          });
+          leaderboardSalesmen.add(String(salesmanId));
         } else if (role === 'supervisor') {
           const supervisorTeams = team ? team.split(',').map((t: string) => t.trim()) : [];
           teamData.forEach((row: any) => {
