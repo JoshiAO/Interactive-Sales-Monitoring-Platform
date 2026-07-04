@@ -44,7 +44,7 @@ const SortableTable: React.FC<SortableTableProps> = ({ columns, rows, emptyMsg }
     if (!sortKey || sortDir === 'none') return rows;
     return [...rows].sort((a, b) => {
       const av = a[sortKey], bv = b[sortKey];
-      let cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av || '').localeCompare(String(bv || ''));
+      const cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av || '').localeCompare(String(bv || ''));
       return sortDir === 'asc' ? cmp : -cmp;
     });
   }, [rows, sortKey, sortDir]);

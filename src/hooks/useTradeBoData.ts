@@ -74,7 +74,7 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
         const teamByCode: Record<string, string> = {};
         teamRows.forEach(row => { teamByCode[String(row.salesman_code)] = row.team; });
 
-        let allowedSalesmen = new Set<string>();
+        const allowedSalesmen = new Set<string>();
         if (role === 'salesman' && salesmanId) {
           allowedSalesmen.add(String(salesmanId));
         } else if (role === 'supervisor' && team) {

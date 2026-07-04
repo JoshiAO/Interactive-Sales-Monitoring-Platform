@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Camera } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { collection, writeBatch, doc, getDocs, getDoc, setDoc } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDocs, getDoc, setDoc, query, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { Modal } from '../../components/ui/Modal';
+import IncentiveProgramMaker from './IncentiveProgramMaker';
 
-const TABS = ['Transactional Data', 'Inventory Related', 'Targets', 'References', 'System Settings'];
+const TABS = ['Transactional Data', 'Inventory Related', 'Targets', 'References', 'Incentives Program', 'System Settings'];
 
 const uploadGroups: Record<string, string[]> = {
   'Transactional Data': ['Net Invoiced', 'CML (Customer Master List)'],
@@ -23,22 +24,6 @@ const uploadGroups: Record<string, string[]> = {
   ]
 };
 
-interface AggregatedMetrics {
-  salesman_code: string;
-  salesman_name: string;
-  mtd_net_value: number;
-  mtd_volume: number;
-  gsr: number;
-  bsr: number;
-  uba_customers: Set<string>;
-  vd30_placements: Record<string, Set<string>>;
-  vd30_product_details: Record<string, { customers: Set<string>; volume: number }>;
-  categories: Record<string, number>;
-  channels: Record<string, number>;
-  brgy: Record<string, number>;
-  town: Record<string, number>;
-  customer_weekly_net: Record<string, Record<string, number>>;
-}
 
 const parseExcelWithSmartHeaders = (worksheet: XLSX.WorkSheet) => {
   // Convert sheet to array of arrays to find the real header row
@@ -61,7 +46,7 @@ const parseExcelWithSmartHeaders = (worksheet: XLSX.WorkSheet) => {
   const dataRows = rawData.slice(headerRowIndex + 1);
 
   const parsed = dataRows.map((row: any) => {
-    let obj: any = {};
+    const obj: any = {};
     headers.forEach((h, i) => {
       if (h) obj[h] = row[i];
     });
@@ -268,7 +253,7 @@ const DataManagement: React.FC = () => {
             // 1. Fetch reference_vd30 to map products to VD30 buckets
             const vd30Snap = await getDoc(doc(db, 'reference_vd30', 'all'));
             const vd30Map: Record<string, string> = {};
-            const metrics: Record<string, AggregatedMetrics> = {};
+            const metrics: Record<string, any> = {};
 
             const vd30Buckets = new Set<string>();
             const vd30Data = vd30Snap.exists() ? vd30Snap.data() : {};
@@ -279,6 +264,15 @@ const DataManagement: React.FC = () => {
                 vd30Map[String(pCode)] = vCode;
                 vd30Buckets.add(vCode);
               }
+            });
+
+            // Fetch Active Incentive Programs
+            setProgress({ step: 'Fetching active incentive programs...', current: 0, total: 100 });
+            const incProgramsQuery = query(collection(db, 'incentives_programs'), where('status', 'in', ['active', 'draft']));
+            const incProgramsSnap = await getDocs(incProgramsQuery);
+            const activeIncentives: any[] = [];
+            incProgramsSnap.forEach(doc => {
+              activeIncentives.push({ id: doc.id, ...doc.data() });
             });
 
             // 2. Aggregate Data
@@ -308,6 +302,8 @@ const DataManagement: React.FC = () => {
               }
 
               const m = metrics[salesmanCode];
+              if (!m.incentives) m.incentives = {};
+
               const netValue = parseFloat(row['Net Value']) || 0;
               const volume = parseFloat(row['Volume']) || 0;
               const gsr = parseFloat(row['Good Stock Returns']) || 0;
@@ -362,6 +358,43 @@ const DataManagement: React.FC = () => {
               m.channels[channel] = (m.channels[channel] || 0) + netValue;
               m.brgy[brgy] = (m.brgy[brgy] || 0) + netValue;
               m.town[town] = (m.town[town] || 0) + netValue;
+
+              // --- EVALUATE INCENTIVE PROGRAMS ---
+              activeIncentives.forEach(prog => {
+                if (!m.incentives[prog.id]) m.incentives[prog.id] = {};
+                
+                Object.values(prog.trackingGroups || {}).forEach((group: any) => {
+                  if (!m.incentives[prog.id][group.id]) {
+                    m.incentives[prog.id][group.id] = { stt: 0, uba_customers: new Set<string>() };
+                  }
+                  
+                  const gState = m.incentives[prog.id][group.id];
+                  let isMatch = false;
+                  
+                  // Check Channel logic
+                  if (group.channels && group.channels.length > 0) {
+                     // If it's not "All" and doesn't explicitly include the row's channel, we skip
+                     if (!group.channels.includes('All') && !group.channels.includes(channel)) {
+                        return;
+                     }
+                  }
+                  
+                  // Check Items logic
+                  if (group.definitionType === 'category') {
+                     if (group.items && group.items.includes(category)) isMatch = true;
+                  } else if (group.definitionType === 'products') {
+                     if (group.items && group.items.includes(String(prodCode))) isMatch = true;
+                  }
+                  
+                  if (isMatch) {
+                    gState.stt += netValue;
+                    const minDrop = group.minDropSize || 0;
+                    if (custNum && netValue >= minDrop) {
+                      gState.uba_customers.add(String(custNum).replace(/[^a-zA-Z0-9_]/g, ''));
+                    }
+                  }
+                });
+              });
 
               // UBA Condition (Net Value >= 1) - Kept only for VD30 placements now
               if (netValue >= 1 && custNum) {
@@ -548,6 +581,21 @@ const DataManagement: React.FC = () => {
                 };
               });
 
+              // Serialize Incentive Programs data
+              const finalIncentives: Record<string, Record<string, { stt: number, uba: number }>> = {};
+              if (m.incentives) {
+                Object.keys(m.incentives).forEach(progId => {
+                  finalIncentives[progId] = {};
+                  Object.keys(m.incentives[progId]).forEach(groupId => {
+                    const gState = m.incentives[progId][groupId];
+                    finalIncentives[progId][groupId] = {
+                      stt: gState.stt,
+                      uba: gState.uba_customers.size
+                    };
+                  });
+                });
+              }
+
               allMetricsDoc[salesmanCode] = {
                 salesman_code: m.salesman_code,
                 salesman_name: m.salesman_name,
@@ -563,6 +611,7 @@ const DataManagement: React.FC = () => {
                 brgy: m.brgy,
                 town: m.town,
                 frequency: { f1, f2, f3, f4 },
+                incentives: finalIncentives,
                 ...(existingCml !== undefined ? { cml_count: existingCml } : {}),
                 team: teamRef[salesmanCode]?.team || '',
                 last_updated: new Date().toISOString()
@@ -592,6 +641,7 @@ const DataManagement: React.FC = () => {
                   cml_count: m.cml_count || 0,
                   frequency: m.frequency || { f1: 0, f2: 0, f3: 0, f4: 0 },
                   vd30_placements: m.vd30_placements, // Safe lightweight map: { "F01": 15 }
+                  incentives: m.incentives, // Required for IncentiveDetails leaderboard and progress calculation
                   last_updated: m.last_updated
                 };
               });
@@ -1542,7 +1592,9 @@ const DataManagement: React.FC = () => {
         ))}
       </div>
 
-      {activeTab === 'System Settings' ? (
+      {activeTab === 'Incentives Program' ? (
+        <IncentiveProgramMaker />
+      ) : activeTab === 'System Settings' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* System Announcement Settings */}
           <div className="glass-panel" style={{ padding: '24px' }}>

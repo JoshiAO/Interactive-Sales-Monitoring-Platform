@@ -78,8 +78,8 @@ const Ageing: React.FC = () => {
 
     if (sortKey && sortDir !== 'none') {
       result = [...result].sort((aObj, bObj) => {
-        let av = aObj.row[sortKey as keyof AgeingRow];
-        let bv = bObj.row[sortKey as keyof AgeingRow];
+        const av = aObj.row[sortKey as keyof AgeingRow];
+        const bv = bObj.row[sortKey as keyof AgeingRow];
         let cmp = 0;
 
         if (sortKey === 'days_to_go') {

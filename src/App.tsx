@@ -14,6 +14,9 @@ import Ageing from './pages/dashboard/Ageing';
 import BackOrder from './pages/dashboard/BackOrder';
 import DataManagement from './pages/admin/DataManagement';
 import Users from './pages/admin/Users';
+import IncentivesPage from './pages/dashboard/IncentivesPage';
+import IncentiveDetails from './pages/dashboard/IncentiveDetails';
+import ArchivedIncentives from './pages/dashboard/ArchivedIncentives';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, loading } = useAuth();
@@ -43,6 +46,9 @@ function AppRoutes() {
         <Route path="data" element={<DataManagement />} />
         <Route path="users" element={<Users />} />
         <Route path="performance" element={<PerformancePage />} />
+        <Route path="incentives" element={<IncentivesPage />} />
+        <Route path="incentives/archived" element={<ArchivedIncentives />} />
+        <Route path="incentives/:programId" element={<IncentiveDetails />} />
       </Route>
       
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { LayoutDashboard, ShoppingCart, Target, Users, Database, Settings, LogOut, Menu, BarChart2, Package, Clock, AlertTriangle, Medal, X } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Target, Users, Database, Settings, LogOut, Menu, BarChart2, Package, Clock, AlertTriangle, Medal, Gift, X } from 'lucide-react';
 import { logout } from '../../firebase/auth';
 import { doc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -83,9 +83,14 @@ const Layout: React.FC = () => {
               <AlertTriangle size={18} /> B.O.
             </NavLink>
             {role !== 'warehouse_supervisor' && (
-              <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/performance" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-                <Medal size={18} /> Gamification
-              </NavLink>
+              <>
+                <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/performance" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+                  <Medal size={18} /> Gamification
+                </NavLink>
+                <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/incentives" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+                  <Gift size={18} /> Incentives
+                </NavLink>
+              </>
             )}
           </>
         )}

@@ -44,7 +44,7 @@ export const useNpdPromoData = (selectedTeam: string = 'all') => {
         const teamRaw = teamSnap.exists() ? teamSnap.data() : {};
         const teamData = Object.keys(teamRaw).map(k => ({ id: k, ...teamRaw[k] }));
 
-        let allowedSalesmen = new Set<string>();
+        const allowedSalesmen = new Set<string>();
         if (role === 'salesman' && salesmanId) {
           allowedSalesmen.add(String(salesmanId));
         } else if (role === 'supervisor' && team) {

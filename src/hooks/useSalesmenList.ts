@@ -31,7 +31,7 @@ export const useSalesmenList = (selectedTeam: string = 'all') => {
         const metricsRaw = metricsSnap.exists() ? metricsSnap.data() : {};
         const metricsData = Object.keys(metricsRaw).map(k => ({ id: k, ...metricsRaw[k] }));
 
-        let allowedSalesmen = new Set<string>();
+        const allowedSalesmen = new Set<string>();
 
         if (role === 'salesman' && salesmanId) {
           allowedSalesmen.add(String(salesmanId));

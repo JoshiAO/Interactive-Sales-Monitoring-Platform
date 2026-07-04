@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "rd-sales-monitoring"
+    "default": "rd-sales-monitoring",
+    "demo": "rd-sales-monitoring-demo"
   }
 }

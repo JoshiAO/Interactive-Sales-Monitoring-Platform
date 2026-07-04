@@ -222,8 +222,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
           }
         });
 
-        let allowedSalesmen = new Set<string>();
-        let leaderboardSalesmen = new Set<string>();
+        const allowedSalesmen = new Set<string>();
+        const leaderboardSalesmen = new Set<string>();
 
         // Filter based on role
         if (forceAllSalesmen === true) {
@@ -285,7 +285,7 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
           }
           const accurateUba = m.frequency ? (f1 + f2 + f3 + f4) : (m.uba || 0);
 
-          let salesmanVd30ActualMap: Record<string, number> = {};
+          const salesmanVd30ActualMap: Record<string, number> = {};
           if (m.vd30_placements) {
             Object.keys(m.vd30_placements).forEach(k => {
               salesmanVd30ActualMap[k] = m.vd30_placements[k];
@@ -363,7 +363,7 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
 
         vd30Data.forEach((t: any) => {
           if (!leaderboardSalesmen.has(t.id)) return;
-          let salesmanVd30TargetMap: Record<string, number> = {};
+          const salesmanVd30TargetMap: Record<string, number> = {};
           Object.keys(t).forEach(k => {
             if (k.startsWith('F')) {
               const val = parseFloat(t[k]) || 0;

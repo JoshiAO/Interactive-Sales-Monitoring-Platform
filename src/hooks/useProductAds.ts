@@ -38,7 +38,7 @@ export const useProductAds = () => {
         const docRef = doc(db, 'reference_ads', 'all');
         const docSnap = await getDoc(docRef);
         
-        let newMap: ProductAdsMap = {};
+        const newMap: ProductAdsMap = {};
         if (docSnap.exists()) {
           const rawData = docSnap.data().data;
           if (rawData) {

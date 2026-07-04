@@ -32,7 +32,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         }
 
         let teamSnapDocs: any[] = [];
-        let customersRawData: Record<string, string> = {};
+        const customersRawData: Record<string, string> = {};
 
         if (selectedMonth && selectedMonth !== 'current') {
           const snapSnap = await getDoc(doc(db, 'snapshots', selectedMonth));
@@ -63,7 +63,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
           }
         }
 
-        let allowedSalesmen = new Set<string>();
+        const allowedSalesmen = new Set<string>();
 
         if (role === 'salesman' && salesmanId) {
           allowedSalesmen.add(String(salesmanId));

@@ -19,5 +19,10 @@ service firebase.storage {
     match /data_uploads/{fileName} {
       allow read, write: if isAdmin() && fileName.matches('.*\\.xlsx$');
     }
+
+    match /incentives_banners/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
   }
 }
