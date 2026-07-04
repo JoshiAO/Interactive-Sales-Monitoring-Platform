@@ -4,6 +4,81 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { Gift, Archive, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useIncentiveDashboard } from '../../hooks/useIncentiveDashboard';
+
+const ProgramPreview: React.FC<{ program: any }> = ({ program }) => {
+  const { dashboardData, loading } = useIncentiveDashboard(program.id);
+  const [activeGroupIndex, setActiveGroupIndex] = useState(0);
+
+  if (loading) {
+    return (
+      <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '400px' }}>
+         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '12px', width: '100%' }}>
+           <div className="skeleton" style={{ height: '20px', width: '150px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }} />
+         </div>
+         <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', width: '100%' }}>
+           <div className="skeleton" style={{ height: '16px', width: '60px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }} />
+           <div className="skeleton" style={{ height: '16px', width: '60px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }} />
+           <div className="skeleton" style={{ height: '16px', width: '60px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }} />
+         </div>
+      </div>
+    );
+  }
+
+  const groupKeys = Object.keys(program.trackingGroups || {});
+  if (groupKeys.length === 0) return null;
+
+  const currentGroupKey = groupKeys[activeGroupIndex];
+  const groupDef = program.trackingGroups[currentGroupKey];
+
+  let target = 0;
+  let actual = 0;
+
+  dashboardData?.salesmen?.forEach((s: any) => {
+    if (s.trackingResults && s.trackingResults[currentGroupKey]) {
+      target += s.trackingResults[currentGroupKey].targetValue || 0;
+      actual += (groupDef.targetType === 'STT' ? (s.trackingResults[currentGroupKey].actualSTT || 0) : (s.trackingResults[currentGroupKey].actualUBA || 0));
+    }
+  });
+
+  const index = target > 0 ? (actual / target) * 100 : (actual > 0 ? 100 : 0);
+
+  const formatCurrency = (val: number) => groupDef.targetType === 'STT' || groupDef.targetType === 'Mixed' ? `₱${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : val.toLocaleString();
+
+  return (
+    <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '400px' }}>
+       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '12px', width: '100%' }}>
+         {groupKeys.length > 1 && (
+           <button 
+             onClick={(e) => { e.stopPropagation(); setActiveGroupIndex(prev => prev > 0 ? prev - 1 : groupKeys.length - 1); }}
+             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+           >
+             <ChevronLeft size={20} />
+           </button>
+         )}
+         
+         <div style={{ flex: 1, textAlign: 'center', fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0 12px' }}>
+           {groupDef.name}
+         </div>
+
+         {groupKeys.length > 1 && (
+           <button 
+             onClick={(e) => { e.stopPropagation(); setActiveGroupIndex(prev => prev < groupKeys.length - 1 ? prev + 1 : 0); }}
+             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+           >
+             <ChevronRight size={20} />
+           </button>
+         )}
+       </div>
+
+       <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', fontSize: '13px', color: 'var(--text-muted)', fontWeight: 500, width: '100%' }}>
+         <span>TGT: <span style={{ color: 'var(--text-main)', fontSize: '14px' }}>{formatCurrency(target)}</span></span>
+         <span>ACT: <span style={{ color: 'var(--accent-primary)', fontSize: '14px' }}>{formatCurrency(actual)}</span></span>
+         <span>INX: <span style={{ color: 'var(--accent-success)', fontSize: '14px' }}>{index.toFixed(1)}%</span></span>
+       </div>
+    </div>
+  );
+};
 
 const IncentivesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -80,7 +155,8 @@ const IncentivesPage: React.FC = () => {
               <p style={{ color: 'var(--text-muted)', margin: 0 }}>There are currently no active incentive programs running.</p>
             </div>
           ) : (
-            <div style={{ position: 'relative', width: '100%', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center', perspective: '1200px', overflow: 'hidden', padding: '20px 0' }}>
+            <>
+              <div style={{ position: 'relative', width: '100%', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center', perspective: '1200px', overflow: 'hidden', padding: '20px 0' }}>
               
               {/* Left Navigation Button */}
               <button 
@@ -225,6 +301,7 @@ const IncentivesPage: React.FC = () => {
                         <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '22px', fontWeight: 600 }}>{prog.title}</h3>
                         <span style={{ fontSize: '11px', background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>ACTIVE</span>
                       </div>
+                      
                       <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '15px', lineHeight: '1.6', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {prog.description}
                       </p>
@@ -253,6 +330,23 @@ const IncentivesPage: React.FC = () => {
                 );
               })}
             </div>
+            
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              width: '100%', 
+              marginTop: '20px', 
+              height: '60px',
+              opacity: activeIndex !== null ? 1 : 0,
+              visibility: activeIndex !== null ? 'visible' : 'hidden',
+              transition: 'opacity 0.3s ease, visibility 0.3s ease',
+              pointerEvents: activeIndex !== null ? 'auto' : 'none'
+            }}>
+              {activePrograms.length > 0 && (
+                <ProgramPreview program={activePrograms[currentIndex]} />
+              )}
+            </div>
+            </>
           )}
         </>
       )}
