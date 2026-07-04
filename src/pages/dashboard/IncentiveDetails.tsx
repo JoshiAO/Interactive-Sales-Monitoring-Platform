@@ -157,9 +157,9 @@ const IncentiveDetails: React.FC = () => {
                           cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                           contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}
                           itemStyle={{ color: '#fff', fontWeight: 500 }}
-                          formatter={(val: number, name: string, props: any) => {
+                          formatter={(val: any, name: any, props: any) => {
                             const type = props.payload.type;
-                            const formatted = type === 'STT' || type === 'Mixed' ? formatCurrency(val) : val.toLocaleString();
+                            const formatted = type === 'STT' || type === 'Mixed' ? formatCurrency(Number(val)) : Number(val).toLocaleString();
                             return [formatted, name];
                           }}
                         />

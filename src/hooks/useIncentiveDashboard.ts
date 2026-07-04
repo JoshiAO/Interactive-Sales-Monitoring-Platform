@@ -4,7 +4,7 @@ import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { useUsersCache } from './useUsersCache';
 
-export const useIncentiveDashboard = (programId: string | undefined, selectedTeam: string = 'all') => {
+export const useIncentiveDashboard = (programId: string | undefined, _selectedTeam: string = 'all') => {
   const { currentUser, role, salesmanId, team } = useAuth();
   const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
