@@ -94,7 +94,9 @@ const DualLeaderboard: React.FC<DualLeaderboardProps> = ({ data, activeTab, curr
         }
 
         const sttPct = (s.mtdSales / (s.target || 1)) * 100;
-        const actualVal = activeTab === 'STT' ? sttPct : activeTab === 'UBA' ? s.uba : s.vd30;
+        const ubaPct = (s.uba / (s.ubaTarget || 1)) * 100;
+        const vd30Pct = (s.vd30 / (s.vd30Target || 1)) * 100;
+        const actualVal = activeTab === 'STT' ? sttPct : activeTab === 'UBA' ? ubaPct : vd30Pct;
 
         s._hasApprovedTarget = isApproved;
 
@@ -144,7 +146,11 @@ const DualLeaderboard: React.FC<DualLeaderboardProps> = ({ data, activeTab, curr
       if (commitments && commitments[activeMetricKey] && commitments[activeMetricKey][selectedWeek.toString()]) {
          teamCommitment = commitments[activeMetricKey][selectedWeek.toString()].target || 0;
       }
-      const actualVal = activeTab === 'STT' ? ((s.mtdSales / (s.target || 1)) * 100) : activeTab === 'UBA' ? s.uba : s.vd30;
+      const actualVal = activeTab === 'STT' 
+        ? ((s.mtdSales / (s.target || 1)) * 100) 
+        : activeTab === 'UBA' 
+          ? ((s.uba / (s.ubaTarget || 1)) * 100) 
+          : ((s.vd30 / (s.vd30Target || 1)) * 100);
       metTarget = actualVal >= teamCommitment;
     }
 
