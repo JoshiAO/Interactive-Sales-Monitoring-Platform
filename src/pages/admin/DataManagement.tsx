@@ -266,6 +266,21 @@ const DataManagement: React.FC = () => {
               }
             });
 
+            // Fetch Channel References to map Channel_Classification to base Channel
+            setProgress({ step: 'Fetching channel mappings...', current: 0, total: 100 });
+            const channelSnap = await getDoc(doc(db, 'reference_channels', 'all'));
+            const channelMap: Record<string, string> = {};
+            if (channelSnap.exists()) {
+              const chanData = channelSnap.data();
+              Object.values(chanData).forEach((r: any) => {
+                const baseChannel = r['Channel'] || r.channel || r.Channel;
+                const classification = r['Channel_Classification'] || r['Channel Classification'] || r.Channel_Classification;
+                if (baseChannel && classification) {
+                  channelMap[String(classification).trim().toLowerCase()] = String(baseChannel).trim();
+                }
+              });
+            }
+
             // Fetch Active Incentive Programs
             setProgress({ step: 'Fetching active incentive programs...', current: 0, total: 100 });
             const incProgramsQuery = query(collection(db, 'incentives_programs'), where('status', 'in', ['active', 'draft']));
@@ -312,8 +327,12 @@ const DataManagement: React.FC = () => {
               const prodCode = row['Product Code'];
               const category = row['Category'] || 'Uncategorized';
               
-              // Look specifically for Channel_Classification only based on user request
-              const channel = row['Channel_Classification'] || 'Uncategorized';
+              // Read the raw classification from the Net Invoiced row
+              const classificationRaw = String(row['Channel_Classification'] || 'Uncategorized').trim();
+              
+              // Use the dynamic mapping from reference_channels to determine the base Channel, or fallback to the classification itself
+              const channel = channelMap[classificationRaw.toLowerCase()] || classificationRaw;
+
               const brgy = row['Brgy'] || 'Unknown';
               const town = row['Town'] || 'Unknown';
               const week = row['Week'];
@@ -582,7 +601,7 @@ const DataManagement: React.FC = () => {
               });
 
               // Serialize Incentive Programs data
-              const finalIncentives: Record<string, Record<string, { stt: number, uba: number }>> = {};
+              const finalIncentives: Record<string, Record<string, { stt: number, uba: number, uba_customers?: string[] }>> = {};
               if (m.incentives) {
                 Object.keys(m.incentives).forEach(progId => {
                   finalIncentives[progId] = {};
@@ -590,7 +609,8 @@ const DataManagement: React.FC = () => {
                     const gState = m.incentives[progId][groupId];
                     finalIncentives[progId][groupId] = {
                       stt: gState.stt,
-                      uba: gState.uba_customers.size
+                      uba: gState.uba_customers.size,
+                      uba_customers: Array.from(gState.uba_customers)
                     };
                   });
                 });
@@ -1546,7 +1566,7 @@ const DataManagement: React.FC = () => {
 
   const handleTabClick = (tab: string) => {
     setActiveTab(tab);
-    if (tab !== 'System Settings') {
+    if (tab !== 'System Settings' && tab !== 'Incentives Program') {
       setActiveCategory(uploadGroups[tab][0]);
       setSuccess(false);
       setError('');

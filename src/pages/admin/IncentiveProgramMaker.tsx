@@ -14,6 +14,7 @@ interface TrackingGroup {
   targetValue?: number;
   individualTargets?: Record<string, any>;
   minDropSize: number;
+  ubaMeasureType?: 'Month-on-month' | 'Everbought';
   channels?: string[];
 }
 
@@ -92,7 +93,8 @@ const IncentiveProgramMaker: React.FC = () => {
           definitionType: 'category',
           items: [],
           targetType: 'STT',
-          minDropSize: 0
+          minDropSize: 0,
+          ubaMeasureType: 'Month-on-month'
         }
       }
     }));
@@ -190,7 +192,18 @@ const IncentiveProgramMaker: React.FC = () => {
     setSaving(true);
     try {
       const docId = formData.id || `prog_${Date.now()}`;
-      const payload: Record<string, any> = { ...formData, id: docId };
+      
+      // Ensure ubaMeasureType is explicitly saved for UBA targets even if untouched by the user
+      const processedTrackingGroups = { ...formData.trackingGroups };
+      Object.keys(processedTrackingGroups).forEach(groupId => {
+        if (processedTrackingGroups[groupId].targetType === 'UBA' || processedTrackingGroups[groupId].targetType === 'Mixed' as any) {
+          if (!processedTrackingGroups[groupId].ubaMeasureType) {
+            processedTrackingGroups[groupId].ubaMeasureType = 'Month-on-month';
+          }
+        }
+      });
+
+      const payload: Record<string, any> = { ...formData, trackingGroups: processedTrackingGroups, id: docId };
       
       Object.keys(payload).forEach(key => {
         if (payload[key] === undefined) {
@@ -535,13 +548,25 @@ const IncentiveProgramMaker: React.FC = () => {
                   
                   <select 
                     value={group.targetType} 
-                    onChange={e => handleUpdateTrackingGroup(group.id, { targetType: e.target.value as any })}
+                    onChange={e => handleUpdateTrackingGroup(group.id, { targetType: e.target.value as any, ubaMeasureType: e.target.value === 'UBA' || e.target.value === 'Mixed' ? 'Month-on-month' : undefined })}
                     className="glass-panel"
                     style={{ flex: 1, padding: '8px', borderRadius: '4px' }}
                   >
                     <option value="STT">STT (Net Value)</option>
                     <option value="UBA">UBA</option>
                   </select>
+                  
+                  {group.targetType === 'UBA' && (
+                    <select 
+                      value={group.ubaMeasureType || 'Month-on-month'} 
+                      onChange={e => handleUpdateTrackingGroup(group.id, { ubaMeasureType: e.target.value as any })}
+                      className="glass-panel"
+                      style={{ flex: 1, padding: '8px', borderRadius: '4px' }}
+                    >
+                      <option value="Month-on-month">Month-on-month UBA</option>
+                      <option value="Everbought">Everbought UBA</option>
+                    </select>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center' }}>

@@ -71,7 +71,7 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
           });
         }
 
-        const aggregatedAchievements: Record<string, Record<string, { stt: number, uba: number }>> = {};
+        const aggregatedAchievements: Record<string, Record<string, { stt: number, uba: number, uba_customers?: Set<string> }>> = {};
 
         // Fetch Data for each month
         for (const month of monthsToFetch) {
@@ -97,11 +97,23 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
                  }
 
                  Object.keys(m.incentives[programId]).forEach(groupId => {
+                    const trackingGroupDef = progData.trackingGroups?.[groupId];
+                    const measureType = trackingGroupDef?.ubaMeasureType || 'Month-on-month';
+
                     if (!aggregatedAchievements[salesmanCode][groupId]) {
-                       aggregatedAchievements[salesmanCode][groupId] = { stt: 0, uba: 0 };
+                       aggregatedAchievements[salesmanCode][groupId] = { stt: 0, uba: 0, uba_customers: new Set() };
                     }
                     aggregatedAchievements[salesmanCode][groupId].stt += m.incentives[programId][groupId].stt;
-                    aggregatedAchievements[salesmanCode][groupId].uba += m.incentives[programId][groupId].uba;
+
+                    if (measureType === 'Everbought' && m.incentives[programId][groupId].uba_customers) {
+                       const customersArr = m.incentives[programId][groupId].uba_customers;
+                       if (Array.isArray(customersArr)) {
+                          customersArr.forEach((c: string) => aggregatedAchievements[salesmanCode][groupId].uba_customers!.add(c));
+                       }
+                       aggregatedAchievements[salesmanCode][groupId].uba = aggregatedAchievements[salesmanCode][groupId].uba_customers!.size;
+                    } else {
+                       aggregatedAchievements[salesmanCode][groupId].uba += m.incentives[programId][groupId].uba;
+                    }
                  });
               }
            });

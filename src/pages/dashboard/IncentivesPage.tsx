@@ -86,6 +86,13 @@ const IncentivesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchPrograms = async () => {
@@ -110,8 +117,32 @@ const IncentivesPage: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ paddingBottom: '40px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+    <div style={{ paddingBottom: '40px', position: 'relative', minHeight: 'calc(100vh - 120px)' }}>
+      {/* Dynamic Background Overlay */}
+      <div 
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          width: '75%',
+          height: '100%',
+          backgroundImage: activeIndex !== null && activePrograms[activeIndex] ? `url(${(activePrograms[activeIndex] as any).bannerUrl})` : 'none',
+          backgroundSize: 'cover',
+          backgroundPosition: 'right center',
+          backgroundRepeat: 'no-repeat',
+          opacity: activeIndex !== null ? 0.2 : 0, // Decreased opacity to 20%
+          zIndex: 0,
+          pointerEvents: 'none',
+          mixBlendMode: 'luminosity', // This will make it inherit the dark blue hues of the app background
+          filter: 'contrast(1.2) brightness(0.8)', // Adjusting contrast and brightness to match the dark theme
+          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 40%)',
+          maskImage: 'linear-gradient(to right, transparent 0%, black 40%)',
+          transition: 'opacity 0.8s ease, background-image 0.8s ease'
+        }} 
+      />
+
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <h1 style={{ margin: 0, color: 'var(--text-main)', fontSize: '28px', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Gift size={28} color="var(--accent-primary)" />
           Incentives Program
@@ -166,6 +197,7 @@ const IncentivesPage: React.FC = () => {
                 }}
                 disabled={currentIndex === 0}
                 style={{ 
+                  display: isMobile ? 'none' : 'block',
                   position: 'absolute', left: '40px', zIndex: 1000,
                   background: 'none', border: 'none', padding: '12px',
                   color: currentIndex === 0 ? 'rgba(255,255,255,0.1)' : 'white', cursor: currentIndex === 0 ? 'default' : 'pointer',
@@ -185,6 +217,7 @@ const IncentivesPage: React.FC = () => {
                 }}
                 disabled={currentIndex === activePrograms.length - 1}
                 style={{ 
+                  display: isMobile ? 'none' : 'block',
                   position: 'absolute', right: '40px', zIndex: 1000,
                   background: 'none', border: 'none', padding: '12px',
                   color: currentIndex === activePrograms.length - 1 ? 'rgba(255,255,255,0.1)' : 'white', cursor: currentIndex === activePrograms.length - 1 ? 'default' : 'pointer',
@@ -203,8 +236,8 @@ const IncentivesPage: React.FC = () => {
                 const isActive = isCenter && activeIndex === i;
                 
                 // Calculate 3D transforms
-                const translateX = diff * 260; // Spread distance
-                const scale = isCenter ? 1 : Math.max(1 - (absDiff * 0.15), 0.5);
+                const translateX = diff * (isMobile ? 160 : 260); // Spread distance adjusted for mobile
+                const scale = isCenter ? (isMobile ? 0.95 : 1) : Math.max(1 - (absDiff * 0.15), 0.5);
                 const rotateY = diff === 0 ? 0 : (diff > 0 ? -35 : 35);
                 const zIndex = 100 - absDiff;
                 const opacity = isCenter ? 1 : Math.max(1 - (absDiff * 0.3), 0);
@@ -218,13 +251,16 @@ const IncentivesPage: React.FC = () => {
                          setActiveIndex(null);
                       } else if (!isActive) {
                          setActiveIndex(i);
+                      } else {
+                         setActiveIndex(null);
                       }
                     }}
                     style={{ 
                       position: 'absolute',
-                      width: '340px',
-                      height: '420px',
-                      cursor: isActive ? 'default' : 'pointer',
+                      width: isMobile ? '85vw' : '340px',
+                      maxWidth: '340px',
+                      height: isMobile ? '380px' : '420px',
+                      cursor: 'pointer',
                       background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 1) 100%)',
                       borderRadius: '24px',
                       overflow: 'hidden',
@@ -350,6 +386,7 @@ const IncentivesPage: React.FC = () => {
           )}
         </>
       )}
+      </div>
     </div>
   );
 };
