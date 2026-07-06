@@ -76,6 +76,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
       const actualPct = activeTab === 'STT' ? sttPct : activeTab === 'UBA' ? ubaPct : vd30Pct;
 
       s._hasApprovedTarget = isApproved;
+      s._metTarget = actualPct >= teamCommitment;
 
       if (activeTab === 'STT') {
         if (isApproved && actualPct < teamCommitment) {
@@ -238,7 +239,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
                   const displayValue = activeTab === 'VD30' ? `${salesman.vd30}/${salesman.vd30Target}` : `${displayPct}%`;
 
                   let borderColor = 'transparent';
-                  if (salesman._hasApprovedTarget) {
+                  if (salesman._hasApprovedTarget && salesman._metTarget) {
                     if (rank === 1) borderColor = '#FBBF24';
                     else if (rank === 2) borderColor = '#9CA3AF';
                     else if (rank === 3) borderColor = '#B45309';
@@ -258,7 +259,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
                       }}>
 
                       {/* Giant Medal Watermark */}
-                      {salesman._hasApprovedTarget && rank <= 3 && (
+                      {salesman._hasApprovedTarget && salesman._metTarget && rank <= 3 && (
                         <div style={{ position: 'absolute', right: '40px', top: '50%', transform: 'translateY(-50%)', opacity: 0.04, zIndex: 0 }}>
                           <Medal size={120} color={borderColor} fill={borderColor} />
                         </div>
@@ -279,7 +280,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
                         )}
                         {/* Avatar Rank Badge */}
                         <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: borderColor !== 'transparent' ? borderColor : 'var(--bg-dark)', borderRadius: '12px', padding: '2px 6px', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '10px', fontWeight: 'bold', color: borderColor !== 'transparent' ? 'var(--bg-dark)' : 'var(--text-muted)', border: '2px solid var(--bg-dark)', zIndex: 2 }}>
-                          {salesman._hasApprovedTarget && rank <= 3 && <Medal size={10} fill="currentColor" color="transparent" />}
+                          {salesman._hasApprovedTarget && salesman._metTarget && rank <= 3 && <Medal size={10} fill="currentColor" color="transparent" />}
                           <span>{rank}</span>
                         </div>
                       </div>
