@@ -312,8 +312,8 @@ const DataManagement: React.FC = () => {
               const prodCode = row['Product Code'];
               const category = row['Category'] || 'Uncategorized';
               
-              // Look specifically for Channel_Classification first to avoid hitting 'Channel' or 'GT Channel'
-              const channel = row['Channel_Classification'] || row['Channel Classification'] || row['Channel'] || 'Uncategorized';
+              // Look specifically for Channel_Classification only based on user request
+              const channel = row['Channel_Classification'] || 'Uncategorized';
               const brgy = row['Brgy'] || 'Unknown';
               const town = row['Town'] || 'Unknown';
               const week = row['Week'];
