@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useIncentiveDashboard } from '../../hooks/useIncentiveDashboard';
 import { useTeams } from '../../hooks/useTeams';
-import { ArrowLeft, Trophy, CheckCircle, Circle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Trophy, CheckCircle, Circle, AlertCircle, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import * as XLSXStyle from 'xlsx-js-style';
 
 const IncentiveDetails: React.FC = () => {
   const { programId } = useParams();
@@ -32,41 +33,191 @@ const IncentiveDetails: React.FC = () => {
 
   const filteredSalesmen = dashboardData?.salesmen?.filter((s: any) => selectedTeam === 'all' || s.team === selectedTeam) || [];
 
+  const canExport = role === 'admin' || role === 'manager' || role === 'supervisor';
+
+  const handleExport = () => {
+    if (!filteredSalesmen.length) return;
+
+    const groupKeys = Object.keys(program.trackingGroups || {});
+    
+    // --- Define Styles ---
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "000000" } },
+      fill: { fgColor: { rgb: "F3F4F6" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } }
+      }
+    };
+
+    const cellStyle = {
+      alignment: { horizontal: "left", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } }
+      }
+    };
+    
+    const numStyle = { ...cellStyle, alignment: { horizontal: "right", vertical: "center" } };
+    const pctStyle = { ...cellStyle, alignment: { horizontal: "right", vertical: "center" } };
+
+    // --- Build Structure ---
+    const headerRow1 = [
+      { v: 'Salesman Code', t: 's', s: headerStyle },
+      { v: 'Salesman Name', t: 's', s: headerStyle },
+      { v: 'Team', t: 's', s: headerStyle }
+    ];
+    const headerRow2 = [
+      { v: '', t: 's', s: headerStyle },
+      { v: '', t: 's', s: headerStyle },
+      { v: '', t: 's', s: headerStyle }
+    ];
+
+    const merges = [
+      { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },
+      { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } },
+      { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }
+    ];
+
+    let currentCol = 3;
+    groupKeys.forEach(groupId => {
+      const groupDef = program.trackingGroups[groupId];
+      
+      // Top row spans 4 cols
+      headerRow1.push({ v: groupDef.name, t: 's', s: headerStyle });
+      headerRow1.push({ v: '', t: 's', s: headerStyle });
+      headerRow1.push({ v: '', t: 's', s: headerStyle });
+      headerRow1.push({ v: '', t: 's', s: headerStyle });
+      
+      // Second row sub-headers
+      headerRow2.push({ v: 'Target', t: 's', s: headerStyle });
+      headerRow2.push({ v: 'Actual', t: 's', s: headerStyle });
+      headerRow2.push({ v: 'Balance', t: 's', s: headerStyle });
+      headerRow2.push({ v: 'Index (%)', t: 's', s: headerStyle });
+      
+      merges.push({ s: { r: 0, c: currentCol }, e: { r: 0, c: currentCol + 3 } });
+      currentCol += 4;
+    });
+
+    const aoa: any[][] = [headerRow1, headerRow2];
+    const groupTotals: Record<string, { target: number, actual: number, balance: number }> = {};
+    groupKeys.forEach(g => groupTotals[g] = { target: 0, actual: 0, balance: 0 });
+
+    filteredSalesmen.forEach((s: any) => {
+      const row: any[] = [
+        { v: s.id, t: 's', s: cellStyle },
+        { v: s.name, t: 's', s: cellStyle },
+        { v: s.team || '-', t: 's', s: cellStyle }
+      ];
+      
+      groupKeys.forEach(groupId => {
+        const groupDef = program.trackingGroups[groupId];
+        const res = s.trackingResults?.[groupId] || { targetValue: 0, actualSTT: 0, actualUBA: 0 };
+        const actual = groupDef.targetType === 'STT' ? res.actualSTT : res.actualUBA;
+        const target = res.targetValue || 0;
+        const balance = Math.max(0, target - actual);
+        const indexFraction = target > 0 ? (actual / target) : (actual > 0 ? 1 : 0);
+        
+        groupTotals[groupId].target += target;
+        groupTotals[groupId].actual += actual;
+        groupTotals[groupId].balance += balance;
+
+        row.push({ v: target, t: 'n', s: numStyle });
+        row.push({ v: actual, t: 'n', s: numStyle });
+        row.push({ v: balance, t: 'n', s: numStyle });
+        row.push({ v: indexFraction, t: 'n', s: pctStyle, z: '0.00%' });
+      });
+      aoa.push(row);
+    });
+
+    const totalNumStyle = { ...headerStyle, alignment: { horizontal: "right", vertical: "center" } };
+    const totalPctStyle = { ...headerStyle, alignment: { horizontal: "right", vertical: "center" } };
+
+    const totalRow: any[] = [
+      { v: 'TOTAL', t: 's', s: headerStyle },
+      { v: '', t: 's', s: headerStyle },
+      { v: '', t: 's', s: headerStyle }
+    ];
+    merges.push({ s: { r: aoa.length, c: 0 }, e: { r: aoa.length, c: 2 } });
+
+    groupKeys.forEach(groupId => {
+      const t = groupTotals[groupId];
+      const indexFraction = t.target > 0 ? (t.actual / t.target) : (t.actual > 0 ? 1 : 0);
+      totalRow.push({ v: t.target, t: 'n', s: totalNumStyle });
+      totalRow.push({ v: t.actual, t: 'n', s: totalNumStyle });
+      totalRow.push({ v: t.balance, t: 'n', s: totalNumStyle });
+      totalRow.push({ v: indexFraction, t: 'n', s: totalPctStyle, z: '0.00%' });
+    });
+    aoa.push(totalRow);
+
+    const ws = XLSXStyle.utils.aoa_to_sheet(aoa);
+    ws['!merges'] = merges;
+    
+    // Auto column widths
+    const colWidths = [{ wch: 15 }, { wch: 25 }, { wch: 12 }];
+    for (let i = 3; i < headerRow1.length; i++) colWidths.push({ wch: 12 });
+    ws['!cols'] = colWidths;
+
+    const wb = XLSXStyle.utils.book_new();
+    XLSXStyle.utils.book_append_sheet(wb, ws, "Incentive Report");
+    
+    const programNameSafe = (program.title || program.id || 'Program').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    XLSXStyle.writeFile(wb, `Incentive_${programNameSafe}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   return (
     <div style={{ paddingBottom: '40px' }} className="animate-fade-in">
-      <button 
-        onClick={() => navigate('/incentives')} 
-        style={{ 
-          marginBottom: '24px',
-          backgroundColor: 'transparent',
-          border: 'none',
-          outline: 'none',
-          color: 'var(--text-muted)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '8px 12px',
-          marginLeft: '-12px',
-          cursor: 'pointer',
-          fontSize: '15px',
-          fontWeight: 500,
-          transition: 'all 0.2s ease',
-          transform: 'translateX(0)'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.color = 'var(--text-main)';
-          e.currentTarget.style.transform = 'translateX(-4px)';
-          e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-          e.currentTarget.style.borderRadius = '8px';
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.color = 'var(--text-muted)';
-          e.currentTarget.style.transform = 'translateX(0)';
-          e.currentTarget.style.backgroundColor = 'transparent';
-        }}
-      >
-        <ArrowLeft size={18} /> Back to Incentives
-      </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <button 
+          onClick={() => navigate('/incentives')} 
+          style={{ 
+            backgroundColor: 'transparent',
+            border: 'none',
+            outline: 'none',
+            color: 'var(--text-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            marginLeft: '-12px',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: 500,
+            transition: 'all 0.2s ease',
+            transform: 'translateX(0)'
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = 'var(--text-main)';
+            e.currentTarget.style.transform = 'translateX(-4px)';
+            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+            e.currentTarget.style.borderRadius = '8px';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = 'var(--text-muted)';
+            e.currentTarget.style.transform = 'translateX(0)';
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
+        >
+          <ArrowLeft size={18} /> Back to Incentives
+        </button>
+
+        {canExport && (
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '6px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
+            <button 
+              onClick={handleExport} 
+              style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }} 
+              title="Export to Excel"
+            >
+              <Download size={14} /> Export Report
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="glass-panel" style={{ 
         position: 'relative', 
