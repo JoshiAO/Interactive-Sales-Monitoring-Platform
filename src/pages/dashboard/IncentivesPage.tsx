@@ -86,7 +86,14 @@ const IncentivesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [lastBannerUrl, setLastBannerUrl] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    if (activeIndex !== null && activePrograms[activeIndex]) {
+      setLastBannerUrl((activePrograms[activeIndex] as any).bannerUrl);
+    }
+  }, [activeIndex, activePrograms]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -126,7 +133,7 @@ const IncentivesPage: React.FC = () => {
           right: 0,
           width: '75%',
           height: '100%',
-          backgroundImage: activeIndex !== null && activePrograms[activeIndex] ? `url(${(activePrograms[activeIndex] as any).bannerUrl})` : 'none',
+          backgroundImage: lastBannerUrl ? `url(${lastBannerUrl})` : 'none',
           backgroundSize: 'cover',
           backgroundPosition: 'right center',
           backgroundRepeat: 'no-repeat',
@@ -137,7 +144,7 @@ const IncentivesPage: React.FC = () => {
           filter: 'contrast(1.2) brightness(0.8)', // Adjusting contrast and brightness to match the dark theme
           WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 40%)',
           maskImage: 'linear-gradient(to right, transparent 0%, black 40%)',
-          transition: 'opacity 0.8s ease, background-image 0.8s ease'
+          transition: 'opacity 0.8s ease'
         }} 
       />
 
