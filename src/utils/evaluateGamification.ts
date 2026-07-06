@@ -54,8 +54,8 @@ export const evaluateGamification = async (
         }
 
         const actualVal = metric === 'stt' ? (s.mtdSales / (s.target || 1)) * 100 :
-                          metric === 'uba' ? s.uba :
-                                             s.vd30;
+                          metric === 'uba' ? (s.uba / (s.ubaTarget || 1)) * 100 :
+                                             (s.vd30 / (s.vd30Target || 1)) * 100;
 
         return actualVal >= target;
       });
@@ -65,8 +65,8 @@ export const evaluateGamification = async (
       types.forEach(type => {
         const typeSalesmen = eligibleSalesmen.filter(s => s.type === type).map(s => {
           const actualVal = metric === 'stt' ? (s.mtdSales / (s.target || 1)) * 100 :
-                            metric === 'uba' ? s.uba :
-                                               s.vd30;
+                            metric === 'uba' ? (s.uba / (s.ubaTarget || 1)) * 100 :
+                                               (s.vd30 / (s.vd30Target || 1)) * 100;
                                                
           // Get target
           const supervisor = usersCache.find(u => u.role === 'supervisor' && u.team && u.team.includes(s.team));
