@@ -987,6 +987,7 @@ const DataManagement: React.FC = () => {
 
             // Calculate active customers per salesman and group them
             const cmlCounts: Record<string, number> = {};
+            const sssCounts: Record<string, { small: number, large: number }> = {};
             const salesmanGroups: Record<string, any[]> = {};
 
             json.forEach((row: any) => {
@@ -996,6 +997,26 @@ const DataManagement: React.FC = () => {
 
               if (salesmanCode && (status === 'active/approved' || status === 'active' || status === 'approved')) {
                 cmlCounts[salesmanCode] = (cmlCounts[salesmanCode] || 0) + 1;
+
+                if (!sssCounts[salesmanCode]) {
+                  sssCounts[salesmanCode] = { small: 0, large: 0 };
+                }
+
+                const classDesc = String(
+                  cleanRow['PARTY CLASSIFICATION DESCRIPTION'] || cleanRow['STORE CLASS'] || cleanRow['STORE CLASS NAME'] || cleanRow['CHANNEL CLASSIFICATION'] || cleanRow['Channel_Classification'] || cleanRow['RETAIL ENVIRONMENT'] || ''
+                ).toLowerCase();
+                const subClass = String(cleanRow['SUBCHANNEL'] || cleanRow['SUB CHANNEL'] || '').toLowerCase();
+                const channel = String(cleanRow['CHANNEL'] || '').toLowerCase();
+                
+                const combined = `${classDesc} ${subClass} ${channel}`;
+                
+                if (combined.includes('sari-sari') || combined.includes('sari') || combined.includes('sss')) {
+                  if (combined.includes('small') || combined.includes('smal')) {
+                    sssCounts[salesmanCode].small += 1;
+                  } else if (combined.includes('large')) {
+                    sssCounts[salesmanCode].large += 1;
+                  }
+                }
 
                 if (!salesmanGroups[salesmanCode]) salesmanGroups[salesmanCode] = [];
                 // Ensure initial metrics are present
@@ -1016,6 +1037,8 @@ const DataManagement: React.FC = () => {
                 const docRef = doc(collection(db, 'dashboard_metrics'), salesmanCode);
                 cmlBatch.set(docRef, {
                   cml_count: cmlCounts[salesmanCode],
+                  sss_small_count: sssCounts[salesmanCode]?.small || 0,
+                  sss_large_count: sssCounts[salesmanCode]?.large || 0,
                   team: teamRef[salesmanCode]?.team || '',
                   last_updated: new Date().toISOString()
                 }, { merge: true });
@@ -1036,11 +1059,15 @@ const DataManagement: React.FC = () => {
             Object.keys(cmlCounts).forEach(salesmanCode => {
               updatedAll[salesmanCode] = {
                 ...(existingAll[salesmanCode] || {}),
-                cml_count: cmlCounts[salesmanCode]
+                cml_count: cmlCounts[salesmanCode],
+                sss_small_count: sssCounts[salesmanCode]?.small || 0,
+                sss_large_count: sssCounts[salesmanCode]?.large || 0
               };
               updatedSummary[salesmanCode] = {
                 ...(existingSummary[salesmanCode] || {}),
-                cml_count: cmlCounts[salesmanCode]
+                cml_count: cmlCounts[salesmanCode],
+                sss_small_count: sssCounts[salesmanCode]?.small || 0,
+                sss_large_count: sssCounts[salesmanCode]?.large || 0
               };
             });
             await setDoc(doc(db, 'dashboard_metrics', 'all'), updatedAll, { merge: true });

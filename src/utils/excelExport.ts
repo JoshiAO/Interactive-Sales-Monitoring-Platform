@@ -180,13 +180,16 @@ export const exportVd30ToExcel = (salesmen: any[], refVd30Items: any[], _teams: 
     const merges: any[] = [];
     
     // Two rows of headers
-    const headerRow1: string[] = ['Salesman ID', 'Name', 'Type', 'VD30 Target', 'VD30 Actual', 'VD30 %'];
-    const headerRow2: string[] = ['', '', '', '', '', ''];
+    const headerRow1: string[] = ['Salesman ID', 'Name', 'Type', 'VD30 Target', 'VD30 Actual', 'VD30 %', 'CML', ''];
+    const headerRow2: string[] = ['', '', '', '', '', '', 'SSS-Small', 'SSS-Large'];
     
     // Setup merges for the first 6 columns (vertical merge)
     for (let c = 0; c < 6; c++) {
       merges.push({ s: { r: 0, c: c }, e: { r: 1, c: c } });
     }
+    
+    // Merge CML parent header (horizontal merge)
+    merges.push({ s: { r: 0, c: 6 }, e: { r: 0, c: 7 } });
 
     allVd30Items.forEach((itemCode, index) => {
       // Parent header (Row 1)
@@ -197,8 +200,8 @@ export const exportVd30ToExcel = (salesmen: any[], refVd30Items: any[], _teams: 
       headerRow2.push('Target');
       headerRow2.push('Actual');
       
-      // Horizontal merge for the parent cell in Row 1
-      const startCol = 6 + (index * 2);
+      // Horizontal merge for the parent cell in Row 1 (offset by 8 columns now)
+      const startCol = 8 + (index * 2);
       merges.push({ s: { r: 0, c: startCol }, e: { r: 0, c: startCol + 1 } });
     });
 
@@ -214,7 +217,9 @@ export const exportVd30ToExcel = (salesmen: any[], refVd30Items: any[], _teams: 
         s.type,
         s.vd30Target || 0,
         s.vd30 || 0,
-        vd30Pct
+        vd30Pct,
+        s.cmlSmall || 0,
+        s.cmlLarge || 0
       ];
 
       allVd30Items.forEach(itemCode => {
@@ -234,7 +239,7 @@ export const exportVd30ToExcel = (salesmen: any[], refVd30Items: any[], _teams: 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
     // Apply styles to headers (both rows)
-    const totalCols = 6 + (allVd30Items.length * 2);
+    const totalCols = 8 + (allVd30Items.length * 2);
     for (let R = 0; R < 2; R++) {
       for (let C = 0; C < totalCols; ++C) {
         const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
@@ -265,6 +270,8 @@ export const exportVd30ToExcel = (salesmen: any[], refVd30Items: any[], _teams: 
       { wch: 15 }, // VD30 Target
       { wch: 15 }, // VD30 Actual
       { wch: 10 }, // VD30 %
+      { wch: 12 }, // SSS-Small
+      { wch: 12 }, // SSS-Large
     ];
 
     allVd30Items.forEach(() => {

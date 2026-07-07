@@ -338,6 +338,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
             vd30TargetMap: {},
             vd30: 0,
             vd30Target: 0,
+            cmlSmall: m.sss_small_count || 0,
+            cmlLarge: m.sss_large_count || 0,
             photoURL: userAvatars[m.id] || '',
             type: userTypes[m.id] || 'Unknown',
             team: teamData.find((r:any) => r.salesman_code === m.id)?.team || ''
