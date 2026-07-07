@@ -250,12 +250,27 @@ export const exportVd30ToExcel = (salesmen: any[], refVd30Items: any[], _teams: 
 
     // Apply styles to data rows
     for (let R = 2; R < teamSalesmen.length + 2; ++R) {
+      const salesmanIndex = R - 2;
+      const s = teamSalesmen[salesmanIndex];
+      const totalSss = (s.cmlSmall || 0) + (s.cmlLarge || 0);
+
       for (let C = 0; C < totalCols; ++C) {
         const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
         if (!ws[cellAddress]) continue;
 
         if (C === 5) { // VD30 %
           ws[cellAddress].s = percentageStyle;
+        } else if (C >= 8 && C % 2 === 0) { // Target columns
+          const cellValue = ws[cellAddress].v;
+          if (typeof cellValue === 'number' && cellValue > 0 && cellValue <= totalSss) {
+            ws[cellAddress].s = {
+              ...cellStyle,
+              fill: { fgColor: { rgb: "C6EFCE" } }, // Light green background
+              font: { color: { rgb: "006100" } }    // Dark green text
+            };
+          } else {
+            ws[cellAddress].s = cellStyle;
+          }
         } else {
           ws[cellAddress].s = cellStyle;
         }
