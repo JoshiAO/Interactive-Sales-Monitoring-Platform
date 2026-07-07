@@ -100,10 +100,8 @@ const DualLeaderboard: React.FC<DualLeaderboardProps> = ({ data, activeTab, curr
 
         s._hasApprovedTarget = isApproved;
 
-        if (activeTab === 'STT') {
-          if (isApproved && actualVal < teamCommitment) {
-            return false;
-          }
+        if (isApproved && actualVal < teamCommitment) {
+          return false;
         }
 
         if (commitments && commitments[activeMetricKey]) {

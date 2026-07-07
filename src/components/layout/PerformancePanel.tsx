@@ -21,11 +21,25 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
 
   const { loading, data } = useDashboardData('all', false);
 
+  if (role === 'warehouse_supervisor') return null;
+
   if (loading) {
     return (
-      <aside className={`glass-panel performance-panel ${className}`} style={{ width: '100%', maxWidth: '380px', flexShrink: 0, borderLeft: '1px solid var(--border)', borderRadius: 0, padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', ...style }}>
-        <Loader2 size={24} className="animate-spin" color="var(--accent-primary)" />
-      </aside>
+      <div style={{ position: 'relative', display: 'flex', flexShrink: 0, height: '100%', flex: isMobileView ? 1 : undefined }} className={`performance-panel-wrapper ${className}`}>
+        <aside className="glass-panel" style={{ 
+          width: isMobileView ? '100%' : (isCollapsed ? '48px' : '380px'), 
+          flexShrink: 0, 
+          borderLeft: '1px solid var(--border)', 
+          borderRadius: 0, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          background: 'var(--bg-panel)',
+          ...style 
+        }}>
+          <Loader2 size={24} className="animate-spin" color="var(--accent-primary)" />
+        </aside>
+      </div>
     );
   }
 
@@ -78,12 +92,6 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
       s._hasApprovedTarget = isApproved;
       s._metTarget = actualPct >= teamCommitment;
 
-      if (activeTab === 'STT') {
-        if (isApproved && actualPct < teamCommitment) {
-          return false;
-        }
-      }
-
       if (commitments && commitments[activeTab.toLowerCase()]) {
         const trajectory = [];
         const maxWeeks = getActiveWeeksCount(data.weekMapping);
@@ -112,18 +120,17 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
   let displayExTruck: any[] = [];
   let displayBooking: any[] = [];
 
-  if (role === 'salesman') {
-    // Salesman sees peers of same service model type ranked
+  if (role === 'supervisor') {
+    // Supervisor sees all team members (both service models combined)
+    displayExTruck = eligibleSalesmen.slice(0, 10);
+  } else if (role === 'salesman') {
+    // Salesman sees peers of same service model type ranked across all teams
     const myType = data.salesmen.find((s: any) => s.id === salesmanId)?.type || 'Ex-Truck';
     const peers = eligibleSalesmen.filter(s => s.type === myType).slice(0, 10);
     if (myType === 'Ex-Truck') displayExTruck = peers;
     else displayBooking = peers;
-  } else if (role === 'supervisor') {
-    // Supervisor sees all team salesmen — no service model filtering
-    // Show all eligible in a single list (use Ex-Truck bucket for display)
-    displayExTruck = eligibleSalesmen.slice(0, 10);
   } else {
-    // Admin, Manager, Warehouse Supervisor: Top 10 per service model
+    // Admin, Manager: Top 10 per service model, view all teams
     displayExTruck = eligibleSalesmen.filter(s => s.type === 'Ex-Truck').slice(0, 10);
     displayBooking = eligibleSalesmen.filter(s => s.type === 'Booking').slice(0, 10);
   }
@@ -436,8 +443,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
           </div> {/* End of Inner Padding Wrapper */}
         </div> {/* End of Expanded Content */}
 
-        {/* Absolute Hovering Service Model Selector — shown only for admin, manager, warehouse_supervisor */}
-        {!isCollapsed && (role === 'admin' || role === 'manager' || role === 'warehouse_supervisor') && (
+        {!isCollapsed && (role === 'admin' || role === 'manager') && (
           <div style={{ position: 'absolute', bottom: '16px', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 30 }}>
             <div style={{ display: 'flex', gap: '8px', width: '90%', maxWidth: '300px', padding: '8px', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(12px)', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', pointerEvents: 'auto' }}>
               <button
