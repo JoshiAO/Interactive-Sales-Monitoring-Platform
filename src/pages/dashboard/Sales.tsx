@@ -7,6 +7,8 @@ import { PageSkeleton } from '../../components/ui/PageSkeleton';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { useTeams } from '../../hooks/useTeams';
+import { exportSalesToExcel } from '../../utils/excelExport';
+import { Download } from 'lucide-react';
 
 const Sales: React.FC = () => {
   const { role } = useAuth();
@@ -23,51 +25,74 @@ const Sales: React.FC = () => {
 
   return (
     <div className="animate-fade-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <h2>Sales Performance</h2>
-        {(role === 'manager' || role === 'admin') && availableTeams.length > 0 && (
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            {availableTeams.map(t => (
-              <button
-                key={t}
-                onClick={() => setSelectedTeam(t)}
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: '16px',
-                  border: '1px solid',
-                  borderColor: selectedTeam === t ? 'var(--accent-primary)' : 'var(--border)',
-                  backgroundColor: selectedTeam === t ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
-                  color: selectedTeam === t ? '#fff' : 'var(--text-muted)',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {t}
-              </button>
-            ))}
-            {selectedTeam !== 'all' && (
-              <button
-                onClick={() => setSelectedTeam('all')}
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: '16px',
-                  border: 'none',
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  color: 'var(--accent-danger)',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  marginLeft: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        )}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
+          {(role === 'manager' || role === 'admin' || role === 'supervisor') && (
+            <button
+              onClick={() => exportSalesToExcel(data.salesmen, availableTeams, `Sales_Performance_${new Date().toISOString().split('T')[0]}.xlsx`)}
+              style={{
+                padding: '6px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: '#10B981', // green for excel
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              title="Export Salesmen Data to Excel"
+            >
+              <Download size={16} /> Export to Excel
+            </button>
+          )}
+          {(role === 'manager' || role === 'admin') && availableTeams.length > 0 && (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end' }}>
+              {availableTeams.map(t => (
+                <button
+                  key={t}
+                  onClick={() => setSelectedTeam(t)}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '16px',
+                    border: '1px solid',
+                    borderColor: selectedTeam === t ? 'var(--accent-primary)' : 'var(--border)',
+                    backgroundColor: selectedTeam === t ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
+                    color: selectedTeam === t ? '#fff' : 'var(--text-muted)',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+              {selectedTeam !== 'all' && (
+                <button
+                  onClick={() => setSelectedTeam('all')}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '16px',
+                    border: 'none',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    color: 'var(--accent-danger)',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    marginLeft: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Primary KPI row */}
