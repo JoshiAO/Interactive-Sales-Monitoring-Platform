@@ -262,12 +262,26 @@ export const exportVd30ToExcel = (salesmen: any[], refVd30Items: any[], _teams: 
           ws[cellAddress].s = percentageStyle;
         } else if (C >= 8 && C % 2 === 0) { // Target columns
           const cellValue = ws[cellAddress].v;
-          if (typeof cellValue === 'number' && cellValue > 0 && cellValue <= totalSss) {
-            ws[cellAddress].s = {
-              ...cellStyle,
-              fill: { fgColor: { rgb: "C6EFCE" } }, // Light green background
-              font: { color: { rgb: "006100" } }    // Dark green text
-            };
+          
+          if (typeof cellValue === 'number' && cellValue > 0) {
+            const itemCode = allVd30Items[(C - 8) / 2];
+            const match = itemCode.match(/F(\d+)/i);
+            const bucketNumber = match ? parseInt(match[1], 10) : 0;
+            
+            let compareCount = totalSss;
+            if (bucketNumber >= 20 && bucketNumber <= 30) {
+              compareCount = s.cmlLarge || 0;
+            }
+
+            if (cellValue <= compareCount) {
+              ws[cellAddress].s = {
+                ...cellStyle,
+                fill: { fgColor: { rgb: "C6EFCE" } }, // Light green background
+                font: { color: { rgb: "006100" } }    // Dark green text
+              };
+            } else {
+              ws[cellAddress].s = cellStyle;
+            }
           } else {
             ws[cellAddress].s = cellStyle;
           }
