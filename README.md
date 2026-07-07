@@ -45,7 +45,8 @@ This platform was built to solve a critical business problem: the painful, 30-da
 
 *   **Eliminated Spreadsheet Bottlenecks**: Replaces dozens of manual, error-prone Excel reports sent over email with a single unified, real-time platform.
 *   **Accelerated Coaching Loops**: Supervisors can now identify underperforming regions and product lines instantly, drastically reducing the feedback loop from 30 days to 1 day.
-*   **Automated Gamification**: Drives sales performance organically by automatically calculating STT (Net Value), UBA (Unique Buying Accounts), and VD30 metrics to rank salesmen and award weekly medals 🥇🥈🥉.
+*   **Automated Gamification Engine**: Drives sales performance organically by calculating real-time STT (Net Value), UBA (Unique Buying Accounts), and VD30 metrics. It dynamically ranks salesmen and awards weekly performance medals 🥇🥈🥉.
+*   **Comprehensive CML Segmentation**: Automatically parses thousands of Customer Master List (CML) rows to categorize stores (e.g., Sari-sari Small vs. Large) and applies dynamic, segmented targets (Ex-Truck vs. Booking).
 *   **Zero-Config Installation**: Fully installable as a PWA on iOS, Android, and Desktop (Chrome/Edge), providing a native app-like experience without app store approvals.
 
 ## Technical Marvels & Architecture
@@ -53,9 +54,10 @@ This platform was built to solve a critical business problem: the painful, 30-da
 I architected this platform to handle massive enterprise data dumps without breaking a sweat or inflating cloud billing costs.
 
 ### 1. Hyper-Optimized Data Pipeline
-*   **Intelligent Firestore Chunking:** Employs smart batching algorithms (450 operations per chunk) to effortlessly ingest tens of thousands of `Customer Master List` and `Net Invoiced` rows from `.xlsx` files directly in the browser.
+*   **Intelligent Firestore Chunking:** Employs smart batching algorithms (450 operations per chunk) to effortlessly ingest tens of thousands of `Customer Master List`, `Net Invoiced`, and `NPD/Promo` rows from `.xlsx` files directly in the browser.
+*   **Zero-Read Aggregation & Exporting:** Calculates complex metric intersections (like identifying target gaps against active store bases) *during* upload. This allows instant, conditionally formatted `.xlsx` reports to be generated and downloaded completely client-side without a single database read.
 *   **99% Read Reduction via IndexedDB:** Built an aggressive client-side caching layer using `idb-keyval`. The client verifies a single 1-byte global timestamp before fetching payload data, saving immense bandwidth and database reads.
-*   **Scalable Subcollection Architecture:** Designed a historic snapshot system that compartmentalizes monthly data into nested subcollections (`snapshots/YYYY-MM/customers/{salesId}`), completely bypassing Firestore's rigid 1 MiB document size limit.
+*   **Point-in-Time Data Freezing:** Designed a historic snapshot system that compartmentalizes monthly data and reference tables into nested subcollections (`snapshots/YYYY-MM/customers/{salesId}`). This allows completely accurate historic lookbacks while bypassing Firestore's rigid 1 MiB document size limit.
 
 ### 2. Zero-Trust Security & RBAC
 *   **Strict Database Rules:** All Firestore collections are explicitly mapped and locked down. The `users` and `snapshots` databases are fully protected against unauthorized wildcard reads.
@@ -74,7 +76,7 @@ I architected this platform to handle massive enterprise data dumps without brea
 - **Custom CSS Architecture**: CSS Variables, Flex/Grid Layouts, Keyframe Animations.
 - **Recharts**: Dynamic Line Graphs, Stacked Bars, Inner-Donut Pies.
 - **Vite PWA Plugin**: Enterprise-grade progressive web app engine.
-- **SheetJS (xlsx)**: Extreme-scale client-side Excel ingestion.
+- **SheetJS & XLSX-JS-Style**: Extreme-scale client-side Excel ingestion and conditionally formatted report generation.
 
 ### Backend & Data Processing
 - **Firebase**: BaaS providing Authentication, Firestore, and Storage.
