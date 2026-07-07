@@ -43,6 +43,33 @@ const PerformancePage: React.FC = () => {
           {role === 'admin' && (
             <button
               onClick={async () => {
+                // Safeguard 1: Check if sales targets (STT/UBA/VD30) are missing for the majority of salesmen
+                // Since missing targets default to 1, we count how many are <= 1
+                const missingTargetsCount = data.salesmen.filter((s: any) => 
+                  !s.target || s.target <= 1 || !s.ubaTarget || s.ubaTarget <= 1
+                ).length;
+
+                if (data.salesmen.length > 0 && missingTargetsCount > data.salesmen.length * 0.5) {
+                   alert("🚨 SAFEGUARD BLOCKED EVALUATION 🚨\n\nIt looks like the Sales Targets (STT & UBA) have not been uploaded for this month.\nGamification cannot be evaluated with missing targets as it will result in incorrect rankings.\n\nPlease upload the Target files in the Data Management page first.");
+                   return;
+                }
+
+                // Safeguard 2: Check if there are any approved supervisor commitments for the selected week
+                const commitments = data.weeklyCommitments || {};
+                let approvedCount = 0;
+                Object.values(commitments).forEach((supComm: any) => {
+                   ['stt', 'uba', 'vd30'].forEach(metric => {
+                      if (supComm[metric] && supComm[metric][selectedWeek.toString()] && supComm[metric][selectedWeek.toString()].status === 'approved') {
+                         approvedCount++;
+                      }
+                   });
+                });
+
+                if (approvedCount === 0) {
+                   alert(`🚨 SAFEGUARD BLOCKED EVALUATION 🚨\n\nNo Supervisor commitments have been approved for Week ${selectedWeek}!\nSalesmen cannot be evaluated without approved pacing targets.\n\nPlease ensure Supervisors submit their targets and Managers approve them before evaluating.`);
+                   return;
+                }
+
                 if (window.confirm(`Are you sure you want to calculate the final Gamification rankings for Week ${selectedWeek}? Ensure you have uploaded the complete sales data for this week before proceeding.`)) {
                   try {
                     await forceEvaluateGamification(selectedWeek);

@@ -99,7 +99,7 @@ const DataManagement: React.FC = () => {
     try {
       const [
         metricsSnap, sttSnap, vd30TargetSnap, teamSnap, refVd30Snap, custSnap,
-        achievementsSnap, commitmentsSnap, historicalMedalsSnap
+        achievementsSnap, commitmentsSnap, historicalMedalsSnap, npdSnap
       ] = await Promise.all([
         getDoc(doc(db, 'dashboard_metrics', 'all')),
         getDoc(doc(db, 'salesman_targets', 'all')),
@@ -109,7 +109,8 @@ const DataManagement: React.FC = () => {
         getDocs(collection(db, 'customer_data')),
         getDoc(doc(db, 'achievements', snapshotMonth)),
         getDoc(doc(db, 'weekly_commitments', snapshotMonth)),
-        getDoc(doc(db, 'historical_medals', snapshotMonth))
+        getDoc(doc(db, 'historical_medals', snapshotMonth)),
+        getDocs(collection(db, 'npd_promopack_metrics'))
       ]);
 
       setProgress({ step: 'Compressing snapshot...', current: 50, total: 100 });
@@ -149,6 +150,19 @@ const DataManagement: React.FC = () => {
           cBatch.set(doc(db, 'snapshots', snapshotMonth, 'customers', safeId), { customers: customersDocData[salesmanId] });
         });
         await cBatch.commit();
+      }
+
+      // Chunk write npd subcollection
+      const npdDocs: any[] = [];
+      npdSnap.forEach(d => {
+        npdDocs.push({ id: d.id, data: d.data() });
+      });
+      for (let i = 0; i < npdDocs.length; i += 450) {
+        const nBatch = writeBatch(db);
+        npdDocs.slice(i, i + 450).forEach(dItem => {
+          nBatch.set(doc(db, 'snapshots', snapshotMonth, 'npd_promopack_metrics', dItem.id), dItem.data);
+        });
+        await nBatch.commit();
       }
 
       setShowSnapshotModal(false);
@@ -518,7 +532,8 @@ const DataManagement: React.FC = () => {
                   'CITY': m.city,
                   'SALES REP ID': m.salesmanCode,
                   'STATUS': 'Active',
-                  'NEW CUSTOMER': 'YES',
+                  'NEW CUSTOMER': 'NO',
+                  'NOT IN CML': 'YES',
                   volume: m.volume,
                   netValue: m.netValue,
                   gsr: m.gsr,
@@ -1408,26 +1423,26 @@ const DataManagement: React.FC = () => {
 
   const handleClearTransactionalData = async () => {
     if (!window.confirm("WARNING: Are you absolutely sure you want to clear ALL Transactional data? This cannot be undone!")) return;
+    
+    const clearGamification = window.confirm("Do you also want to clear all Gamification Medals and Points (Achievements and Historical Medals)? Click OK to clear them, or Cancel to keep them.");
+
     setClearingType('transactional');
     setError('');
     setSuccess(false);
-    if (!window.confirm("Double checking: This will permanently delete Gamification, Sales, Customers, and B.O. data. Proceed?")) return;
 
     try {
+      // Clear collections entirely
       const collectionsToClear = [
         'dashboard_metrics',
+        'dashboard_metrics_summary',
         'customer_data',
-        'warehouse_bo_data',
-        'van_bo_data',
-        'ageing_data',
-        'achievements',
-        'historical_medals',
         'weekly_commitments',
-        'trade_bo_history',
-        'van_bo_history',
-        'warehouse_bo_history',
         'npd_promopack_metrics'
       ];
+
+      if (clearGamification) {
+        collectionsToClear.push('achievements', 'historical_medals');
+      }
 
       for (const collName of collectionsToClear) {
         const snap = await getDocs(collection(db, collName));
@@ -1441,10 +1456,7 @@ const DataManagement: React.FC = () => {
       }
 
       await setDoc(doc(db, 'settings', 'global'), {
-        lastDataUpload: Date.now(),
-        lastAgeingUpload: Date.now(),
-        lastWarehouseBoUpload: Date.now(),
-        lastVanBoUpload: Date.now()
+        lastDataUpload: Date.now()
       }, { merge: true });
 
       alert("All transactional data successfully cleared.");
@@ -1711,7 +1723,7 @@ const DataManagement: React.FC = () => {
           <div className="glass-panel" style={{ padding: '24px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
             <h3 style={{ color: 'var(--accent-danger)', fontSize: '16px', marginBottom: '8px' }}>Danger Zone</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              Clearing transactional data will delete all Net Invoiced metrics, customer progress, gamification medals, warehouse and van B.O., and ageing data. This is useful for starting a fresh month. Reference data and Targets will NOT be deleted.
+              Clearing transactional data will delete all Net Invoiced metrics, customer progress, and optionally gamification medals. This is useful for starting a fresh month. Reference data, Targets, and Inventory Data will NOT be deleted.
             </p>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <button

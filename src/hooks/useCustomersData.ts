@@ -108,6 +108,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
                   bsr: c.bsr || 0,
                   isBuying: c.isBuying || false,
                   newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
+                  notInCml: String(c['NOT IN CML'] || '').trim().toUpperCase() === 'YES',
                   coverageDay: String(c['COVERAGE DAY'] || '').trim().toUpperCase(),
                   wklyCoverage: String(c['WKLY COVERAGE'] || '').trim().toUpperCase()
                 });
@@ -151,6 +152,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
                   bsr: c.bsr || 0,
                   isBuying: c.isBuying || false,
                   newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
+                  notInCml: String(c['NOT IN CML'] || '').trim().toUpperCase() === 'YES',
                   coverageDay: String(c['COVERAGE DAY'] || '').trim().toUpperCase(),
                   wklyCoverage: String(c['WKLY COVERAGE'] || '').trim().toUpperCase()
                 });

@@ -31,12 +31,12 @@ service cloud.firestore {
 
     // Role-Based Row-Level Security (RLS)
     match /users/{userId} { 
-      allow read: if isManagerOrAdmin() || request.auth.uid == userId || isSupervisorOf(resource.data.team);
+      allow read: if isManagerOrAdmin() || request.auth.uid == userId || isSupervisor();
       allow write: if isAdmin(); 
     }
     
     match /dashboard_metrics/{docId} { 
-      allow read: if isManagerOrAdmin() || isOwner(docId) || isSupervisorOf(resource.data.team); 
+      allow read: if isManagerOrAdmin() || isOwner(docId) || isSupervisor(); 
       allow write: if isAdmin(); 
     }
     
@@ -46,7 +46,7 @@ service cloud.firestore {
     }
     
     match /customer_data/{docId} { 
-      allow read: if isManagerOrAdmin() || isOwner(docId) || isSupervisorOf(resource.data.team); 
+      allow read: if isManagerOrAdmin() || isOwner(docId) || isSupervisor(); 
       allow write: if isAdmin(); 
     }
 

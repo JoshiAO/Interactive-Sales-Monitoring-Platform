@@ -21,6 +21,7 @@ const Customers: React.FC = () => {
   const [isSalesmanModalOpen, setIsSalesmanModalOpen] = useState(false);
   const [salesmanSearch, setSalesmanSearch] = useState('');
   const [newCustomerOnly, setNewCustomerOnly] = useState(false);
+  const [notInCmlOnly, setNotInCmlOnly] = useState(false);
   const [coverageDay, setCoverageDay] = useState('all');
   const [wklyCoverage, setWklyCoverage] = useState('all');
   const availableTeams = useTeams();
@@ -56,16 +57,18 @@ const Customers: React.FC = () => {
       const matchesBarangay = selectedBarangay === 'all' || c.barangay === selectedBarangay;
       const matchesSalesman = selectedSalesmen.length === 0 || selectedSalesmen.includes(c.salesmanId);
       const matchesNewCustomer = newCustomerOnly ? c.newCustomer : true;
+      const matchesNotInCml = notInCmlOnly ? c.notInCml : true;
       const matchesCoverageDay = coverageDay === 'all' || c.coverageDay === coverageDay;
       const matchesWklyCoverage = wklyCoverage === 'all' || c.wklyCoverage === wklyCoverage;
       
-      return matchesSearch && matchesTag && matchesProvince && matchesCity && matchesBarangay && matchesSalesman && matchesNewCustomer && matchesCoverageDay && matchesWklyCoverage;
+      return matchesSearch && matchesTag && matchesProvince && matchesCity && matchesBarangay && matchesSalesman && matchesNewCustomer && matchesNotInCml && matchesCoverageDay && matchesWklyCoverage;
     });
-  }, [customers, search, filterTag, selectedProvince, selectedCity, selectedBarangay, selectedSalesmen, newCustomerOnly, coverageDay, wklyCoverage]);
+  }, [customers, search, filterTag, selectedProvince, selectedCity, selectedBarangay, selectedSalesmen, newCustomerOnly, notInCmlOnly, coverageDay, wklyCoverage]);
 
   const totalBuying = useMemo(() => filteredCustomers.filter(c => c.isBuying).length, [filteredCustomers]);
   const totalNonBuying = useMemo(() => filteredCustomers.filter(c => !c.isBuying).length, [filteredCustomers]);
   const totalNewCustomer = useMemo(() => filteredCustomers.filter(c => c.newCustomer).length, [filteredCustomers]);
+  const totalNotInCml = useMemo(() => filteredCustomers.filter(c => c.notInCml).length, [filteredCustomers]);
 
   const displayedCustomers = useMemo(() => filteredCustomers.slice(0, displayCount), [filteredCustomers, displayCount]);
 
@@ -84,6 +87,8 @@ const Customers: React.FC = () => {
             <span style={{ color: 'var(--accent-danger)' }}>{totalNonBuying.toLocaleString()} Non-Buying</span>
             <span style={{ color: 'var(--text-muted)' }}>|</span>
             <span style={{ color: 'var(--accent-success)' }}>{totalNewCustomer.toLocaleString()} New Customer</span>
+            <span style={{ color: 'var(--text-muted)' }}>|</span>
+            <span style={{ color: '#f59e0b' }}>{totalNotInCml.toLocaleString()} Not in CML</span>
           </div>
         </div>
         
@@ -95,6 +100,15 @@ const Customers: React.FC = () => {
               style={{ width: '36px', height: '20px', borderRadius: '10px', background: newCustomerOnly ? 'var(--accent-success)' : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', transition: 'background 0.2s' }}
             >
               <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: newCustomerOnly ? '18px' : '2px', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Not in CML</span>
+            <div 
+              onClick={() => { setNotInCmlOnly(!notInCmlOnly); setDisplayCount(20); }}
+              style={{ width: '36px', height: '20px', borderRadius: '10px', background: notInCmlOnly ? '#f59e0b' : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', transition: 'background 0.2s' }}
+            >
+              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: notInCmlOnly ? '18px' : '2px', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
             </div>
           </div>
           {role !== 'salesman' && (
@@ -311,19 +325,34 @@ const Customers: React.FC = () => {
                   </div>
                 )}
               </div>
-              {customer.newCustomer && (
-                <div style={{ 
-                  backgroundColor: 'var(--accent-success)', 
-                  color: 'white', 
-                  fontSize: '10px', 
-                  fontWeight: 'bold', 
-                  padding: '4px 12px', 
-                  borderRadius: '12px',
-                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
-                }}>
-                  NEW
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {customer.notInCml && (
+                  <div style={{ 
+                    backgroundColor: '#f59e0b', 
+                    color: 'white', 
+                    fontSize: '10px', 
+                    fontWeight: 'bold', 
+                    padding: '4px 12px', 
+                    borderRadius: '12px',
+                    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)'
+                  }}>
+                    NOT IN CML
+                  </div>
+                )}
+                {customer.newCustomer && (
+                  <div style={{ 
+                    backgroundColor: 'var(--accent-success)', 
+                    color: 'white', 
+                    fontSize: '10px', 
+                    fontWeight: 'bold', 
+                    padding: '4px 12px', 
+                    borderRadius: '12px',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                  }}>
+                    NEW
+                  </div>
+                )}
+              </div>
             </div>
 
             <div style={{ 

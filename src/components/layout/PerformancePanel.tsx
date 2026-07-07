@@ -17,7 +17,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
   const [newExclusion, setNewExclusion] = useState('');
   const [newVd30Exclusion, setNewVd30Exclusion] = useState('');
   const [selectedSalesman, setSelectedSalesman] = useState<any>(null);
-  const [isCollapsed, setIsCollapsed] = useState(!isMobileView);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const { loading, data } = useDashboardData('all', false);
 

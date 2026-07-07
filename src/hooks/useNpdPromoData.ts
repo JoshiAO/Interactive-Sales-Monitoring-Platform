@@ -16,7 +16,7 @@ export interface NpdPromoItem {
 }
 
 export const useNpdPromoData = (selectedTeam: string = 'all') => {
-  const { currentUser, role, salesmanId, team } = useAuth();
+  const { currentUser, role, salesmanId, team, selectedMonth } = useAuth();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<NpdPromoItem[]>([]);
 
@@ -30,7 +30,7 @@ export const useNpdPromoData = (selectedTeam: string = 'all') => {
         const globalData = globalDoc.exists() ? globalDoc.data() : null;
         const lastDataUpload = globalData?.lastDataUpload || 0;
 
-        const cacheKey = `npd_promo_cache_v1_${currentUser.uid}_${selectedTeam}`;
+        const cacheKey = `npd_promo_cache_v3_${currentUser.uid}_${selectedTeam}_${selectedMonth || 'current'}`;
         const cachedData = await get(cacheKey);
         const cachedUpload = await get('npd_promo_lastUpload');
         if (cachedData && cachedUpload === lastDataUpload) {
@@ -60,7 +60,10 @@ export const useNpdPromoData = (selectedTeam: string = 'all') => {
           });
         }
 
-        const metricsSnap = await getDocs(collection(db, 'npd_promopack_metrics'));
+        const collectionRef = selectedMonth && selectedMonth !== 'current'
+          ? collection(db, 'snapshots', selectedMonth, 'npd_promopack_metrics')
+          : collection(db, 'npd_promopack_metrics');
+        const metricsSnap = await getDocs(collectionRef);
         const result: NpdPromoItem[] = [];
 
         metricsSnap.forEach(d => {
@@ -75,7 +78,6 @@ export const useNpdPromoData = (selectedTeam: string = 'all') => {
             }
           }
 
-          if (filteredSalesmen.length === 0 && role !== 'admin' && role !== 'manager') return;
 
           // Recompute totals for filtered salesmen
           const stt = filteredSalesmen.reduce((sum, s) => sum + (s.stt || 0), 0);
@@ -106,7 +108,7 @@ export const useNpdPromoData = (selectedTeam: string = 'all') => {
       }
     };
     fetchData();
-  }, [currentUser, role, selectedTeam]);
+  }, [currentUser, role, selectedTeam, selectedMonth]);
 
   return { loading, items };
 };
