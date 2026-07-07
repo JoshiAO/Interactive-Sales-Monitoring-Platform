@@ -1,11 +1,7 @@
 import * as XLSX from 'xlsx-js-style';
 
-export const exportSalesToExcel = (salesmen: any[], teams: string[], fileName: string = 'Sales_Performance.xlsx') => {
+export const exportSalesToExcel = (salesmen: any[], _teams: string[], fileName: string = 'Sales_Performance.xlsx') => {
   const wb = XLSX.utils.book_new();
-
-  // If the user is a manager or admin, we might have multiple teams.
-  // If no specific teams are provided (e.g. they are a supervisor), we group whatever salesmen are available.
-  const teamsToExport = teams.length > 0 ? teams : ['Team'];
 
   const headerStyle = {
     font: { bold: true, color: { rgb: "FFFFFF" } },
@@ -132,7 +128,7 @@ export const exportSalesToExcel = (salesmen: any[], teams: string[], fileName: s
 };
 
 
-export const exportVd30ToExcel = (salesmen: any[], refVd30Items: any[], teams: string[], fileName: string = 'VD30_Performance.xlsx') => {
+export const exportVd30ToExcel = (salesmen: any[], refVd30Items: any[], _teams: string[], fileName: string = 'VD30_Performance.xlsx') => {
   const wb = XLSX.utils.book_new();
 
   const headerStyle = {
