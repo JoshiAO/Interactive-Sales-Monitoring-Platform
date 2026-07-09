@@ -183,7 +183,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
     };
     
     fetchData();
-  }, [currentUser, role, selectedTeam, selectedMonth]);
+  }, [currentUser, role, selectedTeam, selectedMonth, salesmanId, team]);
 
   return { loading, customers };
 };

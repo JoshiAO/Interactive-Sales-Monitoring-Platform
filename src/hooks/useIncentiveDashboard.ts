@@ -220,7 +220,7 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
     };
 
     fetchData();
-  }, [programId, currentUser, role, usersLoading]);
+  }, [programId, currentUser, role, usersLoading, salesmanId, team]);
 
   return { loading, program, dashboardData };
 };

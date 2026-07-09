@@ -520,7 +520,7 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
     };
 
     fetchData();
-  }, [currentUser, role, selectedTeam, forceAllSalesmen, usersLoading, selectedMonth]);
+  }, [currentUser, role, selectedTeam, forceAllSalesmen, usersLoading, selectedMonth, salesmanId, team]);
 
   const forceEvaluateGamification = async (week: number) => {
     if (!data.salesmen || data.salesmen.length === 0) return;

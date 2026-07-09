@@ -149,7 +149,7 @@ export const useTradeBoData = (selectedTeam: string = 'all') => {
       }
     };
     fetchData();
-  }, [currentUser, role, selectedTeam, usersLoading, selectedMonth]);
+  }, [currentUser, role, selectedTeam, usersLoading, selectedMonth, salesmanId, team]);
 
   return { loading, salesmen, history, totalBsr };
 };

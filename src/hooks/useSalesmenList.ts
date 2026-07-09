@@ -80,7 +80,7 @@ export const useSalesmenList = (selectedTeam: string = 'all') => {
     };
     
     fetchData();
-  }, [currentUser, role, selectedTeam, usersLoading]);
+  }, [currentUser, role, selectedTeam, usersLoading, salesmanId, team]);
 
   return { loading, salesmen };
 };
