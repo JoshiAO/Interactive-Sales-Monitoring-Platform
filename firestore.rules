@@ -43,7 +43,7 @@ service cloud.firestore {
 
     // Role-Based Row-Level Security (RLS)
     match /users/{userId} { 
-      allow read: if isManagerOrAdmin() || request.auth.uid == userId || isSupervisor();
+      allow read: if isAuthenticated();
       allow write: if isAdmin(); 
     }
     
