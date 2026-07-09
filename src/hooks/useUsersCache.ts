@@ -63,8 +63,12 @@ export const useUsersCache = () => {
         if (mounted) {
           setUsersCache(fetchedUsers);
         }
-      } catch (err) {
-        console.error("Error fetching users cache:", err);
+      } catch (err: any) {
+        if (err.code === 'permission-denied' || (err.message && err.message.includes('Missing or insufficient permissions'))) {
+          // Expected for Salesmen, silently ignore
+        } else {
+          console.error("Error fetching users cache:", err);
+        }
       } finally {
         if (mounted) {
           setLoading(false);

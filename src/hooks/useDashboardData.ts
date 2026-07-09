@@ -341,7 +341,10 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
             cmlSmall: m.sss_small_count || 0,
             cmlLarge: m.sss_large_count || 0,
             photoURL: userAvatars[m.id] || '',
-            type: userTypes[m.id] || 'Unknown',
+            type: userTypes[m.id] || (() => {
+              const td = teamData.find((r:any) => r.salesman_code === m.id);
+              return td ? (td.service_model || td.service_type || td['Service Model'] || td.type || td.Type || 'Unknown') : 'Unknown';
+            })(),
             team: teamData.find((r:any) => r.salesman_code === m.id)?.team || ''
           };
         });

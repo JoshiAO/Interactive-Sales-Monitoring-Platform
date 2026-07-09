@@ -5,28 +5,40 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    function getDbUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.role == 'admin';
+      return isAuthenticated() && (request.auth.token.role == 'admin' || getDbUser().role == 'admin');
     }
 
     function isWarehouseSupervisor() {
-      return isAuthenticated() && request.auth.token.role == 'warehouse_supervisor';
+      return isAuthenticated() && (request.auth.token.role == 'warehouse_supervisor' || getDbUser().role == 'warehouse_supervisor');
     }
 
     function isManagerOrAdmin() {
-      return isAuthenticated() && (request.auth.token.role == 'admin' || request.auth.token.role == 'manager');
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' || 
+        request.auth.token.role == 'manager' || 
+        getDbUser().role == 'admin' || 
+        getDbUser().role == 'manager'
+      );
     }
 
     function isSupervisor() {
-      return isAuthenticated() && request.auth.token.role == 'supervisor';
+      return isAuthenticated() && (request.auth.token.role == 'supervisor' || getDbUser().role == 'supervisor');
     }
 
     function isOwner(salesmanId) {
-      return isAuthenticated() && request.auth.token.salesmanId == salesmanId;
+      return isAuthenticated() && (request.auth.token.salesmanId == salesmanId || getDbUser().salesmanId == salesmanId);
     }
 
     function isSupervisorOf(teamName) {
-      return isSupervisor() && request.auth.token.team != null && teamName != null && request.auth.token.team.matches('.*' + teamName + '.*');
+      return isSupervisor() && teamName != null && (
+        (request.auth.token.team != null && request.auth.token.team.matches('.*' + teamName + '.*')) ||
+        (getDbUser().team != null && getDbUser().team.matches('.*' + teamName + '.*'))
+      );
     }
 
     // Role-Based Row-Level Security (RLS)
