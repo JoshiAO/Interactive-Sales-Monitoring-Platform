@@ -648,6 +648,7 @@ const DataManagement: React.FC = () => {
                 frequency: { f1, f2, f3, f4 },
                 incentives: finalIncentives,
                 ...(existingCml !== undefined ? { cml_count: existingCml } : {}),
+                ...(existingMetricsAll[salesmanCode]?.cml_towns ? { cml_towns: existingMetricsAll[salesmanCode]?.cml_towns } : {}),
                 team: teamRef[salesmanCode]?.team || '',
                 last_updated: new Date().toISOString()
               };
@@ -674,6 +675,7 @@ const DataManagement: React.FC = () => {
                   mtd_volume: m.mtd_volume,
                   uba: m.uba,
                   cml_count: m.cml_count || 0,
+                  cml_towns: m.cml_towns || existingMetricsAll[code]?.cml_towns || {},
                   frequency: m.frequency || { f1: 0, f2: 0, f3: 0, f4: 0 },
                   vd30_placements: m.vd30_placements, // Safe lightweight map: { "F01": 15 }
                   incentives: m.incentives, // Required for IncentiveDetails leaderboard and progress calculation
@@ -988,6 +990,7 @@ const DataManagement: React.FC = () => {
             // Calculate active customers per salesman and group them
             const cmlCounts: Record<string, number> = {};
             const sssCounts: Record<string, { small: number, large: number }> = {};
+            const cmlTowns: Record<string, Record<string, number>> = {};
             const salesmanGroups: Record<string, any[]> = {};
 
             json.forEach((row: any) => {
@@ -1017,6 +1020,10 @@ const DataManagement: React.FC = () => {
                     sssCounts[salesmanCode].large += 1;
                   }
                 }
+                
+                const city = String(cleanRow['CITY'] || cleanRow['TOWN'] || cleanRow['CITY/MUNICIPALITY'] || cleanRow['City'] || cleanRow['Town'] || 'Unknown').trim();
+                if (!cmlTowns[salesmanCode]) cmlTowns[salesmanCode] = {};
+                cmlTowns[salesmanCode][city] = (cmlTowns[salesmanCode][city] || 0) + 1;
 
                 if (!salesmanGroups[salesmanCode]) salesmanGroups[salesmanCode] = [];
                 // Ensure initial metrics are present
@@ -1039,6 +1046,7 @@ const DataManagement: React.FC = () => {
                   cml_count: cmlCounts[salesmanCode],
                   sss_small_count: sssCounts[salesmanCode]?.small || 0,
                   sss_large_count: sssCounts[salesmanCode]?.large || 0,
+                  cml_towns: cmlTowns[salesmanCode] || {},
                   team: teamRef[salesmanCode]?.team || '',
                   last_updated: new Date().toISOString()
                 }, { merge: true });
@@ -1061,13 +1069,15 @@ const DataManagement: React.FC = () => {
                 ...(existingAll[salesmanCode] || {}),
                 cml_count: cmlCounts[salesmanCode],
                 sss_small_count: sssCounts[salesmanCode]?.small || 0,
-                sss_large_count: sssCounts[salesmanCode]?.large || 0
+                sss_large_count: sssCounts[salesmanCode]?.large || 0,
+                cml_towns: cmlTowns[salesmanCode] || {}
               };
               updatedSummary[salesmanCode] = {
                 ...(existingSummary[salesmanCode] || {}),
                 cml_count: cmlCounts[salesmanCode],
                 sss_small_count: sssCounts[salesmanCode]?.small || 0,
-                sss_large_count: sssCounts[salesmanCode]?.large || 0
+                sss_large_count: sssCounts[salesmanCode]?.large || 0,
+                cml_towns: cmlTowns[salesmanCode] || {}
               };
             });
             await setDoc(doc(db, 'dashboard_metrics', 'all'), updatedAll, { merge: true });

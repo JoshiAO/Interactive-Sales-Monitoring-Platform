@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { LayoutDashboard, ShoppingCart, Target, Users, Database, Settings, LogOut, Menu, BarChart2, Package, Clock, AlertTriangle, Medal, Gift, X } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Target, Users, Database, Settings, LogOut, Menu, BarChart2, Package, Clock, AlertTriangle, Medal, Gift, X, Map } from 'lucide-react';
 import { logout } from '../../firebase/auth';
 import { doc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
@@ -66,6 +66,9 @@ const Layout: React.FC = () => {
             </NavLink>
             <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/customers" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
               <Users size={18} /> Customers
+            </NavLink>
+            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/mcp" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+              <Map size={18} /> MCP
             </NavLink>
             <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/npd" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
               <Package size={18} /> NPD & Promo
@@ -245,7 +248,7 @@ const Layout: React.FC = () => {
             </div>
           </div>
         )}
-        <main style={{ flex: 1, padding: '24px', position: 'relative' }} className="mobile-pt">
+        <main style={{ flex: 1, padding: '24px', position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0 }} className="mobile-pt">
           <Outlet />
         </main>
       </div>

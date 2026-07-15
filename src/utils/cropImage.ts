@@ -13,8 +13,8 @@ export const getCroppedImg = async (imageSrc: string, pixelCrop: { x: number; y:
     throw new Error('No 2d context');
   }
 
-  // Resize the canvas down to 128x128 for optimal avatar loading
-  const TARGET_SIZE = 128;
+  // Resize the canvas to 800x800 for high-quality backgrounds on the Master Coverage Plan
+  const TARGET_SIZE = 800;
   canvas.width = TARGET_SIZE;
   canvas.height = TARGET_SIZE;
 

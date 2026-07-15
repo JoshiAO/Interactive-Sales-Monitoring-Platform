@@ -204,11 +204,16 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         const userAvatars: Record<string, string> = {};
         const userNames: Record<string, string> = {};
         const userTypes: Record<string, string> = {};
+        const userSupervisors: Record<string, string> = {};
         usersCache.forEach(u => {
           if (u.salesmanId) {
             userAvatars[String(u.salesmanId)] = u.photoURL || '';
             if (u.name) userNames[String(u.salesmanId)] = u.name;
             if (u.salesmanType) userTypes[String(u.salesmanId)] = u.salesmanType;
+            if ((u as any).supervisor) {
+              const supUser = usersCache.find(x => x.uid === (u as any).supervisor);
+              userSupervisors[String(u.salesmanId)] = supUser && supUser.name ? supUser.name : (u as any).supervisor;
+            }
           }
         });
 
@@ -345,7 +350,9 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
               const td = teamData.find((r:any) => r.salesman_code === m.id);
               return td ? (td.service_model || td.service_type || td['Service Model'] || td.type || td.Type || 'Unknown') : 'Unknown';
             })(),
-            team: teamData.find((r:any) => r.salesman_code === m.id)?.team || ''
+            team: teamData.find((r:any) => r.salesman_code === m.id)?.team || '',
+            supervisor: userSupervisors[m.id] || 'Unknown',
+            towns: Object.keys(m.cml_towns && Object.keys(m.cml_towns).length > 0 ? m.cml_towns : m.town || {})
           };
         });
 
@@ -389,10 +396,24 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
           let hitCount = 0;
           if (s.vd30TargetMap) {
             Object.keys(s.vd30TargetMap).forEach(k => {
-              const tgt = s.vd30TargetMap[k];
+              let tgt = s.vd30TargetMap[k];
+              const baseCode = k.split('_')[0];
+              
+              // Apply new formula: Target <= (Small + Large) for F01-F19, Target <= Large for F20-F30
+              const fNumMatch = baseCode.match(/F0*(\d+)/);
+              if (fNumMatch) {
+                const fNum = parseInt(fNumMatch[1], 10);
+                if (fNum >= 1 && fNum <= 19) {
+                  const totalSss = (s.cmlSmall || 0) + (s.cmlLarge || 0);
+                  if (tgt > totalSss) tgt = totalSss;
+                } else if (fNum >= 20 && fNum <= 30) {
+                  const largeSss = (s.cmlLarge || 0);
+                  if (tgt > largeSss) tgt = largeSss;
+                }
+              }
+
               if (tgt > 0) {
                 targetCount++;
-                const baseCode = k.split('_')[0];
                 const act = (s.vd30ActualMap && (s.vd30ActualMap[baseCode] || s.vd30ActualMap[k])) || 0;
                 if (act >= tgt) hitCount++;
               }

@@ -21,7 +21,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const lastDataUpload = globalData?.lastDataUpload || 0;
         const lastReferenceUpload = globalData?.lastReferenceUpload || 0;
 
-        const cacheKey = `customers_cache_v6_${currentUser.uid}_${selectedTeam}`;
+        const cacheKey = `customers_cache_v7_${currentUser.uid}_${selectedTeam}`;
         const cachedData = await get(cacheKey);
         const cachedLastUpload = await get('customers_lastUpload');
 
@@ -109,8 +109,9 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
                   isBuying: c.isBuying || false,
                   newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
                   notInCml: String(c['NOT IN CML'] || '').trim().toUpperCase() === 'YES',
-                  coverageDay: String(c['COVERAGE DAY'] || '').trim().toUpperCase(),
-                  wklyCoverage: String(c['WKLY COVERAGE'] || '').trim().toUpperCase()
+                  coverageDay: String(c['COVERAGE DAY'] || c['DAY'] || c['VISIT DAY'] || '').trim().toUpperCase(),
+                  wklyCoverage: String(c['WKLY COVERAGE'] || c['WEEKLY COVERAGE'] || c['WEEK'] || c['COVERAGE WEEK'] || '').trim().toUpperCase().replace(/\s+/g, ''),
+                  customerClass: String(c['PARTY CLASSIFICATION DESCRIPTION'] || c['STORE CLASS'] || c['STORE CLASS NAME'] || c['CHANNEL CLASSIFICATION'] || c['Channel_Classification'] || c['RETAIL ENVIRONMENT'] || 'Unknown')
                 });
               });
             }
@@ -153,8 +154,9 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
                   isBuying: c.isBuying || false,
                   newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
                   notInCml: String(c['NOT IN CML'] || '').trim().toUpperCase() === 'YES',
-                  coverageDay: String(c['COVERAGE DAY'] || '').trim().toUpperCase(),
-                  wklyCoverage: String(c['WKLY COVERAGE'] || '').trim().toUpperCase()
+                  coverageDay: String(c['COVERAGE DAY'] || c['DAY'] || c['VISIT DAY'] || '').trim().toUpperCase(),
+                  wklyCoverage: String(c['WKLY COVERAGE'] || c['WEEKLY COVERAGE'] || c['WEEK'] || c['COVERAGE WEEK'] || '').trim().toUpperCase().replace(/\s+/g, ''),
+                  customerClass: String(c['PARTY CLASSIFICATION DESCRIPTION'] || c['STORE CLASS'] || c['STORE CLASS NAME'] || c['CHANNEL CLASSIFICATION'] || c['Channel_Classification'] || c['RETAIL ENVIRONMENT'] || 'Unknown')
                 });
               });
             });

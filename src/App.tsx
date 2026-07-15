@@ -17,6 +17,7 @@ import Users from './pages/admin/Users';
 import IncentivesPage from './pages/dashboard/IncentivesPage';
 import IncentiveDetails from './pages/dashboard/IncentiveDetails';
 import ArchivedIncentives from './pages/dashboard/ArchivedIncentives';
+import MasterCoveragePlan from './pages/dashboard/MasterCoveragePlan';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, loading } = useAuth();
@@ -45,6 +46,7 @@ function AppRoutes() {
         <Route path="bo" element={<BackOrder />} />
         <Route path="data" element={<DataManagement />} />
         <Route path="users" element={<Users />} />
+        <Route path="mcp" element={<MasterCoveragePlan />} />
         <Route path="performance" element={<PerformancePage />} />
         <Route path="incentives" element={<IncentivesPage />} />
         <Route path="incentives/archived" element={<ArchivedIncentives />} />
