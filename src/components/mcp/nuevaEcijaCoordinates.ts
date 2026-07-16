@@ -75,5 +75,8 @@ export const extractAllTownCoordinates = (townsList: string[]): { name: string, 
     if (coord) valid.push({ name: t.trim(), coord });
   });
   
+  // Sort from North to South (highest latitude first)
+  valid.sort((a, b) => b.coord[0] - a.coord[0]);
+  
   return valid;
 };

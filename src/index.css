@@ -484,3 +484,8 @@ textarea:focus {
   0%, 15% { transform: translateX(0); }
   85%, 100% { transform: translateX(min(0px, calc(100cqi - 100%))); }
 }
+
+/* Map Polygon Styles */
+.glowing-polygon {
+  filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.3)) drop-shadow(0 0 10px rgba(59, 130, 246, 0.15));
+}

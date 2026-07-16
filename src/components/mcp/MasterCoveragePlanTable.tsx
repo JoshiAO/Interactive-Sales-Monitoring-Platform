@@ -1,4 +1,7 @@
 import React, { useMemo } from 'react';
+import { Download } from 'lucide-react';
+import { exportMcp } from '../../utils/exportMcp';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface MasterCoveragePlanTableProps {
   salesman: any;
@@ -19,6 +22,7 @@ const MasterCoveragePlanTable: React.FC<MasterCoveragePlanTableProps> = ({
   onWeekChange,
   onBack
 }) => {
+  const { role } = useAuth();
   
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => {
@@ -127,8 +131,20 @@ const MasterCoveragePlanTable: React.FC<MasterCoveragePlanTableProps> = ({
                 ))}
               </div>
               
-              <div style={{ alignSelf: 'flex-end', marginTop: 'auto', background: 'var(--accent-primary)', color: 'white', padding: '4px 16px', borderRadius: '4px', fontWeight: 'bold', fontSize: '14px' }}>
-                Planned: {filteredCustomers.length}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'flex-end', marginTop: 'auto' }}>
+                {(role === 'admin' || role === 'manager' || role === 'supervisor') && (
+                  <button 
+                    onClick={() => exportMcp([salesman], customers, `MCP_${salesman.id}`)}
+                    className="btn btn-outline" 
+                    style={{ padding: '4px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', borderRadius: '4px', background: 'var(--bg-dark)', color: 'var(--text-main)', border: '1px solid var(--border)', cursor: 'pointer' }}
+                    title="Export MCP to Excel"
+                  >
+                    <Download size={14} /> Export
+                  </button>
+                )}
+                <div style={{ background: 'var(--accent-primary)', color: 'white', padding: '4px 16px', borderRadius: '4px', fontWeight: 'bold', fontSize: '14px' }}>
+                  Planned: {filteredCustomers.length}
+                </div>
               </div>
             </div>
           </div>

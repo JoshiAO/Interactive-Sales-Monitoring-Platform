@@ -6,7 +6,8 @@ import MasterCoveragePlanWheel from '../../components/mcp/MasterCoveragePlanWhee
 import MasterCoveragePlanTable from '../../components/mcp/MasterCoveragePlanTable';
 import CityMapBackground from '../../components/mcp/CityMapBackground';
 import { extractAllTownCoordinates } from '../../components/mcp/nuevaEcijaCoordinates';
-import { Filter, Users } from 'lucide-react';
+import { Filter, Users, Download } from 'lucide-react';
+import { exportMcp } from '../../utils/exportMcp';
 
 const MasterCoveragePlan: React.FC = () => {
   const { role, salesmanId } = useAuth();
@@ -131,7 +132,7 @@ const MasterCoveragePlan: React.FC = () => {
               <CityMapBackground towns={activeSalesman.towns} selectedCity={selectedCity} />
               
               {/* Floating Interactive City List (Above the map) */}
-              {extractAllTownCoordinates(activeSalesman.towns).length > 1 && (
+              {extractAllTownCoordinates(activeSalesman.towns).length > 0 && (
                 <div style={{
                   position: 'absolute',
                   right: '24px', 
@@ -213,6 +214,20 @@ const MasterCoveragePlan: React.FC = () => {
             
             <div style={{ display: 'flex', gap: '16px', pointerEvents: 'auto', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               
+              {/* Export Filtered Button */}
+              <button
+                onClick={() => exportMcp(filteredSalesmen, customers, `MCP_Export_${selectedTeam}_${selectedServiceModel}`)}
+                className="btn glass-panel interactive"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '30px', 
+                  color: 'var(--text-main)', border: '1px solid var(--border)', background: 'var(--bg-dark)',
+                  fontSize: '13px', fontWeight: 600, cursor: 'pointer'
+                }}
+                title="Export Filtered MCP to Excel"
+              >
+                <Download size={16} /> Export
+              </button>
+
               {/* Service Model Slicer */}
               <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', padding: '4px', gap: '4px', borderRadius: '30px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px', gap: '8px', color: 'var(--text-muted)' }}>

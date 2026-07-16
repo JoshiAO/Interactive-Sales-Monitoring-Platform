@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, useMap, Marker } from 'react-leaflet';
+import React, { useEffect, useMemo, useState } from 'react';
+import { MapContainer, TileLayer, useMap, Marker, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { extractAllTownCoordinates } from './nuevaEcijaCoordinates';
@@ -51,7 +51,16 @@ const CityMapBackground: React.FC<CityMapBackgroundProps> = ({ towns, selectedCi
   // Project lat/lng to percentage-based coordinates for the HTML overlay.
   // This allows the HTML labels to sync perfectly with the CSS 3D transform without using expensive Leaflet DivIcons.
   // We use Leaflet's built-in projection inside a hook, OR we just use Leaflet Markers.
-  // Actually, using Leaflet Markers is vastly superior for exact placement!
+  // We use Leaflet Markers is vastly superior for exact placement!
+  
+  const [geoData, setGeoData] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/nueva_ecija.geojson')
+      .then(res => res.json())
+      .then(data => setGeoData(data))
+      .catch(err => console.error("Could not load geojson:", err));
+  }, []);
 
   return (
     <div style={{
@@ -90,6 +99,38 @@ const CityMapBackground: React.FC<CityMapBackgroundProps> = ({ towns, selectedCi
             coords={townCoords.map(tc => tc.coord)} 
             selectedCoord={selectedCity ? townCoords.find(tc => tc.name === selectedCity)?.coord || null : null}
           />
+          {geoData && (
+            <GeoJSON 
+              data={geoData} 
+              style={(feature) => {
+                const normalize = (n: string) => {
+                  let str = (n || '').toUpperCase().trim();
+                  str = str.replace(/ \(.+\)/, ''); // Remove (PAPAYA), etc.
+                  str = str.replace('CITY OF ', '').replace(' CITY', '').replace('SCIENCE ', '');
+                  if (str.includes('MUNOZ') || str.includes('MUÑOZ')) return 'MUNOZ';
+                  return str.trim();
+                };
+
+                const geoName = normalize(feature?.properties?.name);
+                const sel = selectedCity ? normalize(selectedCity) : null;
+                const activeTowns = towns.map(normalize);
+
+                // If a city is explicitly selected, highlight ONLY that one and hide others.
+                // Otherwise, highlight all cities in the salesman's coverage area.
+                const isSelected = sel ? geoName === sel : activeTowns.includes(geoName);
+                const isOther = sel && geoName !== sel;
+
+                return {
+                  color: isSelected ? 'rgba(147, 197, 253, 0.5)' : (isOther ? 'transparent' : '#4B5563'),
+                  weight: isSelected ? 2 : 1,
+                  fillOpacity: isSelected ? 0.15 : (isOther ? 0 : 0.05),
+                  fillColor: isSelected ? '#3B82F6' : '#1F2937',
+                  dashArray: isSelected ? '' : '4',
+                  className: isSelected ? 'glowing-polygon' : ''
+                };
+              }}
+            />
+          )}
           {/* Exact Pins on actual coordinates */}
           {townCoords.map(tc => {
             const icon = L.divIcon({
