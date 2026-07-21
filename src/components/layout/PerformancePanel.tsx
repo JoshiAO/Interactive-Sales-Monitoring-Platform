@@ -182,14 +182,16 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
       <aside className="glass-panel" style={{ width: isMobileView ? '100%' : (isCollapsed ? '48px' : '380px'), flexShrink: 0, borderLeft: '1px solid var(--border)', borderRadius: 0, position: 'relative', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-panel)', ...style }}>
 
         {/* --- Collapsed Content --- */}
-        <div style={{ width: '48px', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '24px', position: 'absolute', top: 0, left: 0, bottom: 0, opacity: isCollapsed ? 1 : 0, transition: 'opacity 0.2s', pointerEvents: isCollapsed ? 'auto' : 'none' }}>
-          <button onClick={() => setIsCollapsed(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }} title="Expand Performance Panel">
-            <Medal size={24} style={{ color: 'var(--accent-primary)' }} />
-          </button>
-        </div>
+        {!isMobileView && (
+          <div style={{ width: '48px', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '24px', position: 'absolute', top: 0, left: 0, bottom: 0, opacity: isCollapsed ? 1 : 0, transition: 'opacity 0.2s', pointerEvents: isCollapsed ? 'auto' : 'none' }}>
+            <button onClick={() => setIsCollapsed(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }} title="Expand Performance Panel">
+              <Medal size={24} style={{ color: 'var(--accent-primary)' }} />
+            </button>
+          </div>
+        )}
 
         {/* --- Expanded Content --- */}
-        <div style={{ width: isMobileView ? '100%' : '370px', flex: 1, overflowY: 'auto', overflowX: 'hidden', opacity: isCollapsed ? 0 : 1, transition: 'opacity 0.2s', pointerEvents: isCollapsed ? 'none' : 'auto' }}>
+        <div style={{ width: isMobileView ? '100%' : '370px', flex: 1, overflowY: 'auto', overflowX: 'hidden', opacity: (isCollapsed && !isMobileView) ? 0 : 1, transition: 'opacity 0.2s', pointerEvents: (isCollapsed && !isMobileView) ? 'none' : 'auto' }}>
           <div style={{ width: isMobileView ? '100%' : '90%', margin: '0 auto', padding: '4px 24px 100px 0px', display: 'flex', flexDirection: 'column', minHeight: '100%', boxSizing: 'border-box' }}>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
@@ -227,6 +229,23 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
                 VD30 Index
               </button>
             </div>
+
+            {isMobileView && (role === 'admin' || role === 'manager') && (
+              <div style={{ display: 'flex', gap: '8px', width: '100%', padding: '4px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', marginBottom: '24px' }}>
+                <button
+                  onClick={() => setServiceModel('Ex-Truck')}
+                  style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: serviceModel === 'Ex-Truck' ? 'var(--accent-primary)' : 'transparent', color: serviceModel === 'Ex-Truck' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s', fontSize: '13px', fontWeight: 600 }}
+                >
+                  Ex-Truck
+                </button>
+                <button
+                  onClick={() => setServiceModel('Booking')}
+                  style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: serviceModel === 'Booking' ? 'var(--accent-primary)' : 'transparent', color: serviceModel === 'Booking' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s', fontSize: '13px', fontWeight: 600 }}
+                >
+                  Booking
+                </button>
+              </div>
+            )}
 
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px', boxSizing: 'border-box' }}>
               {(displayExTruck.length === 0 && displayBooking.length === 0) && (
@@ -443,7 +462,7 @@ const PerformancePanel: React.FC<{ className?: string; style?: React.CSSProperti
           </div> {/* End of Inner Padding Wrapper */}
         </div> {/* End of Expanded Content */}
 
-        {!isCollapsed && (role === 'admin' || role === 'manager') && (
+        {!isCollapsed && !isMobileView && (role === 'admin' || role === 'manager') && (
           <div style={{ position: 'absolute', bottom: '16px', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 30 }}>
             <div style={{ display: 'flex', gap: '8px', width: '90%', maxWidth: '300px', padding: '8px', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(12px)', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', pointerEvents: 'auto' }}>
               <button
