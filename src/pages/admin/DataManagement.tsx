@@ -351,6 +351,29 @@ const DataManagement: React.FC = () => {
               const town = row['Town'] || 'Unknown';
               const week = row['Week'];
 
+              let formattedDate = '';
+              const rowDateRaw = row['Date'] || row['Invoice Date'] || row['Posting Date'];
+              if (rowDateRaw) {
+                 if (typeof rowDateRaw === 'number') {
+                    const dt = new Date(Math.round((rowDateRaw - 25569) * 86400 * 1000));
+                    formattedDate = dt.toISOString().split('T')[0];
+                 } else {
+                    const strDate = String(rowDateRaw);
+                    const match = strDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                    if (match) {
+                       const m = match[1].padStart(2, '0');
+                       const d = match[2].padStart(2, '0');
+                       const y = match[3];
+                       formattedDate = `${y}-${m}-${d}`;
+                    } else {
+                       const dt = new Date(strDate);
+                       if (!isNaN(dt.getTime())) {
+                         formattedDate = dt.toISOString().split('T')[0];
+                       }
+                    }
+                 }
+              }
+
               m.mtd_net_value += netValue;
               m.mtd_volume += volume;
               m.gsr += gsr;
@@ -424,6 +447,16 @@ const DataManagement: React.FC = () => {
                     const minDrop = group.minDropSize || 0;
                     if (custNum && netValue >= minDrop) {
                       gState.uba_customers.add(String(custNum).replace(/[^a-zA-Z0-9_]/g, ''));
+                    }
+                    
+                    if (group.enableDailyBreakdown && formattedDate) {
+                       if (!gState.daily) gState.daily = {};
+                       if (!gState.daily[formattedDate]) gState.daily[formattedDate] = { stt: 0, uba_customers: new Set<string>() };
+                       
+                       gState.daily[formattedDate].stt += netValue;
+                       if (custNum && netValue >= minDrop) {
+                         gState.daily[formattedDate].uba_customers.add(String(custNum).replace(/[^a-zA-Z0-9_]/g, ''));
+                       }
                     }
                   }
                 });
@@ -616,16 +649,26 @@ const DataManagement: React.FC = () => {
               });
 
               // Serialize Incentive Programs data
-              const finalIncentives: Record<string, Record<string, { stt: number, uba: number, uba_customers?: string[] }>> = {};
+              const finalIncentives: Record<string, Record<string, { stt: number, uba: number, uba_customers?: string[], daily?: any }>> = {};
               if (m.incentives) {
                 Object.keys(m.incentives).forEach(progId => {
                   finalIncentives[progId] = {};
                   Object.keys(m.incentives[progId]).forEach(groupId => {
                     const gState = m.incentives[progId][groupId];
+                    const dailySerialized: Record<string, any> = {};
+                    if (gState.daily) {
+                      Object.keys(gState.daily).forEach(d => {
+                        dailySerialized[d] = {
+                          stt: gState.daily[d].stt,
+                          uba: gState.daily[d].uba_customers.size
+                        };
+                      });
+                    }
                     finalIncentives[progId][groupId] = {
                       stt: gState.stt,
                       uba: gState.uba_customers.size,
-                      uba_customers: Array.from(gState.uba_customers)
+                      uba_customers: Array.from(gState.uba_customers),
+                      ...(Object.keys(dailySerialized).length > 0 ? { daily: dailySerialized } : {})
                     };
                   });
                 });

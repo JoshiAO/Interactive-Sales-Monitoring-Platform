@@ -16,6 +16,7 @@ interface TrackingGroup {
   minDropSize: number;
   ubaMeasureType?: 'Month-on-month' | 'Everbought';
   channels?: string[];
+  enableDailyBreakdown?: boolean;
 }
 
 interface IncentiveProgram {
@@ -94,7 +95,8 @@ const IncentiveProgramMaker: React.FC = () => {
           items: [],
           targetType: 'STT',
           minDropSize: 0,
-          ubaMeasureType: 'Month-on-month'
+          ubaMeasureType: 'Month-on-month',
+          enableDailyBreakdown: false
         }
       }
     }));
@@ -616,6 +618,19 @@ const IncentiveProgramMaker: React.FC = () => {
                     {(group.channels || []).length > 0 ? `${group.channels!.length} Channels Selected` : 'All Channels (Default)'}
                   </button>
                 </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <input 
+                    type="checkbox" 
+                    id={`daily-breakdown-${group.id}`}
+                    checked={group.enableDailyBreakdown || false}
+                    onChange={e => handleUpdateTrackingGroup(group.id, { enableDailyBreakdown: e.target.checked })}
+                    style={{ cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
+                  />
+                  <label htmlFor={`daily-breakdown-${group.id}`} style={{ fontSize: '13px', color: 'var(--text-main)', cursor: 'pointer' }}>
+                    Enable Daily Breakdown on Export
+                  </label>
+                </div>
               </div>
             ))}
 
@@ -1042,7 +1057,7 @@ const IncentiveProgramMaker: React.FC = () => {
                       onClick={() => { setIndividualTargetsModal(null); setIndividualTargetsSearch(''); }}
                       style={{ padding: '12px 40px', borderRadius: '30px', boxShadow: '0 8px 16px rgba(59,130,246,0.3)', width: '200px' }}
                     >
-                      Save Targets
+                      Done
                     </button>
                   </div>
                 </>

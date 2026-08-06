@@ -106,6 +106,19 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
                  }
                  aggregatedAchievements[salesmanCode][groupId].stt += m.incentives[programId][groupId].stt;
 
+                 if (m.incentives[programId][groupId].daily) {
+                    if (!aggregatedAchievements[salesmanCode][groupId].daily) {
+                       aggregatedAchievements[salesmanCode][groupId].daily = {};
+                    }
+                    Object.keys(m.incentives[programId][groupId].daily).forEach(d => {
+                       if (!aggregatedAchievements[salesmanCode][groupId].daily[d]) {
+                          aggregatedAchievements[salesmanCode][groupId].daily[d] = { stt: 0, uba: 0 };
+                       }
+                       aggregatedAchievements[salesmanCode][groupId].daily[d].stt += m.incentives[programId][groupId].daily[d].stt;
+                       aggregatedAchievements[salesmanCode][groupId].daily[d].uba += m.incentives[programId][groupId].daily[d].uba;
+                    });
+                 }
+
                  if (measureType === 'Everbought' && m.incentives[programId][groupId].uba_customers) {
                     const customersArr = m.incentives[programId][groupId].uba_customers;
                     if (Array.isArray(customersArr)) {
@@ -180,6 +193,7 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
                  ...group,
                  actualSTT: actual.stt,
                  actualUBA: actual.uba,
+                 daily: actual.daily,
                  targetValue,
                  isHit
               };

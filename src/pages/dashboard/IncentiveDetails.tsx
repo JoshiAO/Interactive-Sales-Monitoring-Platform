@@ -85,14 +85,32 @@ const IncentiveDetails: React.FC = () => {
     ];
 
     let currentCol = 3;
+    
+    // Extract all unique dates for daily breakdown if enabled
+    const allDates = new Set<string>();
+    filteredSalesmen.forEach((s: any) => {
+      Object.keys(s.trackingResults || {}).forEach(groupId => {
+        const res = s.trackingResults[groupId];
+        if (res.enableDailyBreakdown && res.daily) {
+          Object.keys(res.daily).forEach(d => allDates.add(d));
+        }
+      });
+    });
+    const sortedDates = Array.from(allDates).sort();
+
     groupKeys.forEach(groupId => {
       const groupDef = program.trackingGroups[groupId];
       
-      // Top row spans 4 cols
+      let colsForGroup = 4; // Target, Actual, Balance, Index
+      if (groupDef.enableDailyBreakdown) {
+         colsForGroup += sortedDates.length * 2; // Daily STT and Daily UBA
+      }
+      
+      // Top row spans `colsForGroup` cols
       headerRow1.push({ v: groupDef.name, t: 's', s: headerStyle });
-      headerRow1.push({ v: '', t: 's', s: headerStyle });
-      headerRow1.push({ v: '', t: 's', s: headerStyle });
-      headerRow1.push({ v: '', t: 's', s: headerStyle });
+      for (let i = 1; i < colsForGroup; i++) {
+        headerRow1.push({ v: '', t: 's', s: headerStyle });
+      }
       
       // Second row sub-headers
       headerRow2.push({ v: 'Target', t: 's', s: headerStyle });
@@ -100,13 +118,27 @@ const IncentiveDetails: React.FC = () => {
       headerRow2.push({ v: 'Balance', t: 's', s: headerStyle });
       headerRow2.push({ v: 'Index (%)', t: 's', s: headerStyle });
       
-      merges.push({ s: { r: 0, c: currentCol }, e: { r: 0, c: currentCol + 3 } });
-      currentCol += 4;
+      if (groupDef.enableDailyBreakdown) {
+         sortedDates.forEach(d => {
+            headerRow2.push({ v: `${d} (STT)`, t: 's', s: headerStyle });
+            headerRow2.push({ v: `${d} (UBA)`, t: 's', s: headerStyle });
+         });
+      }
+      
+      merges.push({ s: { r: 0, c: currentCol }, e: { r: 0, c: currentCol + colsForGroup - 1 } });
+      currentCol += colsForGroup;
     });
 
     const aoa: any[][] = [headerRow1, headerRow2];
-    const groupTotals: Record<string, { target: number, actual: number, balance: number }> = {};
-    groupKeys.forEach(g => groupTotals[g] = { target: 0, actual: 0, balance: 0 });
+    const groupTotals: Record<string, { target: number, actual: number, balance: number, daily: Record<string, {stt: number, uba: number}> }> = {};
+    groupKeys.forEach(g => {
+       groupTotals[g] = { target: 0, actual: 0, balance: 0, daily: {} };
+       if (program.trackingGroups[g].enableDailyBreakdown) {
+          sortedDates.forEach(d => {
+             groupTotals[g].daily[d] = { stt: 0, uba: 0 };
+          });
+       }
+    });
 
     filteredSalesmen.forEach((s: any) => {
       const row: any[] = [
@@ -131,6 +163,19 @@ const IncentiveDetails: React.FC = () => {
         row.push({ v: actual, t: 'n', s: numStyle });
         row.push({ v: balance, t: 'n', s: numStyle });
         row.push({ v: indexFraction, t: 'n', s: pctStyle, z: '0.00%' });
+        
+        if (groupDef.enableDailyBreakdown) {
+           sortedDates.forEach(d => {
+              const dailyStt = res.daily?.[d]?.stt || 0;
+              const dailyUba = res.daily?.[d]?.uba || 0;
+              
+              groupTotals[groupId].daily[d].stt += dailyStt;
+              groupTotals[groupId].daily[d].uba += dailyUba;
+              
+              row.push({ v: dailyStt, t: 'n', s: numStyle });
+              row.push({ v: dailyUba, t: 'n', s: numStyle });
+           });
+        }
       });
       aoa.push(row);
     });
@@ -146,12 +191,20 @@ const IncentiveDetails: React.FC = () => {
     merges.push({ s: { r: aoa.length, c: 0 }, e: { r: aoa.length, c: 2 } });
 
     groupKeys.forEach(groupId => {
+      const groupDef = program.trackingGroups[groupId];
       const t = groupTotals[groupId];
       const indexFraction = t.target > 0 ? (t.actual / t.target) : (t.actual > 0 ? 1 : 0);
       totalRow.push({ v: t.target, t: 'n', s: totalNumStyle });
       totalRow.push({ v: t.actual, t: 'n', s: totalNumStyle });
       totalRow.push({ v: t.balance, t: 'n', s: totalNumStyle });
       totalRow.push({ v: indexFraction, t: 'n', s: totalPctStyle, z: '0.00%' });
+      
+      if (groupDef.enableDailyBreakdown) {
+         sortedDates.forEach(d => {
+            totalRow.push({ v: t.daily[d].stt, t: 'n', s: totalNumStyle });
+            totalRow.push({ v: t.daily[d].uba, t: 'n', s: totalNumStyle });
+         });
+      }
     });
     aoa.push(totalRow);
 
