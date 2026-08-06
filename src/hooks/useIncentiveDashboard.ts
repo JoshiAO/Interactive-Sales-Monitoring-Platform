@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUsersCache } from './useUsersCache';
 
 export const useIncentiveDashboard = (programId: string | undefined, _selectedTeam: string = 'all') => {
-  const { currentUser, role, salesmanId, team } = useAuth();
+  const { currentUser, role, salesmanId, team, selectedMonth } = useAuth();
   const { usersCache, loading: usersLoading } = useUsersCache();
   const [loading, setLoading] = useState(true);
   const [program, setProgram] = useState<any>(null);
@@ -26,24 +26,16 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
         const progData: any = { id: progSnap.id, ...progSnap.data() };
         setProgram(progData);
 
-        // Determine months to fetch
-        const startMonth = progData.startMonth; // e.g. "2024-01"
-        const endMonth = progData.endMonth;     // e.g. "2024-03"
-        const monthsToFetch: string[] = [];
-        
-        if (startMonth && endMonth) {
-          let current = new Date(`${startMonth}-01`);
-          const end = new Date(`${endMonth}-01`);
-          while (current <= end) {
-            monthsToFetch.push(current.toISOString().slice(0, 7));
-            current.setMonth(current.getMonth() + 1);
-          }
-        }
-
-        // Fetch COB Date to know which month is "Live"
+        // Determine month to fetch based on Data View (selectedMonth)
+        // If selectedMonth is 'current' or undefined, use currentLiveMonth
+        // (We fetch currentLiveMonth a bit lower down, so let's just define it here)
         const globalDoc = await getDoc(doc(db, 'settings', 'global'));
         const cobDate = globalDoc.exists() ? globalDoc.data().cobDate : new Date().toISOString().slice(0, 10);
         const currentLiveMonth = cobDate ? cobDate.slice(0, 7) : new Date().toISOString().slice(0, 7);
+
+        const monthToFetch = (selectedMonth && selectedMonth !== 'current') ? selectedMonth : currentLiveMonth;
+
+        // (Moved COB date logic above)
 
         // Fetch references to know the teams
         const teamSnap = await getDoc(doc(db, 'reference_team_service', 'all'));
@@ -73,51 +65,59 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
 
         const aggregatedAchievements: Record<string, Record<string, { stt: number, uba: number, uba_customers?: Set<string> }>> = {};
 
-        // Fetch Data for each month
-        for (const month of monthsToFetch) {
-           let metricsRaw: any = {};
-           if (month === currentLiveMonth) {
-              const summarySnap = await getDoc(doc(db, 'dashboard_metrics_summary', 'all'));
-              metricsRaw = summarySnap.exists() ? summarySnap.data() : {};
-           } else {
-              const snap = await getDoc(doc(db, 'snapshots', month));
+        // Fetch Data for the selected month
+        let metricsRaw: any = {};
+        if (monthToFetch === currentLiveMonth) {
+           const summarySnap = await getDoc(doc(db, 'dashboard_metrics_summary', 'all'));
+           metricsRaw = summarySnap.exists() ? summarySnap.data() : {};
+
+           // If live data has no transactional data (e.g., cleared before a new upload, or only has CML data), fallback to snapshot
+           const hasTransactionalData = Object.values(metricsRaw).some((m: any) => m.mtd_net_value !== undefined || m.incentives !== undefined);
+           
+           if (!hasTransactionalData) {
+              const snap = await getDoc(doc(db, 'snapshots', monthToFetch));
               if (snap.exists()) {
                  metricsRaw = snap.data().dashboard_metrics || {};
               }
            }
-
-           // Aggregate achievements for the program
-           Object.keys(metricsRaw).forEach(salesmanCode => {
-              if (!leaderboardSalesmen.has(salesmanCode)) return;
-
-              const m = metricsRaw[salesmanCode];
-              if (m.incentives && m.incentives[programId]) {
-                 if (!aggregatedAchievements[salesmanCode]) {
-                    aggregatedAchievements[salesmanCode] = {};
-                 }
-
-                 Object.keys(m.incentives[programId]).forEach(groupId => {
-                    const trackingGroupDef = progData.trackingGroups?.[groupId];
-                    const measureType = trackingGroupDef?.ubaMeasureType || 'Month-on-month';
-
-                    if (!aggregatedAchievements[salesmanCode][groupId]) {
-                       aggregatedAchievements[salesmanCode][groupId] = { stt: 0, uba: 0, uba_customers: new Set() };
-                    }
-                    aggregatedAchievements[salesmanCode][groupId].stt += m.incentives[programId][groupId].stt;
-
-                    if (measureType === 'Everbought' && m.incentives[programId][groupId].uba_customers) {
-                       const customersArr = m.incentives[programId][groupId].uba_customers;
-                       if (Array.isArray(customersArr)) {
-                          customersArr.forEach((c: string) => aggregatedAchievements[salesmanCode][groupId].uba_customers!.add(c));
-                       }
-                       aggregatedAchievements[salesmanCode][groupId].uba = aggregatedAchievements[salesmanCode][groupId].uba_customers!.size;
-                    } else {
-                       aggregatedAchievements[salesmanCode][groupId].uba += m.incentives[programId][groupId].uba;
-                    }
-                 });
-              }
-           });
+        } else {
+           const snap = await getDoc(doc(db, 'snapshots', monthToFetch));
+           if (snap.exists()) {
+              metricsRaw = snap.data().dashboard_metrics || {};
+           }
         }
+
+        // Aggregate achievements for the program
+        Object.keys(metricsRaw).forEach(salesmanCode => {
+           if (!leaderboardSalesmen.has(salesmanCode)) return;
+
+           const m = metricsRaw[salesmanCode];
+           if (m.incentives && m.incentives[programId]) {
+              if (!aggregatedAchievements[salesmanCode]) {
+                 aggregatedAchievements[salesmanCode] = {};
+              }
+
+              Object.keys(m.incentives[programId]).forEach(groupId => {
+                 const trackingGroupDef = progData.trackingGroups?.[groupId];
+                 const measureType = trackingGroupDef?.ubaMeasureType || 'Month-on-month';
+
+                 if (!aggregatedAchievements[salesmanCode][groupId]) {
+                    aggregatedAchievements[salesmanCode][groupId] = { stt: 0, uba: 0, uba_customers: new Set() };
+                 }
+                 aggregatedAchievements[salesmanCode][groupId].stt += m.incentives[programId][groupId].stt;
+
+                 if (measureType === 'Everbought' && m.incentives[programId][groupId].uba_customers) {
+                    const customersArr = m.incentives[programId][groupId].uba_customers;
+                    if (Array.isArray(customersArr)) {
+                       customersArr.forEach((c: string) => aggregatedAchievements[salesmanCode][groupId].uba_customers!.add(c));
+                    }
+                    aggregatedAchievements[salesmanCode][groupId].uba = aggregatedAchievements[salesmanCode][groupId].uba_customers!.size;
+                 } else {
+                    aggregatedAchievements[salesmanCode][groupId].uba += m.incentives[programId][groupId].uba;
+                 }
+              });
+           }
+        });
 
         const userAvatars: Record<string, string> = {};
         const userNames: Record<string, string> = {};
@@ -159,13 +159,11 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
                  // Flat target
                  targetValue = indivTargetData;
               } else if (typeof indivTargetData === 'object' && indivTargetData !== null) {
-                 // Monthly targets - sum them up for the requested months
-                 monthsToFetch.forEach(m => {
-                    if (indivTargetData[m]) targetValue += indivTargetData[m];
-                 });
-                 // Also check for 'flat' fallback if it's there
-                 if (indivTargetData['flat'] && targetValue === 0) {
-                    targetValue = indivTargetData['flat'];
+                 // Target specifically for the selected month
+                 if (indivTargetData[monthToFetch]) {
+                    targetValue = indivTargetData[monthToFetch];
+                 } else if (indivTargetData['flat']) {
+                    targetValue = indivTargetData['flat']; // fallback to flat
                  }
               }
 
@@ -220,7 +218,7 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
     };
 
     fetchData();
-  }, [programId, currentUser, role, usersLoading, salesmanId, team]);
+  }, [programId, currentUser, role, usersLoading, salesmanId, team, selectedMonth]);
 
   return { loading, program, dashboardData };
 };
