@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, useMap, Marker, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, Marker, GeoJSON, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { extractAllTownCoordinates } from './nuevaEcijaCoordinates';
@@ -36,6 +36,33 @@ const MapController: React.FC<{ coords: [number, number][], selectedCoord?: [num
       map.flyTo([15.6, 120.9], 10, { duration: 1.5 });
     }
   }, [coords, map]);
+
+  return null;
+};
+
+// Component to dynamically apply a class based on zoom level
+const ZoomHandler = () => {
+  const map = useMapEvents({
+    zoomend: () => {
+      const zoom = map.getZoom();
+      const pane = map.getContainer();
+      if (zoom <= 8) {
+        pane.setAttribute('data-zoom', 'low');
+      } else {
+        pane.setAttribute('data-zoom', 'high');
+      }
+    }
+  });
+
+  useEffect(() => {
+    const zoom = map.getZoom();
+    const pane = map.getContainer();
+    if (zoom <= 8) {
+      pane.setAttribute('data-zoom', 'low');
+    } else {
+      pane.setAttribute('data-zoom', 'high');
+    }
+  }, [map]);
 
   return null;
 };
@@ -91,11 +118,12 @@ const CityMapBackground: React.FC<CityMapBackgroundProps> = ({ towns, selectedCi
           attributionControl={false}
           style={{ width: '100%', height: '100%', background: 'transparent' }}
         >
-          {/* Stadia Stamen Toner - Pure B&W (Inverted via CSS for Dark Mode) */}
+          {/* ESRI Dark Gray Canvas - No API Key Required. Zoom handler applies correct B&W filter */}
           <TileLayer
-            url="https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png"
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
             className="bw-map-tiles"
           />
+          <ZoomHandler />
           <MapController 
             coords={townCoords.map(tc => tc.coord)} 
             selectedCoord={selectedCity ? townCoords.find(tc => tc.name === selectedCity)?.coord || null : null}
