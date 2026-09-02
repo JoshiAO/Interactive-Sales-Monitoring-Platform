@@ -511,7 +511,7 @@ textarea:focus {
 
 /* Pure Black and White Map Tiles */
 .bw-map-tiles {
-  filter: grayscale(100%) contrast(400%) brightness(1.2);
+  filter: grayscale(100%) brightness(245%) contrast(325%);
 }
 
 /* Dark Map Tiles */
