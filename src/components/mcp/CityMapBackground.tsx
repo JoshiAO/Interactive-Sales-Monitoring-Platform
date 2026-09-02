@@ -91,9 +91,9 @@ const CityMapBackground: React.FC<CityMapBackgroundProps> = ({ towns, selectedCi
           attributionControl={false}
           style={{ width: '100%', height: '100%', background: 'transparent' }}
         >
-          {/* ESRI Dark Gray Canvas - No API Key Required, natively dark with light accents */}
+          {/* Stadia Stamen Toner - Pure B&W (Inverted via CSS for Dark Mode) */}
           <TileLayer
-            url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+            url="https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png"
             className="bw-map-tiles"
           />
           <MapController 

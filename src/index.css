@@ -509,9 +509,9 @@ textarea:focus {
   filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.3)) drop-shadow(0 0 10px rgba(59, 130, 246, 0.15));
 }
 
-/* Pure Black and White Map Tiles */
+/* Pure Black and White Map Tiles (Stamen Toner Inverted) */
 .bw-map-tiles {
-  filter: grayscale(100%) brightness(245%) contrast(325%);
+  filter: invert(100%) brightness(65%);
 }
 
 /* Dark Map Tiles */
