@@ -80,7 +80,6 @@ const Layout: React.FC = () => {
             <Clock size={18} /> Ageing
           </NavLink>
         )}
-        {selectedMonth === 'current' && (
           <>
             <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/bo" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
               <AlertTriangle size={18} /> B.O.
@@ -96,7 +95,6 @@ const Layout: React.FC = () => {
               </>
             )}
           </>
-        )}
       </div>
 
       {role === 'admin' && (

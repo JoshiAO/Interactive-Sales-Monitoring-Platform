@@ -63,7 +63,7 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
           });
         }
 
-        const aggregatedAchievements: Record<string, Record<string, { stt: number, uba: number, uba_customers?: Set<string> }>> = {};
+        const aggregatedAchievements: Record<string, Record<string, { stt: number, uba: number, uba_customers?: Set<string>, daily?: Record<string, {stt: number, uba: number}> }>> = {};
 
         // Fetch Data for the selected month
         let metricsRaw: any = {};
@@ -102,7 +102,7 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
                  const measureType = trackingGroupDef?.ubaMeasureType || 'Month-on-month';
 
                  if (!aggregatedAchievements[salesmanCode][groupId]) {
-                    aggregatedAchievements[salesmanCode][groupId] = { stt: 0, uba: 0, uba_customers: new Set() };
+                    aggregatedAchievements[salesmanCode][groupId] = { stt: 0, uba: 0, uba_customers: new Set(), daily: {} };
                  }
                  aggregatedAchievements[salesmanCode][groupId].stt += m.incentives[programId][groupId].stt;
 
@@ -111,11 +111,11 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
                        aggregatedAchievements[salesmanCode][groupId].daily = {};
                     }
                     Object.keys(m.incentives[programId][groupId].daily).forEach(d => {
-                       if (!aggregatedAchievements[salesmanCode][groupId].daily[d]) {
-                          aggregatedAchievements[salesmanCode][groupId].daily[d] = { stt: 0, uba: 0 };
+                       if (!aggregatedAchievements[salesmanCode][groupId].daily![d]) {
+                          aggregatedAchievements[salesmanCode][groupId].daily![d] = { stt: 0, uba: 0 };
                        }
-                       aggregatedAchievements[salesmanCode][groupId].daily[d].stt += m.incentives[programId][groupId].daily[d].stt;
-                       aggregatedAchievements[salesmanCode][groupId].daily[d].uba += m.incentives[programId][groupId].daily[d].uba;
+                       aggregatedAchievements[salesmanCode][groupId].daily![d].stt += m.incentives[programId][groupId].daily[d].stt;
+                       aggregatedAchievements[salesmanCode][groupId].daily![d].uba += m.incentives[programId][groupId].daily[d].uba;
                     });
                  }
 

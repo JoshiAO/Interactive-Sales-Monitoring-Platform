@@ -91,9 +91,10 @@ const CityMapBackground: React.FC<CityMapBackgroundProps> = ({ towns, selectedCi
           attributionControl={false}
           style={{ width: '100%', height: '100%', background: 'transparent' }}
         >
-          {/* CartoDB Dark Matter with labels, borders, and roads */}
+          {/* Standard OSM with CSS inversion for dark mode */}
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            className="dark-map-tiles"
           />
           <MapController 
             coords={townCoords.map(tc => tc.coord)} 
