@@ -509,6 +509,11 @@ textarea:focus {
   filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.3)) drop-shadow(0 0 10px rgba(59, 130, 246, 0.15));
 }
 
+/* Pure Black and White Map Tiles */
+.bw-map-tiles {
+  filter: grayscale(100%) contrast(400%) brightness(1.2);
+}
+
 /* Dark Map Tiles */
 .dark-map-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
 

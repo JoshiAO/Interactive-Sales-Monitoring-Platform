@@ -94,6 +94,7 @@ const CityMapBackground: React.FC<CityMapBackgroundProps> = ({ towns, selectedCi
           {/* ESRI Dark Gray Canvas - No API Key Required, natively dark with light accents */}
           <TileLayer
             url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+            className="bw-map-tiles"
           />
           <MapController 
             coords={townCoords.map(tc => tc.coord)} 
