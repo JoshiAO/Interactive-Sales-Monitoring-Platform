@@ -91,10 +91,9 @@ const CityMapBackground: React.FC<CityMapBackgroundProps> = ({ towns, selectedCi
           attributionControl={false}
           style={{ width: '100%', height: '100%', background: 'transparent' }}
         >
-          {/* Standard OSM with CSS inversion for dark mode */}
+          {/* ESRI Dark Gray Canvas - No API Key Required, natively dark with light accents */}
           <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            className="dark-map-tiles"
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
           />
           <MapController 
             coords={townCoords.map(tc => tc.coord)} 
