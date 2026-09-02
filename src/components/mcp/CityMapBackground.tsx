@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, useMap, Marker, GeoJSON } from 'react-leaflet';
+import { MapContainer, useMap, Marker, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { extractAllTownCoordinates } from './nuevaEcijaCoordinates';
@@ -91,11 +91,6 @@ const CityMapBackground: React.FC<CityMapBackgroundProps> = ({ towns, selectedCi
           attributionControl={false}
           style={{ width: '100%', height: '100%', background: 'transparent' }}
         >
-          {/* Carto Fastly CDN - Natively dark, no watermark, consistent across zooms */}
-          <TileLayer
-            url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_nolabels/{z}/{x}/{y}.png"
-            className="bw-map-tiles"
-          />
           <MapController 
             coords={townCoords.map(tc => tc.coord)} 
             selectedCoord={selectedCity ? townCoords.find(tc => tc.name === selectedCity)?.coord || null : null}
