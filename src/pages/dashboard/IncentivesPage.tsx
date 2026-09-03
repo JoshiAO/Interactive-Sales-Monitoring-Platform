@@ -5,6 +5,7 @@ import { db } from '../../firebase/config';
 import { Gift, Archive, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useIncentiveDashboard } from '../../hooks/useIncentiveDashboard';
+import { getCropCss } from '../../utils/cropUtils';
 
 const ProgramPreview: React.FC<{ program: any }> = ({ program }) => {
   const { dashboardData, loading } = useIncentiveDashboard(program.id);
@@ -86,12 +87,12 @@ const IncentivesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [lastBannerUrl, setLastBannerUrl] = useState<string | null>(null);
+  const [displayedProg, setDisplayedProg] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
     if (activeIndex !== null && activePrograms[activeIndex]) {
-      setLastBannerUrl((activePrograms[activeIndex] as any).bannerUrl);
+      setDisplayedProg(activePrograms[activeIndex]);
     }
   }, [activeIndex, activePrograms]);
 
@@ -123,6 +124,8 @@ const IncentivesPage: React.FC = () => {
     fetchPrograms();
   }, []);
 
+  const bgCropCss = displayedProg?.cropSettings?.background ? getCropCss(displayedProg.cropSettings.background) : { backgroundSize: 'cover', backgroundPosition: 'right center' };
+
   return (
     <div style={{ paddingBottom: '40px', position: 'relative', minHeight: 'calc(100vh - 120px)' }}>
       {/* Dynamic Background Overlay */}
@@ -133,9 +136,8 @@ const IncentivesPage: React.FC = () => {
           right: 0,
           width: '75%',
           height: '100%',
-          backgroundImage: lastBannerUrl ? `url(${lastBannerUrl})` : 'none',
-          backgroundSize: 'cover',
-          backgroundPosition: 'right center',
+          backgroundImage: displayedProg?.bannerUrl ? `url(${displayedProg.bannerUrl})` : 'none',
+          ...bgCropCss,
           backgroundRepeat: 'no-repeat',
           opacity: activeIndex !== null ? 0.2 : 0, // Decreased opacity to 20%
           zIndex: 0,
@@ -144,7 +146,7 @@ const IncentivesPage: React.FC = () => {
           filter: 'contrast(1.2) brightness(0.8)', // Adjusting contrast and brightness to match the dark theme
           WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 40%)',
           maskImage: 'linear-gradient(to right, transparent 0%, black 40%)',
-          transition: 'opacity 0.8s ease'
+          transition: 'opacity 0.8s ease, background-position 0.8s ease, background-size 0.8s ease'
         }} 
       />
 
@@ -298,13 +300,17 @@ const IncentivesPage: React.FC = () => {
                       position: 'relative'
                     }}>
                       {prog.bannerUrl ? (
-                        <img 
-                          src={prog.bannerUrl} 
-                          alt={prog.title} 
+                        <div 
                           style={{ 
                             width: '100%', 
                             height: '100%', 
-                            objectFit: 'cover', 
+                            backgroundImage: `url(${prog.bannerUrl})`,
+                            backgroundRepeat: 'no-repeat',
+                            ...(isActive && prog.cropSettings?.thumbActive 
+                                  ? getCropCss(prog.cropSettings.thumbActive) 
+                                  : (!isActive && prog.cropSettings?.thumbInactive 
+                                        ? getCropCss(prog.cropSettings.thumbInactive) 
+                                        : { backgroundSize: 'cover', backgroundPosition: 'center' })),
                             filter: isActive ? 'grayscale(0%)' : 'grayscale(100%) opacity(0.7)',
                             transition: 'all 0.6s ease' 
                           }} 

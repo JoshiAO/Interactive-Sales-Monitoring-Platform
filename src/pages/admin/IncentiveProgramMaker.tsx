@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, setDoc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase/config';
-import { Plus, Trash2, Edit2, Save, Image as ImageIcon, Loader2, X, Archive, Check, Minus } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, Image as ImageIcon, Loader2, X, Archive, Check, Minus, Crop } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
+import { ImageCropperModal } from '../../components/ui/ImageCropperModal';
+import type { CropSettings } from '../../utils/cropUtils';
 
 interface TrackingGroup {
   id: string;
@@ -27,6 +29,7 @@ interface IncentiveProgram {
   endMonth: string;
   status: string;
   bannerUrl: string;
+  cropSettings?: CropSettings;
   trackingGroups: Record<string, TrackingGroup>;
   participatingSalesmen: string[];
 }
@@ -37,6 +40,9 @@ const IncentiveProgramMaker: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showCropper, setShowCropper] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [localImageUrl, setLocalImageUrl] = useState<string>('');
   const [formData, setFormData] = useState<Partial<IncentiveProgram>>({
     status: 'active',
     trackingGroups: {},
@@ -137,17 +143,30 @@ const IncentiveProgramMaker: React.FC = () => {
     });
   };
 
-  const handleImageUpload = async (file: File) => {
+  const handleImageUpload = (file: File) => {
     if (!file.type.startsWith('image/')) {
       alert('Please upload an image file');
       return;
     }
-    
+    const objectUrl = URL.createObjectURL(file);
+    setLocalImageUrl(objectUrl);
+    setPendingFile(file);
+    setShowCropper(true);
+  };
+
+  const handleCropComplete = async (crops: CropSettings) => {
+    setShowCropper(false);
+    if (!pendingFile) {
+      setFormData(prev => ({ ...prev, cropSettings: crops }));
+      setLocalImageUrl('');
+      return;
+    }
+
     setUploadingImage(true);
     try {
       const compressedFile = await new Promise<File>((resolve, reject) => {
         const reader = new FileReader();
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(pendingFile);
         reader.onload = event => {
           const img = new Image();
           img.src = event.target?.result as string;
@@ -166,7 +185,7 @@ const IncentiveProgramMaker: React.FC = () => {
             const ctx = canvas.getContext('2d');
             ctx?.drawImage(img, 0, 0, width, height);
             canvas.toBlob(blob => {
-              if (blob) resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+              if (blob) resolve(new File([blob], pendingFile.name, { type: 'image/jpeg' }));
               else reject(new Error('Compression failed'));
             }, 'image/jpeg', 0.8);
           };
@@ -177,12 +196,15 @@ const IncentiveProgramMaker: React.FC = () => {
       await uploadBytes(storageRef, compressedFile);
       const url = await getDownloadURL(storageRef);
       
-      setFormData(prev => ({ ...prev, bannerUrl: url }));
+      setFormData(prev => ({ ...prev, bannerUrl: url, cropSettings: crops }));
     } catch (error) {
       console.error('Upload failed:', error);
       alert('Failed to upload image. Please try again.');
     } finally {
       setUploadingImage(false);
+      setPendingFile(null);
+      URL.revokeObjectURL(localImageUrl);
+      setLocalImageUrl('');
     }
   };
 
@@ -215,7 +237,7 @@ const IncentiveProgramMaker: React.FC = () => {
 
       await setDoc(doc(db, 'incentives_programs', docId), payload);
       setShowModal(false);
-      setFormData({ status: 'active', trackingGroups: {}, participatingSalesmen: [] });
+      setFormData({ status: 'active', trackingGroups: {}, participatingSalesmen: [], bannerUrl: '', cropSettings: undefined });
       fetchPrograms();
     } catch (err) {
       console.error(err);
@@ -447,13 +469,34 @@ const IncentiveProgramMaker: React.FC = () => {
             <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)' }}>Banner Image</label>
             {formData.bannerUrl ? (
               <div style={{ position: 'relative', width: '100%', height: '160px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                <img src={formData.bannerUrl} alt="Banner Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                <button 
-                  onClick={() => setFormData(prev => ({ ...prev, bannerUrl: '' }))}
-                  style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer', display: 'flex' }}
-                >
-                  <X size={16} />
-                </button>
+                <div style={{ 
+                  width: '100%', height: '100%', 
+                  backgroundImage: `url(${formData.bannerUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center'
+                }} />
+                <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '8px' }}>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setLocalImageUrl(formData.bannerUrl!);
+                      setPendingFile(null);
+                      setShowCropper(true);
+                    }}
+                    style={{ background: 'rgba(15, 23, 42, 0.85)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', backdropFilter: 'blur(4px)' }}
+                    title="Adjust Crop Settings"
+                  >
+                    <Crop size={14} /> Adjust Crops
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, bannerUrl: '', cropSettings: undefined }))}
+                    style={{ background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer', display: 'flex' }}
+                    title="Remove Image"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
               </div>
             ) : (
               <label 
@@ -1086,6 +1129,23 @@ const IncentiveProgramMaker: React.FC = () => {
           );
         })()}
       </Modal>
+
+      {showCropper && (
+        <ImageCropperModal
+          isOpen={showCropper}
+          onClose={() => {
+            setShowCropper(false);
+            setPendingFile(null);
+            if (localImageUrl.startsWith('blob:')) {
+              URL.revokeObjectURL(localImageUrl);
+            }
+            setLocalImageUrl('');
+          }}
+          imageUrl={localImageUrl}
+          initialCrops={formData.cropSettings}
+          onComplete={handleCropComplete}
+        />
+      )}
     </div>
   );
 };

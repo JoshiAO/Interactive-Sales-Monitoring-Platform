@@ -6,6 +6,7 @@ import { useTeams } from '../../hooks/useTeams';
 import { ArrowLeft, Trophy, CheckCircle, Circle, AlertCircle, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import * as XLSXStyle from 'xlsx-js-style';
+import { getCropCss } from '../../utils/cropUtils';
 
 const IncentiveDetails: React.FC = () => {
   const { programId } = useParams();
@@ -296,8 +297,8 @@ const IncentiveDetails: React.FC = () => {
               width: '70%',
               height: '100%',
               backgroundImage: `url(${program.bannerUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'left center', // to ensure we see the left part fading nicely
+              backgroundRepeat: 'no-repeat',
+              ...(program.cropSettings?.banner ? getCropCss(program.cropSettings.banner) : { backgroundSize: 'cover', backgroundPosition: 'left center' }),
             }} />
             <div style={{
               position: 'absolute',
