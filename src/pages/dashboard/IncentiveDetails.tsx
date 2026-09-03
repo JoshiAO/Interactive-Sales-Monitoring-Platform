@@ -494,22 +494,45 @@ const IncentiveDetails: React.FC = () => {
                    </div>
 
                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {Object.values(s.trackingResults).map((res: any) => (
-                         <div key={res.id} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px', border: res.isHit ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--border)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  {res.isHit ? <CheckCircle size={14} color="#4ade80" /> : <Circle size={14} color="var(--text-muted)" />}
-                                  <span style={{ fontSize: '14px', color: res.isHit ? 'white' : 'var(--text-muted)', fontWeight: res.isHit ? 600 : 400 }}>{res.name}</span>
+                      {Object.values(s.trackingResults).map((res: any) => {
+                         if (res.definitionType === 'new_customer') {
+                           return (
+                             <div key={res.id} style={{ background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6))', borderRadius: '12px', padding: '16px', border: res.isHit ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(255,255,255,0.05)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                               <div style={{ textAlign: 'center', marginBottom: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                                  {res.isHit ? <CheckCircle size={16} color="#4ade80" /> : <Circle size={16} color="var(--text-muted)" />}
+                                  <span style={{ fontSize: '15px', color: res.isHit ? '#fff' : 'var(--text-main)', fontWeight: 600, letterSpacing: '0.02em' }}>{res.name}</span>
                                </div>
-                               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                                  {res.targetType === 'STT' ? formatCurrency(res.actualSTT) : `${res.actualUBA} UBA`} 
-                                  {' '} / {' '} 
-                                  {res.targetType === 'STT' ? formatCurrency(res.targetValue) : res.targetValue}
-                               </span>
-                            </div>
-                            {renderProgressBar(res.targetType === 'STT' ? res.actualSTT : res.actualUBA, res.targetValue)}
-                         </div>
-                      ))}
+                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', textAlign: 'center' }}>
+                                 <div style={{ borderRight: '1px solid rgba(255,255,255,0.1)', paddingRight: '16px' }}>
+                                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Buying Count</div>
+                                   <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--accent-primary)', textShadow: '0 2px 10px rgba(59, 130, 246, 0.2)' }}>{res.actualUBA}</div>
+                                 </div>
+                                 <div style={{ paddingLeft: '16px' }}>
+                                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>New Customers</div>
+                                   <div style={{ fontSize: '28px', fontWeight: 700, color: 'white' }}>{res.targetValue}</div>
+                                 </div>
+                               </div>
+                             </div>
+                           );
+                         }
+
+                         return (
+                           <div key={res.id} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px', border: res.isHit ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--border)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    {res.isHit ? <CheckCircle size={14} color="#4ade80" /> : <Circle size={14} color="var(--text-muted)" />}
+                                    <span style={{ fontSize: '14px', color: res.isHit ? 'white' : 'var(--text-muted)', fontWeight: res.isHit ? 600 : 400 }}>{res.name}</span>
+                                 </div>
+                                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                                    {res.targetType === 'STT' ? formatCurrency(res.actualSTT) : `${res.actualUBA} UBA`} 
+                                    {' '} / {' '} 
+                                    {res.targetType === 'STT' ? formatCurrency(res.targetValue) : res.targetValue}
+                                 </span>
+                              </div>
+                              {renderProgressBar(res.targetType === 'STT' ? res.actualSTT : res.actualUBA, res.targetValue)}
+                           </div>
+                         );
+                      })}
                    </div>
                 </div>
              ))}

@@ -168,7 +168,9 @@ export const useIncentiveDashboard = (programId: string | undefined, _selectedTe
               let targetValue = 0;
               const indivTargetData = group.individualTargets && group.individualTargets[salesmanCode];
               
-              if (typeof indivTargetData === 'number') {
+              if (group.definitionType === 'new_customer') {
+                 targetValue = metricsRaw[salesmanCode]?.new_customer_count || 0;
+              } else if (typeof indivTargetData === 'number') {
                  // Flat target
                  targetValue = indivTargetData;
               } else if (typeof indivTargetData === 'object' && indivTargetData !== null) {

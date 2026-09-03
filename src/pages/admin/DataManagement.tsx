@@ -304,6 +304,22 @@ const DataManagement: React.FC = () => {
               activeIncentives.push({ id: doc.id, ...doc.data() });
             });
 
+            setProgress({ step: 'Fetching New Customer assignments...', current: 0, total: 100 });
+            const allCustSnapForIncentives = await getDocs(collection(db, 'customer_data'));
+            const newCustomersSet = new Set<string>();
+            allCustSnapForIncentives.forEach(d => {
+               const data = d.data();
+               if(data.customers) {
+                   const parsed = JSON.parse(data.customers);
+                   parsed.forEach((c: any) => {
+                       const isNew = String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES';
+                       if(isNew) {
+                           newCustomersSet.add(String(c['CUSTOMER CODE']).replace(/[^a-zA-Z0-9_]/g, ''));
+                       }
+                   });
+               }
+            });
+
             // 2. Aggregate Data
             const customerMetrics: Record<string, any> = {};
 
@@ -436,7 +452,9 @@ const DataManagement: React.FC = () => {
                   }
                   
                   // Check Items logic
-                  if (group.definitionType === 'category') {
+                  if (group.definitionType === 'new_customer') {
+                     if (custNum && newCustomersSet.has(String(custNum).replace(/[^a-zA-Z0-9_]/g, ''))) isMatch = true;
+                  } else if (group.definitionType === 'category') {
                      if (group.items && group.items.includes(category)) isMatch = true;
                   } else if (group.definitionType === 'products') {
                      if (group.items && group.items.includes(String(prodCode))) isMatch = true;
@@ -637,6 +655,7 @@ const DataManagement: React.FC = () => {
 
               // Preserve cml_count from existing data (set by CML upload)
               const existingCml = existingMetricsAll[salesmanCode]?.cml_count;
+              const existingNewCustomerCount = existingMetricsAll[salesmanCode]?.new_customer_count;
 
               // Serialize per-product VD30 details compactly: { product_code: { customers: count, volume: num } }
               const finalVd30Products: Record<string, { customers: number; volume: number }> = {};
@@ -691,6 +710,7 @@ const DataManagement: React.FC = () => {
                 frequency: { f1, f2, f3, f4 },
                 incentives: finalIncentives,
                 ...(existingCml !== undefined ? { cml_count: existingCml } : {}),
+                ...(existingNewCustomerCount !== undefined ? { new_customer_count: existingNewCustomerCount } : {}),
                 ...(existingMetricsAll[salesmanCode]?.cml_towns ? { cml_towns: existingMetricsAll[salesmanCode]?.cml_towns } : {}),
                 team: teamRef[salesmanCode]?.team || '',
                 last_updated: new Date().toISOString()
@@ -718,6 +738,7 @@ const DataManagement: React.FC = () => {
                   mtd_volume: m.mtd_volume,
                   uba: m.uba,
                   cml_count: m.cml_count || 0,
+                  new_customer_count: m.new_customer_count || 0,
                   cml_towns: m.cml_towns || existingMetricsAll[code]?.cml_towns || {},
                   frequency: m.frequency || { f1: 0, f2: 0, f3: 0, f4: 0 },
                   vd30_placements: m.vd30_placements, // Safe lightweight map: { "F01": 15 }
@@ -1032,6 +1053,7 @@ const DataManagement: React.FC = () => {
 
             // Calculate active customers per salesman and group them
             const cmlCounts: Record<string, number> = {};
+            const newCustomerCounts: Record<string, number> = {};
             const sssCounts: Record<string, { small: number, large: number }> = {};
             const cmlTowns: Record<string, Record<string, number>> = {};
             const salesmanGroups: Record<string, any[]> = {};
@@ -1068,6 +1090,11 @@ const DataManagement: React.FC = () => {
                 if (!cmlTowns[salesmanCode]) cmlTowns[salesmanCode] = {};
                 cmlTowns[salesmanCode][city] = (cmlTowns[salesmanCode][city] || 0) + 1;
 
+                const isNewCustomer = String(cleanRow['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES';
+                if (isNewCustomer) {
+                  newCustomerCounts[salesmanCode] = (newCustomerCounts[salesmanCode] || 0) + 1;
+                }
+
                 if (!salesmanGroups[salesmanCode]) salesmanGroups[salesmanCode] = [];
                 // Ensure initial metrics are present
                 cleanRow.volume = 0;
@@ -1087,6 +1114,7 @@ const DataManagement: React.FC = () => {
                 const docRef = doc(collection(db, 'dashboard_metrics'), salesmanCode);
                 cmlBatch.set(docRef, {
                   cml_count: cmlCounts[salesmanCode],
+                  new_customer_count: newCustomerCounts[salesmanCode] || 0,
                   sss_small_count: sssCounts[salesmanCode]?.small || 0,
                   sss_large_count: sssCounts[salesmanCode]?.large || 0,
                   cml_towns: cmlTowns[salesmanCode] || {},
@@ -1111,6 +1139,7 @@ const DataManagement: React.FC = () => {
               updatedAll[salesmanCode] = {
                 ...(existingAll[salesmanCode] || {}),
                 cml_count: cmlCounts[salesmanCode],
+                new_customer_count: newCustomerCounts[salesmanCode] || 0,
                 sss_small_count: sssCounts[salesmanCode]?.small || 0,
                 sss_large_count: sssCounts[salesmanCode]?.large || 0,
                 cml_towns: cmlTowns[salesmanCode] || {}
@@ -1118,6 +1147,7 @@ const DataManagement: React.FC = () => {
               updatedSummary[salesmanCode] = {
                 ...(existingSummary[salesmanCode] || {}),
                 cml_count: cmlCounts[salesmanCode],
+                new_customer_count: newCustomerCounts[salesmanCode] || 0,
                 sss_small_count: sssCounts[salesmanCode]?.small || 0,
                 sss_large_count: sssCounts[salesmanCode]?.large || 0,
                 cml_towns: cmlTowns[salesmanCode] || {}

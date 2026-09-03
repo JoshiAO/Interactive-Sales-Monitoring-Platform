@@ -8,7 +8,7 @@ import { Modal } from '../../components/ui/Modal';
 interface TrackingGroup {
   id: string;
   name: string;
-  definitionType: 'category' | 'products';
+  definitionType: 'category' | 'products' | 'new_customer';
   items: string[];
   targetType: 'STT' | 'UBA';
   targetValue?: number;
@@ -540,12 +540,21 @@ const IncentiveProgramMaker: React.FC = () => {
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
                   <select 
                     value={group.definitionType} 
-                    onChange={e => handleUpdateTrackingGroup(group.id, { definitionType: e.target.value as any, items: [] })}
+                    onChange={e => {
+                      const newType = e.target.value as any;
+                      handleUpdateTrackingGroup(group.id, { 
+                        definitionType: newType, 
+                        items: [],
+                        targetType: newType === 'new_customer' ? 'UBA' : group.targetType,
+                        ubaMeasureType: newType === 'new_customer' ? 'Month-on-month' : group.ubaMeasureType
+                      });
+                    }}
                     className="glass-panel"
                     style={{ flex: 1, padding: '8px', borderRadius: '4px' }}
                   >
                     <option value="category">Track by Category</option>
                     <option value="products">Specific Products</option>
+                    <option value="new_customer">Track New Customers</option>
                   </select>
                   
                   <select 
@@ -553,6 +562,7 @@ const IncentiveProgramMaker: React.FC = () => {
                     onChange={e => handleUpdateTrackingGroup(group.id, { targetType: e.target.value as any, ubaMeasureType: e.target.value === 'UBA' || e.target.value === 'Mixed' ? 'Month-on-month' : undefined })}
                     className="glass-panel"
                     style={{ flex: 1, padding: '8px', borderRadius: '4px' }}
+                    disabled={group.definitionType === 'new_customer'}
                   >
                     <option value="STT">STT (Net Value)</option>
                     <option value="UBA">UBA</option>
@@ -571,12 +581,20 @@ const IncentiveProgramMaker: React.FC = () => {
                   )}
                 </div>
 
+                {group.definitionType === 'new_customer' && (
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', padding: '12px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '6px' }}>
+                    <div style={{ fontSize: '13px', color: '#93c5fd' }}>
+                      <strong>Default Target:</strong> Extracted from the "NEW CUSTOMER" column in the CML upload. You can override this below.
+                    </div>
+                  </div>
+                )}
+                
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center' }}>
                   <div style={{ fontSize: '13px', color: 'var(--text-muted)', width: '100px' }}>Target:</div>
                   <div style={{ flex: 1, display: 'flex', gap: '8px' }}>
                     <input 
                       type="number" 
-                      placeholder={Object.keys(group.individualTargets || {}).length > 0 ? 'Individual Targets Set' : `Global Target ${group.targetType === 'STT' ? '(₱)' : ''}`} 
+                      placeholder={Object.keys(group.individualTargets || {}).length > 0 ? 'Individual Targets Set' : (group.definitionType === 'new_customer' ? 'Auto-Calculated from CML' : `Global Target ${group.targetType === 'STT' ? '(₱)' : ''}`)} 
                       value={group.targetValue || ''} 
                       onChange={e => handleUpdateTrackingGroup(group.id, { targetValue: Number(e.target.value) })} 
                       disabled={Object.keys(group.individualTargets || {}).length > 0}
@@ -601,23 +619,25 @@ const IncentiveProgramMaker: React.FC = () => {
                   </div>
                 )}
                 
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-                  <button 
-                    className="btn" 
-                    onClick={() => setSelectorModal({ groupId: group.id, type: group.definitionType === 'category' ? 'category' : 'product' })}
-                    style={{ flex: 1, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', justifyContent: 'flex-start', color: group.items.length > 0 ? 'white' : 'var(--text-muted)' }}
-                  >
-                    {group.items.length > 0 ? `${group.items.length} ${group.definitionType === 'category' ? 'Categories' : 'Products'} Selected` : `Select ${group.definitionType === 'category' ? 'Categories' : 'Products'}...`}
-                  </button>
-                  
-                  <button 
-                    className="btn" 
-                    onClick={() => setSelectorModal({ groupId: group.id, type: 'channel' })}
-                    style={{ flex: 1, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', justifyContent: 'flex-start', color: (group.channels || []).length > 0 ? 'white' : 'var(--text-muted)' }}
-                  >
-                    {(group.channels || []).length > 0 ? `${group.channels!.length} Channels Selected` : 'All Channels (Default)'}
-                  </button>
-                </div>
+                {group.definitionType !== 'new_customer' && (
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                    <button 
+                      className="btn" 
+                      onClick={() => setSelectorModal({ groupId: group.id, type: group.definitionType === 'category' ? 'category' : 'product' })}
+                      style={{ flex: 1, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', justifyContent: 'flex-start', color: group.items.length > 0 ? 'white' : 'var(--text-muted)' }}
+                    >
+                      {group.items.length > 0 ? `${group.items.length} ${group.definitionType === 'category' ? 'Categories' : 'Products'} Selected` : `Select ${group.definitionType === 'category' ? 'Categories' : 'Products'}...`}
+                    </button>
+                    
+                    <button 
+                      className="btn" 
+                      onClick={() => setSelectorModal({ groupId: group.id, type: 'channel' })}
+                      style={{ flex: 1, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', justifyContent: 'flex-start', color: (group.channels || []).length > 0 ? 'white' : 'var(--text-muted)' }}
+                    >
+                      {(group.channels || []).length > 0 ? `${group.channels!.length} Channels Selected` : 'All Channels (Default)'}
+                    </button>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                   <input 
