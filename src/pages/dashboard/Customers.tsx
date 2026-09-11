@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
 import { Search, MapPin, UserRound } from 'lucide-react';
 import { useCustomersData } from '../../hooks/useCustomersData';
@@ -22,13 +24,40 @@ const Customers: React.FC = () => {
   const [salesmanSearch, setSalesmanSearch] = useState('');
   const [newCustomerOnly, setNewCustomerOnly] = useState(false);
   const [notInCmlOnly, setNotInCmlOnly] = useState(false);
+  const [sssOnly, setSssOnly] = useState(false);
   const [coverageDay, setCoverageDay] = useState('all');
   const [wklyCoverage, setWklyCoverage] = useState('all');
+  const [vd30DescMap, setVd30DescMap] = useState<Record<string, string>>({});
   const availableTeams = useTeams();
   
   const { loading, customers } = useCustomersData(selectedTeam);
   const { salesmen } = useSalesmenList(selectedTeam);
   const { usersCache } = useUsersCache();
+
+  useEffect(() => {
+    const fetchVd30Ref = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'reference_vd30', 'all'));
+        if (snap.exists()) {
+          const raw = snap.data();
+          const map: Record<string, string> = {};
+          Object.values(raw).forEach((item: any) => {
+            const code = item.vd30_code;
+            const desc = item.vd30_description || item.description || '';
+            if (code) {
+              const base = code.split('_')[0];
+              map[base] = desc;
+              map[code] = desc;
+            }
+          });
+          setVd30DescMap(map);
+        }
+      } catch (e) {
+        console.error("Error loading reference_vd30:", e);
+      }
+    };
+    fetchVd30Ref();
+  }, []);
 
   // Build salesman name lookup from usersCache (no extra reads)
   const salesmanNameMap = useMemo(() => {
@@ -58,12 +87,13 @@ const Customers: React.FC = () => {
       const matchesSalesman = selectedSalesmen.length === 0 || selectedSalesmen.includes(c.salesmanId);
       const matchesNewCustomer = newCustomerOnly ? c.newCustomer : true;
       const matchesNotInCml = notInCmlOnly ? c.notInCml : true;
+      const matchesSss = sssOnly ? c.isSariSariStore : true;
       const matchesCoverageDay = coverageDay === 'all' || c.coverageDay === coverageDay;
       const matchesWklyCoverage = wklyCoverage === 'all' || c.wklyCoverage === wklyCoverage;
       
-      return matchesSearch && matchesTag && matchesProvince && matchesCity && matchesBarangay && matchesSalesman && matchesNewCustomer && matchesNotInCml && matchesCoverageDay && matchesWklyCoverage;
+      return matchesSearch && matchesTag && matchesProvince && matchesCity && matchesBarangay && matchesSalesman && matchesNewCustomer && matchesNotInCml && matchesSss && matchesCoverageDay && matchesWklyCoverage;
     });
-  }, [customers, search, filterTag, selectedProvince, selectedCity, selectedBarangay, selectedSalesmen, newCustomerOnly, notInCmlOnly, coverageDay, wklyCoverage]);
+  }, [customers, search, filterTag, selectedProvince, selectedCity, selectedBarangay, selectedSalesmen, newCustomerOnly, notInCmlOnly, sssOnly, coverageDay, wklyCoverage]);
 
   const totalBuying = useMemo(() => filteredCustomers.filter(c => c.isBuying).length, [filteredCustomers]);
   const totalNonBuying = useMemo(() => filteredCustomers.filter(c => !c.isBuying).length, [filteredCustomers]);
@@ -92,7 +122,16 @@ const Customers: React.FC = () => {
           </div>
         </div>
         
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)' }}>
+            <span style={{ fontSize: '12px', color: sssOnly ? 'var(--accent-primary)' : 'var(--text-muted)', fontWeight: sssOnly ? 600 : 400 }}>SSS Stores</span>
+            <div 
+              onClick={() => { setSssOnly(!sssOnly); setDisplayCount(20); }}
+              style={{ width: '36px', height: '20px', borderRadius: '10px', background: sssOnly ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', transition: 'background 0.2s' }}
+            >
+              <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: sssOnly ? '18px' : '2px', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+            </div>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>New Customers</span>
             <div 
@@ -318,6 +357,19 @@ const Customers: React.FC = () => {
                   <MapPin size={12} />
                   <span>{customer.barangay}, {customer.city}</span>
                 </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                  <span style={{ 
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)', 
+                    color: 'var(--accent-primary)', 
+                    fontSize: '10px', 
+                    fontWeight: 600, 
+                    padding: '1px 6px', 
+                    borderRadius: '4px', 
+                    border: '1px solid rgba(59, 130, 246, 0.2)' 
+                  }}>
+                    {customer.partyClassificationDescription || customer.customerClass || 'Party Class N/A'}
+                  </span>
+                </div>
                 {role !== 'salesman' && customer.salesmanId && (
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                     <UserRound size={11} />
@@ -379,6 +431,53 @@ const Customers: React.FC = () => {
                 <div style={{ fontWeight: 600 }}>₱{customer.bsr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               </div>
             </div>
+
+            {sssOnly && (
+              <div style={{ paddingTop: '12px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>VD30 Core Status (01–30)</span>
+                  <span style={{ fontSize: '10px', color: 'var(--accent-success)' }}>
+                    {Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(2, '0')).filter(num => {
+                      const fCode = 'F' + num;
+                      return Array.isArray(customer.vd30Bought) && customer.vd30Bought.some((b: string) => String(b).toUpperCase().startsWith(fCode));
+                    }).length} / 30 Bought
+                  </span>
+                </div>
+                <div className="hide-scrollbar" style={{ display: 'flex', gap: '3px', overflowX: 'auto', width: '100%', paddingBottom: '4px' }}>
+                  {Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(2, '0')).map(num => {
+                    const fCode = 'F' + num;
+                    const desc = vd30DescMap[fCode] || '';
+                    const isBought = Array.isArray(customer.vd30Bought) && customer.vd30Bought.some((b: string) => String(b).toUpperCase().startsWith(fCode));
+                    return (
+                      <div
+                        key={num}
+                        title={`${fCode}${desc ? `: ${desc}` : ''} — ${isBought ? 'Bought' : 'Not Bought'}`}
+                        style={{
+                          flex: '1 0 auto',
+                          minWidth: '24px',
+                          height: '24px',
+                          borderRadius: '4px',
+                          backgroundColor: isBought ? 'var(--accent-success)' : 'rgba(255, 255, 255, 0.06)',
+                          color: isBought ? '#ffffff' : 'var(--text-muted)',
+                          border: `1px solid ${isBought ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          fontFamily: 'monospace',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          boxShadow: isBought ? '0 1px 4px rgba(16, 185, 129, 0.3)' : 'none'
+                        }}
+                      >
+                        {num}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         ))}
 

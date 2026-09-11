@@ -408,6 +408,7 @@ const DataManagement: React.FC = () => {
                     isBuying: false,
                     bsr_products: {},
                     bsr_categories: {},
+                    vd30_bought: new Set<string>(),
                     salesmanCode: salesmanCode,
                     custName: row['Sold-to Customer Name'] || row['Sold To Customer Name'] || custNum,
                     brgy: brgy,
@@ -505,6 +506,16 @@ const DataManagement: React.FC = () => {
                       }
                       m.vd30_placements[vd30Bucket].add(String(custNum));
 
+                      const cNumStr = String(custNum).replace(/[^a-zA-Z0-9_]/g, '');
+                      if (customerMetrics[cNumStr]) {
+                        if (!customerMetrics[cNumStr].vd30_bought) {
+                          customerMetrics[cNumStr].vd30_bought = new Set<string>();
+                        }
+                        customerMetrics[cNumStr].vd30_bought.add(vd30Bucket);
+                        const baseCode = vd30Bucket.split('_')[0];
+                        customerMetrics[cNumStr].vd30_bought.add(baseCode);
+                      }
+
                       // Per-product detail tracking (Option B)
                       const prodKey = String(prodCode);
                       if (!m.vd30_product_details[prodKey]) {
@@ -552,6 +563,7 @@ const DataManagement: React.FC = () => {
                   c.gsr = metrics.gsr;
                   c.bsr = metrics.bsr;
                   c.isBuying = metrics.netValue >= 1;
+                  c.vd30_bought = Array.from(metrics.vd30_bought || []);
                   if (Object.keys(metrics.bsr_products).length > 0) c.bsr_products = metrics.bsr_products;
                   if (Object.keys(metrics.bsr_categories).length > 0) c.bsr_categories = metrics.bsr_categories;
                 } else {
@@ -560,6 +572,7 @@ const DataManagement: React.FC = () => {
                   c.gsr = 0;
                   c.bsr = 0;
                   c.isBuying = false;
+                  c.vd30_bought = [];
                   delete c.bsr_products;
                   delete c.bsr_categories;
                 }
@@ -590,6 +603,7 @@ const DataManagement: React.FC = () => {
                   gsr: m.gsr,
                   bsr: m.bsr,
                   isBuying: m.netValue >= 1,
+                  vd30_bought: Array.from(m.vd30_bought || []),
                   bsr_products: m.bsr_products,
                   bsr_categories: m.bsr_categories,
                   'COVERAGE DAY': 'WKLY',

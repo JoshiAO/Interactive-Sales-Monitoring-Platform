@@ -21,7 +21,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const lastDataUpload = globalData?.lastDataUpload || 0;
         const lastReferenceUpload = globalData?.lastReferenceUpload || 0;
 
-        const cacheKey = `customers_cache_v7_${currentUser.uid}_${selectedTeam}`;
+        const cacheKey = `customers_cache_v8_${currentUser.uid}_${selectedTeam}`;
         const cachedData = await get(cacheKey);
         const cachedLastUpload = await get('customers_lastUpload');
 
@@ -88,31 +88,46 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         }
 
         const customerList: any[] = [];
+        const parseCustomerObj = (c: any) => {
+          const partyClassificationDescription = String(
+            c['PARTY CLASSIFICATION DESCRIPTION'] || c['STORE CLASS'] || c['STORE CLASS NAME'] || c['CHANNEL CLASSIFICATION'] || c['Channel_Classification'] || c['RETAIL ENVIRONMENT'] || 'Unknown'
+          ).trim();
+          const subChannel = String(c['SUBCHANNEL'] || c['SUB CHANNEL'] || '').toLowerCase();
+          const channel = String(c['CHANNEL'] || '').toLowerCase();
+          const combined = `${partyClassificationDescription.toLowerCase()} ${subChannel} ${channel}`;
+          const isSariSariStore = combined.includes('sari-sari') || combined.includes('sari') || combined.includes('sss');
+
+          return {
+            id: c['CUSTOMER CODE'],
+            name: c['STORE NAME / OWNER'] || c['STORE NAME'] || c['CUSTOMER NAME'] || 'Unknown Store',
+            barangay: c['BARANGAY'] || '-',
+            city: c['CITY'] || '-',
+            province: c['PROVINCE'] || c['REGION'] || '-',
+            status: c['STATUS'] || '',
+            salesmanId: String(c['SALES REP ID'] || ''),
+            volume: c.volume || 0,
+            netValue: c.netValue || 0,
+            gsr: c.gsr || 0,
+            bsr: c.bsr || 0,
+            isBuying: c.isBuying || false,
+            newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
+            notInCml: String(c['NOT IN CML'] || '').trim().toUpperCase() === 'YES',
+            coverageDay: String(c['COVERAGE DAY'] || c['DAY'] || c['VISIT DAY'] || '').trim().toUpperCase(),
+            wklyCoverage: String(c['WKLY COVERAGE'] || c['WEEKLY COVERAGE'] || c['WEEK'] || c['COVERAGE WEEK'] || '').trim().toUpperCase().replace(/\s+/g, ''),
+            customerClass: partyClassificationDescription,
+            partyClassificationDescription,
+            isSariSariStore,
+            vd30Bought: Array.isArray(c.vd30_bought) ? c.vd30_bought : (Array.isArray(c.vd30Bought) ? c.vd30Bought : [])
+          };
+        };
+
         if (selectedMonth && selectedMonth !== 'current') {
           salesmenArray.forEach(id => {
             const cData = customersRawData[id];
             if (cData) {
               const parsed = JSON.parse(cData);
               parsed.forEach((c: any) => {
-                customerList.push({
-                  id: c['CUSTOMER CODE'],
-                  name: c['STORE NAME / OWNER'] || c['STORE NAME'] || c['CUSTOMER NAME'] || 'Unknown Store',
-                  barangay: c['BARANGAY'] || '-',
-                  city: c['CITY'] || '-',
-                  province: c['PROVINCE'] || c['REGION'] || '-',
-                  status: c['STATUS'] || '',
-                  salesmanId: String(c['SALES REP ID'] || ''),
-                  volume: c.volume || 0,
-                  netValue: c.netValue || 0,
-                  gsr: c.gsr || 0,
-                  bsr: c.bsr || 0,
-                  isBuying: c.isBuying || false,
-                  newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
-                  notInCml: String(c['NOT IN CML'] || '').trim().toUpperCase() === 'YES',
-                  coverageDay: String(c['COVERAGE DAY'] || c['DAY'] || c['VISIT DAY'] || '').trim().toUpperCase(),
-                  wklyCoverage: String(c['WKLY COVERAGE'] || c['WEEKLY COVERAGE'] || c['WEEK'] || c['COVERAGE WEEK'] || '').trim().toUpperCase().replace(/\s+/g, ''),
-                  customerClass: String(c['PARTY CLASSIFICATION DESCRIPTION'] || c['STORE CLASS'] || c['STORE CLASS NAME'] || c['CHANNEL CLASSIFICATION'] || c['Channel_Classification'] || c['RETAIL ENVIRONMENT'] || 'Unknown')
-                });
+                customerList.push(parseCustomerObj(c));
               });
             }
           });
@@ -139,25 +154,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
               
               const parsed = JSON.parse(data.customers);
               parsed.forEach((c: any) => {
-                customerList.push({
-                  id: c['CUSTOMER CODE'],
-                  name: c['STORE NAME / OWNER'] || c['STORE NAME'] || c['CUSTOMER NAME'] || 'Unknown Store',
-                  barangay: c['BARANGAY'] || '-',
-                  city: c['CITY'] || '-',
-                  province: c['PROVINCE'] || c['REGION'] || '-',
-                  status: c['STATUS'] || '',
-                  salesmanId: String(c['SALES REP ID'] || ''),
-                  volume: c.volume || 0,
-                  netValue: c.netValue || 0,
-                  gsr: c.gsr || 0,
-                  bsr: c.bsr || 0,
-                  isBuying: c.isBuying || false,
-                  newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
-                  notInCml: String(c['NOT IN CML'] || '').trim().toUpperCase() === 'YES',
-                  coverageDay: String(c['COVERAGE DAY'] || c['DAY'] || c['VISIT DAY'] || '').trim().toUpperCase(),
-                  wklyCoverage: String(c['WKLY COVERAGE'] || c['WEEKLY COVERAGE'] || c['WEEK'] || c['COVERAGE WEEK'] || '').trim().toUpperCase().replace(/\s+/g, ''),
-                  customerClass: String(c['PARTY CLASSIFICATION DESCRIPTION'] || c['STORE CLASS'] || c['STORE CLASS NAME'] || c['CHANNEL CLASSIFICATION'] || c['Channel_Classification'] || c['RETAIL ENVIRONMENT'] || 'Unknown')
-                });
+                customerList.push(parseCustomerObj(c));
               });
             });
           });
