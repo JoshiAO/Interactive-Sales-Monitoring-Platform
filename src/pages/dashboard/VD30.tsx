@@ -60,7 +60,21 @@ const VD30: React.FC = () => {
     const baseCode = (selectedItem.name || selectedItem.code || '').split('_')[0].toUpperCase();
     const fullCode = (selectedItem.code || '').toUpperCase();
 
-    return customers.map(c => {
+    const baseCodeMatch = (selectedItem.name || selectedItem.code || '').match(/F0*(\d+)/i);
+    const fNum = baseCodeMatch ? parseInt(baseCodeMatch[1], 10) : 1;
+
+    // VD30 eligibility rules:
+    // F01-F19: Eligible for all SSS (Large + Small)
+    // F20-F30: Eligible for Large SSS only
+    const eligibleCustomers = customers.filter(c => {
+      if (!c.isSariSariStore) return false;
+      if (fNum >= 20 && fNum <= 30) {
+        return c.isLargeSariSariStore;
+      }
+      return true;
+    });
+
+    return eligibleCustomers.map(c => {
       const isBought = Array.isArray(c.vd30Bought) && (
         c.vd30Bought.includes(baseCode) || 
         c.vd30Bought.includes(fullCode) || 

@@ -21,7 +21,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const lastDataUpload = globalData?.lastDataUpload || 0;
         const lastReferenceUpload = globalData?.lastReferenceUpload || 0;
 
-        const cacheKey = `customers_cache_v8_${currentUser.uid}_${selectedTeam}`;
+        const cacheKey = `customers_cache_v9_${currentUser.uid}_${selectedTeam}`;
         const cachedData = await get(cacheKey);
         const cachedLastUpload = await get('customers_lastUpload');
 
@@ -96,6 +96,8 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
           const channel = String(c['CHANNEL'] || '').toLowerCase();
           const combined = `${partyClassificationDescription.toLowerCase()} ${subChannel} ${channel}`;
           const isSariSariStore = combined.includes('sari-sari') || combined.includes('sari') || combined.includes('sss');
+          const isLargeSariSariStore = isSariSariStore && combined.includes('large');
+          const isSmallSariSariStore = isSariSariStore && !isLargeSariSariStore;
 
           return {
             id: c['CUSTOMER CODE'],
@@ -117,6 +119,8 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
             customerClass: partyClassificationDescription,
             partyClassificationDescription,
             isSariSariStore,
+            isLargeSariSariStore,
+            isSmallSariSariStore,
             vd30Bought: Array.isArray(c.vd30_bought) ? c.vd30_bought : (Array.isArray(c.vd30Bought) ? c.vd30Bought : [])
           };
         };
