@@ -500,9 +500,9 @@ const Customers: React.FC = () => {
 
             {sssOnly && (
               <div style={{ paddingTop: '12px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>VD30 Core Status (01–30)</span>
-                  <span style={{ fontSize: '10px', color: 'var(--accent-success)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                  <span>VD30 Core Status (01–30) <span style={{ fontSize: '10px', color: 'var(--accent-primary)', fontWeight: 500, marginLeft: '4px' }}>(Click cell for info • Double-click for scope)</span></span>
+                  <span style={{ fontSize: '10px', color: 'var(--accent-success)', fontWeight: 700 }}>
                     {Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(2, '0')).filter(num => {
                       const fCode = 'F' + num;
                       return Array.isArray(customer.vd30Bought) && customer.vd30Bought.some((b: string) => String(b).toUpperCase().startsWith(fCode));

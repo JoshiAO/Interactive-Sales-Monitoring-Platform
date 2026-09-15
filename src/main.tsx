@@ -5,7 +5,12 @@ import App from './App.tsx'
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 
-registerSW({ immediate: true })
+const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    updateSW(true);
+  }
+});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
