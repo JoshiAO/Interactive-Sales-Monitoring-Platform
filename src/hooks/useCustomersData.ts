@@ -21,7 +21,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const lastDataUpload = globalData?.lastDataUpload || 0;
         const lastReferenceUpload = globalData?.lastReferenceUpload || 0;
 
-        const cacheKey = `customers_cache_v9_${currentUser.uid}_${selectedTeam}`;
+        const cacheKey = `customers_cache_v10_${currentUser.uid}_${selectedTeam}`;
         const cachedData = await get(cacheKey);
         const cachedLastUpload = await get('customers_lastUpload');
 
@@ -121,7 +121,8 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
             isSariSariStore,
             isLargeSariSariStore,
             isSmallSariSariStore,
-            vd30Bought: Array.isArray(c.vd30_bought) ? c.vd30_bought : (Array.isArray(c.vd30Bought) ? c.vd30Bought : [])
+            vd30Bought: Array.isArray(c.vd30_bought) ? c.vd30_bought : (Array.isArray(c.vd30Bought) ? c.vd30Bought : []),
+            productSales: c.product_sales || c.productSales || {}
           };
         };
 

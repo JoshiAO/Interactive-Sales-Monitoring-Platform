@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
-import { Search, MapPin, UserRound } from 'lucide-react';
+import { Search, MapPin, UserRound, Package } from 'lucide-react';
 import { useCustomersData } from '../../hooks/useCustomersData';
 import { useTeams } from '../../hooks/useTeams';
 import { useSalesmenList } from '../../hooks/useSalesmenList';
@@ -28,6 +28,22 @@ const Customers: React.FC = () => {
   const [coverageDay, setCoverageDay] = useState('all');
   const [wklyCoverage, setWklyCoverage] = useState('all');
   const [vd30DescMap, setVd30DescMap] = useState<Record<string, string>>({});
+  const [vd30ProductsMap, setVd30ProductsMap] = useState<Record<string, Array<{ product_code: string; product_description: string; vd30_code: string }>>>({});
+  const [selectedVdCell, setSelectedVdCell] = useState<{ customerId: string; fCode: string } | null>(null);
+  const [vdScopeModal, setVdScopeModal] = useState<{
+    customerName: string;
+    customerId: string;
+    fCode: string;
+    vdFullCode: string;
+    vdDescription: string;
+    isBought: boolean;
+    vd30Bought: string[];
+    productSales?: Record<string, { volume: number; netValue: number }>;
+    bsrProducts?: Record<string, number>;
+  } | null>(null);
+  const [vdScopeSearch, setVdScopeSearch] = useState('');
+  const lastTapRef = useRef<{ key: string; time: number } | null>(null);
+
   const availableTeams = useTeams();
   
   const { loading, customers } = useCustomersData(selectedTeam);
@@ -40,17 +56,34 @@ const Customers: React.FC = () => {
         const snap = await getDoc(doc(db, 'reference_vd30', 'all'));
         if (snap.exists()) {
           const raw = snap.data();
-          const map: Record<string, string> = {};
+          const descMap: Record<string, string> = {};
+          const prodsMap: Record<string, Array<{ product_code: string; product_description: string; vd30_code: string }>> = {};
+
           Object.values(raw).forEach((item: any) => {
             const code = item.vd30_code;
             const desc = item.vd30_description || item.description || '';
+            const pCode = item.product_code || item.id || '';
+            const pDesc = item.product_description || item.name || 'No description';
+
             if (code) {
-              const base = code.split('_')[0];
-              map[base] = desc;
-              map[code] = desc;
+              const base = code.split('_')[0].toUpperCase();
+              const full = code.toUpperCase();
+              
+              if (!descMap[base]) descMap[base] = desc;
+              if (!descMap[full]) descMap[full] = desc;
+
+              const pObj = { product_code: pCode, product_description: pDesc, vd30_code: code };
+
+              if (!prodsMap[base]) prodsMap[base] = [];
+              prodsMap[base].push(pObj);
+
+              if (!prodsMap[full]) prodsMap[full] = [];
+              prodsMap[full].push(pObj);
             }
           });
-          setVd30DescMap(map);
+
+          setVd30DescMap(descMap);
+          setVd30ProductsMap(prodsMap);
         }
       } catch (e) {
         console.error("Error loading reference_vd30:", e);
@@ -58,6 +91,39 @@ const Customers: React.FC = () => {
     };
     fetchVd30Ref();
   }, []);
+
+  const openVdScopeModal = (customer: any, fCode: string, isBought: boolean) => {
+    const desc = vd30DescMap[fCode] || 'VD30 Placement Item';
+    const prods = vd30ProductsMap[fCode] || [];
+    const vdFullCode = prods.length > 0 ? (prods[0].vd30_code || fCode) : fCode;
+
+    setVdScopeModal({
+      customerName: customer.name,
+      customerId: customer.id,
+      fCode,
+      vdFullCode,
+      vdDescription: desc,
+      isBought,
+      vd30Bought: customer.vd30Bought || [],
+      productSales: customer.productSales || customer.product_sales || {},
+      bsrProducts: customer.bsr_products || {}
+    });
+    setVdScopeSearch('');
+  };
+
+  const handleCellTap = (customer: any, fCode: string, isBought: boolean, e: React.SyntheticEvent) => {
+    const now = Date.now();
+    const cellKey = `${customer.id}_${fCode}`;
+
+    if (lastTapRef.current && lastTapRef.current.key === cellKey && (now - lastTapRef.current.time) < 300) {
+      e.preventDefault();
+      lastTapRef.current = null;
+      openVdScopeModal(customer, fCode, isBought);
+    } else {
+      lastTapRef.current = { key: cellKey, time: now };
+      setSelectedVdCell(prev => (prev?.customerId === customer.id && prev?.fCode === fCode) ? null : { customerId: customer.id, fCode });
+    }
+  };
 
   // Build salesman name lookup from usersCache (no extra reads)
   const salesmanNameMap = useMemo(() => {
@@ -443,15 +509,75 @@ const Customers: React.FC = () => {
                     }).length} / 30 Bought
                   </span>
                 </div>
+
+                {/* Single Tap Inline Info Banner */}
+                {selectedVdCell && selectedVdCell.customerId === customer.id && (() => {
+                  const fCode = selectedVdCell.fCode;
+                  const desc = vd30DescMap[fCode] || 'VD30 Core Item';
+                  const prods = vd30ProductsMap[fCode] || [];
+                  const fullCode = prods.length > 0 ? prods[0].vd30_code : fCode;
+                  const isBought = Array.isArray(customer.vd30Bought) && customer.vd30Bought.some((b: string) => String(b).toUpperCase().startsWith(fCode));
+
+                  return (
+                    <div 
+                      className="animate-fade-in"
+                      style={{ 
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px',
+                        padding: '8px 12px', borderRadius: '8px', 
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.25)',
+                        margin: '2px 0 4px' 
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '12px', color: 'var(--accent-primary)', flexShrink: 0 }}>
+                          {fullCode}
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {desc}
+                        </span>
+                        <span style={{
+                          fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '8px', flexShrink: 0,
+                          backgroundColor: isBought ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                          color: isBought ? 'var(--accent-success)' : 'var(--accent-danger)'
+                        }}>
+                          {isBought ? 'Bought' : 'Not Bought'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Double-tap for products</span>
+                        <button
+                          onClick={() => openVdScopeModal(customer, fCode, isBought)}
+                          style={{
+                            padding: '3px 8px', borderRadius: '6px', border: 'none',
+                            backgroundColor: 'var(--accent-primary)', color: '#fff',
+                            fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '4px'
+                          }}
+                        >
+                          <Package size={12} /> Scope ({prods.length})
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="hide-scrollbar" style={{ display: 'flex', gap: '3px', overflowX: 'auto', width: '100%', paddingBottom: '4px' }}>
                   {Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(2, '0')).map(num => {
                     const fCode = 'F' + num;
                     const desc = vd30DescMap[fCode] || '';
                     const isBought = Array.isArray(customer.vd30Bought) && customer.vd30Bought.some((b: string) => String(b).toUpperCase().startsWith(fCode));
+                    const isSelectedCell = selectedVdCell?.customerId === customer.id && selectedVdCell?.fCode === fCode;
+
                     return (
                       <div
                         key={num}
-                        title={`${fCode}${desc ? `: ${desc}` : ''} — ${isBought ? 'Bought' : 'Not Bought'}`}
+                        title={`${fCode}${desc ? `: ${desc}` : ''} — ${isBought ? 'Bought' : 'Not Bought'} (Double-tap to view products)`}
+                        onClick={(e) => handleCellTap(customer, fCode, isBought, e)}
+                        onDoubleClick={(e) => {
+                          e.preventDefault();
+                          openVdScopeModal(customer, fCode, isBought);
+                        }}
                         style={{
                           flex: '1 0 auto',
                           minWidth: '24px',
@@ -459,7 +585,7 @@ const Customers: React.FC = () => {
                           borderRadius: '4px',
                           backgroundColor: isBought ? 'var(--accent-success)' : 'rgba(255, 255, 255, 0.06)',
                           color: isBought ? '#ffffff' : 'var(--text-muted)',
-                          border: `1px solid ${isBought ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+                          border: isSelectedCell ? '2px solid var(--accent-primary)' : `1px solid ${isBought ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -468,7 +594,8 @@ const Customers: React.FC = () => {
                           fontFamily: 'monospace',
                           cursor: 'pointer',
                           transition: 'all 0.15s ease',
-                          boxShadow: isBought ? '0 1px 4px rgba(16, 185, 129, 0.3)' : 'none'
+                          boxShadow: isSelectedCell ? '0 0 8px var(--accent-primary)' : isBought ? '0 1px 4px rgba(16, 185, 129, 0.3)' : 'none',
+                          transform: isSelectedCell ? 'scale(1.1)' : 'scale(1)'
                         }}
                       >
                         {num}
@@ -560,6 +687,120 @@ const Customers: React.FC = () => {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* VD Group Product Scope Modal */}
+      <Modal
+        isOpen={!!vdScopeModal}
+        onClose={() => setVdScopeModal(null)}
+        title={vdScopeModal?.vdFullCode || vdScopeModal?.fCode || ''}
+      >
+        {vdScopeModal && (() => {
+          const prods = vd30ProductsMap[vdScopeModal.fCode] || [];
+          const filteredProds = prods.filter(p => 
+            !vdScopeSearch || 
+            p.product_code.toLowerCase().includes(vdScopeSearch.toLowerCase()) || 
+            p.product_description.toLowerCase().includes(vdScopeSearch.toLowerCase())
+          );
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--accent-primary)', marginBottom: '4px' }}>
+                  {vdScopeModal.vdDescription}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Customer: <strong style={{ color: 'var(--text-main)' }}>{vdScopeModal.customerName}</strong> ({vdScopeModal.customerId})
+                </div>
+              </div>
+
+              {/* Search */}
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input 
+                  type="text" 
+                  placeholder="Search product code or description..." 
+                  value={vdScopeSearch}
+                  onChange={e => setVdScopeSearch(e.target.value)}
+                  style={{ paddingLeft: '32px', width: '100%', padding: '6px 12px 6px 32px', fontSize: '12px', borderRadius: '6px' }}
+                />
+              </div>
+
+              {/* Product Scope List */}
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Package size={14} />
+                  Products in Scope ({filteredProds.length})
+                </div>
+                <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {filteredProds.length > 0 ? (
+                    filteredProds.map((prod, idx) => {
+                      const pCode = String(prod.product_code).trim();
+                      const vCode = String(prod.vd30_code).trim().toUpperCase();
+
+                      const pSales = vdScopeModal.productSales?.[pCode];
+                      const pVolume = pSales?.volume || 0;
+                      const pNetValue = pSales?.netValue || 0;
+
+                      // Determine if THIS SPECIFIC product was bought by the customer
+                      const isSpecificItemBought = (() => {
+                        if (pSales && (pSales.netValue > 0 || pSales.volume > 0)) return true;
+                        if (Array.isArray(vdScopeModal.vd30Bought)) {
+                          return vdScopeModal.vd30Bought.some((b: string) => {
+                            const bUpper = String(b).toUpperCase();
+                            return bUpper === vCode || bUpper.endsWith(`_${pCode}`) || bUpper === pCode;
+                          });
+                        }
+                        return false;
+                      })();
+
+                      return (
+                        <div 
+                          key={idx} 
+                          style={{ 
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                            padding: '10px 12px', 
+                            background: isSpecificItemBought ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
+                            borderRadius: '6px', 
+                            border: `1px solid ${isSpecificItemBought ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.05)'}` 
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden', paddingRight: '8px' }}>
+                            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                              {prod.product_code}
+                            </span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-main)', lineHeight: 1.3 }}>
+                              {prod.product_description}
+                            </span>
+                            {isSpecificItemBought && (pVolume > 0 || pNetValue > 0) && (
+                              <div style={{ fontSize: '11px', color: 'var(--accent-success)', display: 'flex', gap: '12px', marginTop: '2px', fontWeight: 600 }}>
+                                <span>Vol: {pVolume.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CS</span>
+                                <span>Net: ₱{pNetValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <span style={{
+                            fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '10px', flexShrink: 0,
+                            backgroundColor: isSpecificItemBought ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                            color: isSpecificItemBought ? 'var(--accent-success)' : 'var(--text-muted)',
+                            border: `1px solid ${isSpecificItemBought ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`
+                          }}>
+                            {isSpecificItemBought ? 'Bought' : 'In Scope'}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                      No products found matching search.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
     </div>
   );

@@ -408,6 +408,7 @@ const DataManagement: React.FC = () => {
                     isBuying: false,
                     bsr_products: {},
                     bsr_categories: {},
+                    product_sales: {},
                     vd30_bought: new Set<string>(),
                     salesmanCode: salesmanCode,
                     custName: row['Sold-to Customer Name'] || row['Sold To Customer Name'] || custNum,
@@ -419,6 +420,16 @@ const DataManagement: React.FC = () => {
                 customerMetrics[cNumStr].netValue += netValue;
                 customerMetrics[cNumStr].gsr += gsr;
                 customerMetrics[cNumStr].bsr += bsr;
+
+                if (prodCode) {
+                  const pCode = String(prodCode);
+                  if (!customerMetrics[cNumStr].product_sales) customerMetrics[cNumStr].product_sales = {};
+                  if (!customerMetrics[cNumStr].product_sales[pCode]) {
+                    customerMetrics[cNumStr].product_sales[pCode] = { volume: 0, netValue: 0 };
+                  }
+                  customerMetrics[cNumStr].product_sales[pCode].volume += volume;
+                  customerMetrics[cNumStr].product_sales[pCode].netValue += netValue;
+                }
 
                 if (bsr > 0 && prodCode) {
                   const pCode = String(prodCode);
@@ -564,6 +575,7 @@ const DataManagement: React.FC = () => {
                   c.bsr = metrics.bsr;
                   c.isBuying = metrics.netValue >= 1;
                   c.vd30_bought = Array.from(metrics.vd30_bought || []);
+                  if (metrics.product_sales && Object.keys(metrics.product_sales).length > 0) c.product_sales = metrics.product_sales;
                   if (Object.keys(metrics.bsr_products).length > 0) c.bsr_products = metrics.bsr_products;
                   if (Object.keys(metrics.bsr_categories).length > 0) c.bsr_categories = metrics.bsr_categories;
                 } else {
@@ -573,6 +585,7 @@ const DataManagement: React.FC = () => {
                   c.bsr = 0;
                   c.isBuying = false;
                   c.vd30_bought = [];
+                  delete c.product_sales;
                   delete c.bsr_products;
                   delete c.bsr_categories;
                 }
