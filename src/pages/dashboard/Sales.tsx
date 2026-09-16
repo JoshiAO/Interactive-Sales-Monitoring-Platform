@@ -121,7 +121,14 @@ const Sales: React.FC = () => {
         marginBottom: '32px' 
       }}>
         <Card title="GSR" value={formatCurrency(data.gsr)} subtitle="Good Stock Returns (Est.)" />
-        <Card title="BSR" value={formatCurrency(data.bsr)} subtitle="Bad Stock Returns (Est.)" />
+        <Card title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            BSR
+            <span style={{ color: 'var(--accent-danger)', fontSize: '13px', fontWeight: 600 }}>
+              {(data.mtdSales + data.bsr) > 0 ? ((data.bsr / (data.mtdSales + data.bsr)) * 100).toFixed(1) + '%' : '0.0%'}
+            </span>
+          </span>
+        } value={formatCurrency(data.bsr)} subtitle="Bad Stock Returns (Est.)" />
         <Card title="Current CML" value={data.cml.toLocaleString()} icon={<Users size={20} />} subtitle="Customer Master List" />
         
         <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
@@ -156,7 +163,14 @@ const Sales: React.FC = () => {
         marginBottom: '32px' 
       }}>
         <Card title="UBA Target" value={data.ubaTarget.toLocaleString()} />
-        <Card title="UBA Performance" value={data.uba.toLocaleString()} />
+        <Card title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            UBA Performance
+            <span style={{ color: 'var(--accent-primary)', fontSize: '13px', fontWeight: 600 }}>
+              {data.ubaTarget > 0 ? ((data.uba / data.ubaTarget) * 100).toFixed(1) + '%' : '0.0%'}
+            </span>
+          </span>
+        } value={data.uba.toLocaleString()} />
         <Card title="UBA Balance" value={Math.max(data.ubaTarget - data.uba, 0).toLocaleString()} />
       </div>
 

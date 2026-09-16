@@ -498,72 +498,77 @@ const Customers: React.FC = () => {
               </div>
             </div>
 
-            {sssOnly && (
-              <div style={{ paddingTop: '12px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                  <span>VD30 Core Status (01–30) <span style={{ fontSize: '10px', color: 'var(--accent-primary)', fontWeight: 500, marginLeft: '4px' }}>(Click cell for info • Double-click for scope)</span></span>
-                  <span style={{ fontSize: '10px', color: 'var(--accent-success)', fontWeight: 700 }}>
-                    {Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(2, '0')).filter(num => {
-                      const fCode = 'F' + num;
-                      return Array.isArray(customer.vd30Bought) && customer.vd30Bought.some((b: string) => String(b).toUpperCase().startsWith(fCode));
-                    }).length} / 30 Bought
-                  </span>
-                </div>
+            {sssOnly && (() => {
+              const isSmallStore = customer.isSmallSariSariStore || (customer.partyClassificationDescription || '').toLowerCase().includes('small');
+              const vdCount = isSmallStore ? 19 : 30;
+              const vdMaxStr = vdCount.toString().padStart(2, '0');
 
-                {/* Single Tap Inline Info Banner */}
-                {selectedVdCell && selectedVdCell.customerId === customer.id && (() => {
-                  const fCode = selectedVdCell.fCode;
-                  const desc = vd30DescMap[fCode] || 'VD30 Core Item';
-                  const prods = vd30ProductsMap[fCode] || [];
-                  const fullCode = prods.length > 0 ? prods[0].vd30_code : fCode;
-                  const isBought = Array.isArray(customer.vd30Bought) && customer.vd30Bought.some((b: string) => String(b).toUpperCase().startsWith(fCode));
+              return (
+                <div style={{ paddingTop: '12px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                    <span>VD Core Status (01–{vdMaxStr}) <span style={{ fontSize: '10px', color: 'var(--accent-primary)', fontWeight: 500, marginLeft: '4px' }}>(Click cell for info • Double-click for scope)</span></span>
+                    <span style={{ fontSize: '10px', color: 'var(--accent-success)', fontWeight: 700 }}>
+                      {Array.from({ length: vdCount }, (_, i) => String(i + 1).padStart(2, '0')).filter(num => {
+                        const fCode = 'F' + num;
+                        return Array.isArray(customer.vd30Bought) && customer.vd30Bought.some((b: string) => String(b).toUpperCase().startsWith(fCode));
+                      }).length} / {vdCount} Bought
+                    </span>
+                  </div>
 
-                  return (
-                    <div 
-                      className="animate-fade-in"
-                      style={{ 
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px',
-                        padding: '8px 12px', borderRadius: '8px', 
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.25)',
-                        margin: '2px 0 4px' 
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '12px', color: 'var(--accent-primary)', flexShrink: 0 }}>
-                          {fullCode}
-                        </span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {desc}
-                        </span>
-                        <span style={{
-                          fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '8px', flexShrink: 0,
-                          backgroundColor: isBought ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                          color: isBought ? 'var(--accent-success)' : 'var(--accent-danger)'
-                        }}>
-                          {isBought ? 'Bought' : 'Not Bought'}
-                        </span>
+                  {/* Single Tap Inline Info Banner */}
+                  {selectedVdCell && selectedVdCell.customerId === customer.id && (() => {
+                    const fCode = selectedVdCell.fCode;
+                    const desc = vd30DescMap[fCode] || 'VD30 Core Item';
+                    const prods = vd30ProductsMap[fCode] || [];
+                    const fullCode = prods.length > 0 ? prods[0].vd30_code : fCode;
+                    const isBought = Array.isArray(customer.vd30Bought) && customer.vd30Bought.some((b: string) => String(b).toUpperCase().startsWith(fCode));
+
+                    return (
+                      <div 
+                        className="animate-fade-in"
+                        style={{ 
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px',
+                          padding: '8px 12px', borderRadius: '8px', 
+                          backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.25)',
+                          margin: '2px 0 4px' 
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '12px', color: 'var(--accent-primary)', flexShrink: 0 }}>
+                            {fullCode}
+                          </span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {desc}
+                          </span>
+                          <span style={{
+                            fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '8px', flexShrink: 0,
+                            backgroundColor: isBought ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                            color: isBought ? 'var(--accent-success)' : 'var(--accent-danger)'
+                          }}>
+                            {isBought ? 'Bought' : 'Not Bought'}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Double-tap for products</span>
+                          <button
+                            onClick={() => openVdScopeModal(customer, fCode, isBought)}
+                            style={{
+                              padding: '3px 8px', borderRadius: '6px', border: 'none',
+                              backgroundColor: 'var(--accent-primary)', color: '#fff',
+                              fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', gap: '4px'
+                            }}
+                          >
+                            <Package size={12} /> Scope ({prods.length})
+                          </button>
+                        </div>
                       </div>
+                    );
+                  })()}
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Double-tap for products</span>
-                        <button
-                          onClick={() => openVdScopeModal(customer, fCode, isBought)}
-                          style={{
-                            padding: '3px 8px', borderRadius: '6px', border: 'none',
-                            backgroundColor: 'var(--accent-primary)', color: '#fff',
-                            fontSize: '11px', fontWeight: 600, cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '4px'
-                          }}
-                        >
-                          <Package size={12} /> Scope ({prods.length})
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div className="hide-scrollbar" style={{ display: 'flex', gap: '3px', overflowX: 'auto', width: '100%', paddingBottom: '4px' }}>
-                  {Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(2, '0')).map(num => {
+                  <div className="hide-scrollbar" style={{ display: 'flex', gap: '3px', overflowX: 'auto', width: '100%', paddingBottom: '4px' }}>
+                    {Array.from({ length: vdCount }, (_, i) => String(i + 1).padStart(2, '0')).map(num => {
                     const fCode = 'F' + num;
                     const desc = vd30DescMap[fCode] || '';
                     const isBought = Array.isArray(customer.vd30Bought) && customer.vd30Bought.some((b: string) => String(b).toUpperCase().startsWith(fCode));
@@ -604,7 +609,8 @@ const Customers: React.FC = () => {
                   })}
                 </div>
               </div>
-            )}
+            );
+          })()}
           </div>
         ))}
 
