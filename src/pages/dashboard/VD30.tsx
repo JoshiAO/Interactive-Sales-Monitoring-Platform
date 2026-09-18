@@ -35,6 +35,8 @@ const VD30: React.FC = () => {
   const [modalCustSearch, setModalCustSearch] = useState('');
   const [modalCustFilter, setModalCustFilter] = useState<'all' | 'buying' | 'non-buying'>('all');
   
+  const [modalCustSort, setModalCustSort] = useState<'net-desc' | 'name-asc'>('net-desc');
+  
   const { loading, data } = useDashboardData(selectedTeam);
   const { customers } = useCustomersData(selectedTeam);
 
@@ -63,6 +65,9 @@ const VD30: React.FC = () => {
     const baseCodeMatch = (selectedItem.name || selectedItem.code || '').match(/F0*(\d+)/i);
     const fNum = baseCodeMatch ? parseInt(baseCodeMatch[1], 10) : 1;
 
+    // Products belonging to this VD30 item group
+    const groupProducts = selectedItem ? (productsByVd30Code[selectedItem.code] || []) : [];
+
     // VD30 eligibility rules:
     // F01-F19: Eligible for all SSS (Large + Small)
     // F20-F30: Eligible for Large SSS only
@@ -75,23 +80,42 @@ const VD30: React.FC = () => {
     });
 
     return eligibleCustomers.map(c => {
-      const isBought = Array.isArray(c.vd30Bought) && (
-        c.vd30Bought.includes(baseCode) || 
-        c.vd30Bought.includes(fullCode) || 
-        c.vd30Bought.some((code: string) => String(code).toUpperCase().startsWith(baseCode))
+      let vdVolume = 0;
+      let vdNetValue = 0;
+
+      if (groupProducts.length > 0) {
+        groupProducts.forEach((prod: any) => {
+          const pCode = prod.product_code;
+          const pSales = c.productSales?.[pCode];
+          if (pSales) {
+            vdVolume += (pSales.volume || 0);
+            vdNetValue += (pSales.netValue || 0);
+          }
+        });
+      }
+
+      const isBought = (vdNetValue >= 1 || vdVolume >= 1) || (
+        Array.isArray(c.vd30Bought) && (
+          c.vd30Bought.includes(baseCode) || 
+          c.vd30Bought.includes(fullCode) || 
+          c.vd30Bought.some((code: string) => String(code).toUpperCase().startsWith(baseCode))
+        )
       );
+
       return {
         ...c,
+        vdVolume,
+        vdNetValue,
         isVdBought: isBought
       };
     });
-  }, [selectedItem, customers]);
+  }, [selectedItem, customers, productsByVd30Code]);
 
   const totalVdBuying = useMemo(() => selectedItemCustomers.filter(c => c.isVdBought).length, [selectedItemCustomers]);
   const totalVdNonBuying = useMemo(() => selectedItemCustomers.filter(c => !c.isVdBought).length, [selectedItemCustomers]);
 
   const filteredModalCustomers = useMemo(() => {
-    return selectedItemCustomers.filter(c => {
+    const filtered = selectedItemCustomers.filter(c => {
       const matchesSearch = !modalCustSearch || 
         c.name.toLowerCase().includes(modalCustSearch.toLowerCase()) || 
         c.id.toLowerCase().includes(modalCustSearch.toLowerCase());
@@ -99,7 +123,17 @@ const VD30: React.FC = () => {
         modalCustFilter === 'buying' ? c.isVdBought : !c.isVdBought;
       return matchesSearch && matchesFilter;
     });
-  }, [selectedItemCustomers, modalCustSearch, modalCustFilter]);
+
+    return filtered.sort((a, b) => {
+      if (modalCustSort === 'net-desc') {
+        if (b.vdNetValue !== a.vdNetValue) {
+          return b.vdNetValue - a.vdNetValue;
+        }
+        return a.name.localeCompare(b.name);
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [selectedItemCustomers, modalCustSearch, modalCustFilter, modalCustSort]);
 
   if (loading && data.salesmen.length === 0) {
     return <PageSkeleton />;
@@ -368,7 +402,7 @@ const VD30: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {/* Search and Filters */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <div style={{ position: 'relative', flex: 1, minWidth: '180px' }}>
+                  <div style={{ position: 'relative', flex: 1, minWidth: '160px' }}>
                     <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                     <input 
                       type="text" 
@@ -378,7 +412,7 @@ const VD30: React.FC = () => {
                       style={{ paddingLeft: '32px', width: '100%', padding: '6px 12px 6px 32px', fontSize: '12px', borderRadius: '6px' }}
                     />
                   </div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <button
                       onClick={() => setModalCustFilter('all')}
                       style={{
@@ -412,11 +446,26 @@ const VD30: React.FC = () => {
                     >
                       Non-Buying ({totalVdNonBuying})
                     </button>
+
+                    <select
+                      value={modalCustSort}
+                      onChange={e => setModalCustSort(e.target.value as any)}
+                      style={{
+                        padding: '4px 8px', borderRadius: '12px',
+                        border: '1px solid var(--border)',
+                        backgroundColor: 'rgba(0,0,0,0.3)',
+                        color: 'var(--text-main)',
+                        fontSize: '11px', fontWeight: 600, cursor: 'pointer'
+                      }}
+                    >
+                      <option value="net-desc">Sort: Net (High → Low)</option>
+                      <option value="name-asc">Sort: Name (A → Z)</option>
+                    </select>
                   </div>
                 </div>
 
                 {/* Customer List Container */}
-                <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {filteredModalCustomers.length > 0 ? (
                     filteredModalCustomers.map(cust => (
                       <div 
@@ -427,13 +476,19 @@ const VD30: React.FC = () => {
                           borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' 
                         }}
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', paddingRight: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden', paddingRight: '8px' }}>
                           <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {cust.name}
                           </span>
                           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                             {cust.id} • {cust.barangay}, {cust.city}
                           </span>
+                          {(cust.vdVolume > 0 || cust.vdNetValue > 0) && (
+                            <div style={{ fontSize: '11px', color: 'var(--accent-success)', display: 'flex', gap: '12px', marginTop: '2px', fontWeight: 600 }}>
+                              <span>Vol: {cust.vdVolume.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CS</span>
+                              <span>Net: ₱{cust.vdNetValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          )}
                         </div>
                         <span style={{
                           fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '10px', flexShrink: 0,
