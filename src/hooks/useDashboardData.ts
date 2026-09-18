@@ -75,8 +75,8 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         const cobDate = globalData?.cobDate || new Date().toISOString().split('T')[0];
         const weekMapping = globalData?.weekMapping || {};
 
-        const metricsCacheKey = 'dashboard_metrics_cache_v2';
-        const referenceCacheKey = 'dashboard_reference_cache_v2';
+        const metricsCacheKey = 'dashboard_metrics_cache_v3';
+        const referenceCacheKey = 'dashboard_reference_cache_v3';
 
         const withTimeout = <T>(promise: Promise<T>, ms: number = 1000): Promise<T | null> => {
           return Promise.race([
@@ -376,13 +376,31 @@ export const useDashboardData = (selectedTeam: string = 'all', forceAllSalesmen:
         vd30Data.forEach((t: any) => {
           if (!leaderboardSalesmen.has(t.id)) return;
           const salesmanVd30TargetMap: Record<string, number> = {};
+          const s = salesmenData[t.id];
+          const sssSmall = s ? (s.cmlSmall || 0) : 0;
+          const sssLarge = s ? (s.cmlLarge || 0) : 0;
+
           Object.keys(t).forEach(k => {
             if (k.startsWith('F')) {
-              const val = parseFloat(t[k]) || 0;
+              let val = parseFloat(t[k]) || 0;
+              const baseCode = k.split('_')[0];
+              const fNumMatch = baseCode.match(/F0*(\d+)/);
+              if (fNumMatch) {
+                const fNum = parseInt(fNumMatch[1], 10);
+                if (fNum >= 1 && fNum <= 19) {
+                  const maxSss = sssSmall + sssLarge;
+                  if (maxSss > 0 && val > maxSss) val = maxSss;
+                } else if (fNum >= 20 && fNum <= 30) {
+                  const maxSss = sssLarge;
+                  if (maxSss > 0 && val > maxSss) val = maxSss;
+                }
+              }
+
+              salesmanVd30TargetMap[k] = val;
+
               if (allowedSalesmen.has(t.id)) {
                 vd30Targets[k] = (vd30Targets[k] || 0) + val;
               }
-              salesmanVd30TargetMap[k] = val;
             }
           });
           if (salesmenData[t.id]) {

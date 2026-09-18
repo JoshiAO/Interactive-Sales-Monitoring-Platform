@@ -502,13 +502,50 @@ const DataManagement: React.FC = () => {
               }
             });
 
-            // --- POST-AGGREGATION PASS FOR VD30 PLACEMENTS & BOUGHT STATUS (Strict Net Value >= 1 || Volume >= 1) ---
+            // 3. Save Aggregated Metrics to Firestore
+            setProgress({ step: 'Updating Customer Performances...', current: 50, total: 100 });
+
+            const allCustSnap = await getDocs(collection(db, 'customer_data'));
+
+            // Build CML Classification map for accurate VD30 SSS eligibility
+            const cmlClassificationMap: Record<string, { isSariSari: boolean; isLarge: boolean }> = {};
+            allCustSnap.forEach(d => {
+              const data = d.data();
+              if (!data.customers) return;
+              const parsedCustomers = JSON.parse(data.customers);
+              parsedCustomers.forEach((c: any) => {
+                const safeId = String(c['CUSTOMER CODE']).replace(/[^a-zA-Z0-9_]/g, '');
+                const classDesc = String(c['PARTY CLASSIFICATION DESCRIPTION'] || c['CHANNEL'] || c['Channel'] || '').toLowerCase();
+                const isSariSari = classDesc.includes('sari') || classDesc.includes('sss');
+                const isLarge = classDesc.includes('large');
+                cmlClassificationMap[safeId] = { isSariSari, isLarge };
+              });
+            });
+
+            // --- POST-AGGREGATION PASS FOR VD30 PLACEMENTS & BOUGHT STATUS (Strict SSS + Net Value >= 1) ---
             Object.keys(customerMetrics).forEach(cNumStr => {
               const cMet = customerMetrics[cNumStr];
               const sCode = cMet.salesmanCode;
               const m = metrics[sCode];
 
               cMet.vd30_bought = new Set<string>();
+
+              // Determine SSS eligibility from CML Master Data or fallback to Net Invoiced channel
+              const cmlInfo = cmlClassificationMap[cNumStr];
+              let isSariSari = false;
+              let isLarge = false;
+
+              if (cmlInfo) {
+                isSariSari = cmlInfo.isSariSari;
+                isLarge = cmlInfo.isLarge;
+              } else {
+                const channelLower = String(cMet.channel || '').toLowerCase();
+                isSariSari = channelLower.includes('sari') || channelLower.includes('sss');
+                isLarge = channelLower.includes('large');
+              }
+
+              // VD30 metrics apply ONLY to Sari-Sari Stores (SSS)!
+              if (!isSariSari) return;
 
               if (cMet.product_sales && m) {
                 Object.keys(cMet.product_sales).forEach(pCode => {
@@ -517,17 +554,16 @@ const DataManagement: React.FC = () => {
                   if (pSale && (pSale.netValue >= 1 || pSale.volume >= 1)) {
                     const vd30Bucket = vd30Map[pCode];
                     if (vd30Bucket) {
-                      const channelLower = String(cMet.channel || '').toLowerCase();
-                      const isSariSari = channelLower.includes('sari') || channelLower.includes('sss');
-                      const isLarge = channelLower.includes('large');
                       const baseCodeMatch = vd30Bucket.match(/F(\d+)/i);
                       const bucketNumber = baseCodeMatch ? parseInt(baseCodeMatch[1], 10) : 0;
                       let eligibleForVd30 = false;
 
-                      if (isLarge || !isSariSari) {
-                        if (bucketNumber >= 1 && bucketNumber <= 30) eligibleForVd30 = true;
-                      } else {
-                        if (bucketNumber >= 1 && bucketNumber <= 19) eligibleForVd30 = true;
+                      // F01-F19: Eligible for all SSS (Large + Small)
+                      // F20-F30: Eligible for Large SSS only
+                      if (bucketNumber >= 1 && bucketNumber <= 19) {
+                        eligibleForVd30 = true;
+                      } else if (bucketNumber >= 20 && bucketNumber <= 30) {
+                        if (isLarge) eligibleForVd30 = true;
                       }
 
                       if (eligibleForVd30) {
@@ -552,10 +588,6 @@ const DataManagement: React.FC = () => {
               }
             });
 
-            // 3. Save Aggregated Metrics to Firestore
-            setProgress({ step: 'Updating Customer Performances...', current: 50, total: 100 });
-
-            const allCustSnap = await getDocs(collection(db, 'customer_data'));
             const chunkBatch = writeBatch(db);
 
             const foundInCml = new Set<string>();
