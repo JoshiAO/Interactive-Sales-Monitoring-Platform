@@ -413,7 +413,8 @@ const DataManagement: React.FC = () => {
                     salesmanCode: salesmanCode,
                     custName: row['Sold-to Customer Name'] || row['Sold To Customer Name'] || custNum,
                     brgy: brgy,
-                    city: town
+                    city: town,
+                    channel: channel
                   };
                 }
                 customerMetrics[cNumStr].volume += volume;
@@ -492,59 +493,62 @@ const DataManagement: React.FC = () => {
                 });
               });
 
-              // UBA Condition (Net Value >= 1) - Kept only for VD30 placements now
-              if (netValue >= 1 && custNum) {
-                const vd30Bucket = vd30Map[String(prodCode)];
-                if (vd30Bucket) {
-                  const channelLower = channel.toLowerCase();
-                  const isSariSari = channelLower.includes('sari') || channelLower.includes('sss');
-                  
-                  if (isSariSari) {
-                    const isLarge = channelLower.includes('large');
-                    const baseCodeMatch = vd30Bucket.match(/F(\d+)/i);
-                    const bucketNumber = baseCodeMatch ? parseInt(baseCodeMatch[1], 10) : 0;
-                    let eligibleForVd30 = false;
-
-                    if (isLarge) {
-                      if (bucketNumber >= 1 && bucketNumber <= 30) eligibleForVd30 = true;
-                    } else {
-                      if (bucketNumber >= 1 && bucketNumber <= 19) eligibleForVd30 = true;
-                    }
-
-                    if (eligibleForVd30) {
-                      if (!m.vd30_placements[vd30Bucket]) {
-                        m.vd30_placements[vd30Bucket] = new Set<string>();
-                      }
-                      m.vd30_placements[vd30Bucket].add(String(custNum));
-
-                      const cNumStr = String(custNum).replace(/[^a-zA-Z0-9_]/g, '');
-                      if (customerMetrics[cNumStr]) {
-                        if (!customerMetrics[cNumStr].vd30_bought) {
-                          customerMetrics[cNumStr].vd30_bought = new Set<string>();
-                        }
-                        customerMetrics[cNumStr].vd30_bought.add(vd30Bucket);
-                        const baseCode = vd30Bucket.split('_')[0];
-                        customerMetrics[cNumStr].vd30_bought.add(baseCode);
-                      }
-
-                      // Per-product detail tracking (Option B)
-                      const prodKey = String(prodCode);
-                      if (!m.vd30_product_details[prodKey]) {
-                        m.vd30_product_details[prodKey] = { customers: new Set<string>(), volume: 0 };
-                      }
-                      m.vd30_product_details[prodKey].customers.add(String(custNum));
-                      m.vd30_product_details[prodKey].volume += volume;
-                    }
-                  }
-                }
-              }
-
               if (custNum && week) {
                 const cNumStr = String(custNum).replace(/[^a-zA-Z0-9_]/g, '');
                 if (!m.customer_weekly_net[cNumStr]) {
                   m.customer_weekly_net[cNumStr] = {};
                 }
                 m.customer_weekly_net[cNumStr][week] = (m.customer_weekly_net[cNumStr][week] || 0) + netValue;
+              }
+            });
+
+            // --- POST-AGGREGATION PASS FOR VD30 PLACEMENTS & BOUGHT STATUS (Strict Net Value >= 1 || Volume >= 1) ---
+            Object.keys(customerMetrics).forEach(cNumStr => {
+              const cMet = customerMetrics[cNumStr];
+              const sCode = cMet.salesmanCode;
+              const m = metrics[sCode];
+
+              cMet.vd30_bought = new Set<string>();
+
+              if (cMet.product_sales && m) {
+                Object.keys(cMet.product_sales).forEach(pCode => {
+                  const pSale = cMet.product_sales[pCode];
+                  // Strict formula: Buying requires aggregated Net Value >= 1 OR Volume >= 1
+                  if (pSale && (pSale.netValue >= 1 || pSale.volume >= 1)) {
+                    const vd30Bucket = vd30Map[pCode];
+                    if (vd30Bucket) {
+                      const channelLower = String(cMet.channel || '').toLowerCase();
+                      const isSariSari = channelLower.includes('sari') || channelLower.includes('sss');
+                      const isLarge = channelLower.includes('large');
+                      const baseCodeMatch = vd30Bucket.match(/F(\d+)/i);
+                      const bucketNumber = baseCodeMatch ? parseInt(baseCodeMatch[1], 10) : 0;
+                      let eligibleForVd30 = false;
+
+                      if (isLarge || !isSariSari) {
+                        if (bucketNumber >= 1 && bucketNumber <= 30) eligibleForVd30 = true;
+                      } else {
+                        if (bucketNumber >= 1 && bucketNumber <= 19) eligibleForVd30 = true;
+                      }
+
+                      if (eligibleForVd30) {
+                        cMet.vd30_bought.add(vd30Bucket);
+                        const baseCode = vd30Bucket.split('_')[0];
+                        cMet.vd30_bought.add(baseCode);
+
+                        if (!m.vd30_placements[vd30Bucket]) {
+                          m.vd30_placements[vd30Bucket] = new Set<string>();
+                        }
+                        m.vd30_placements[vd30Bucket].add(cNumStr);
+
+                        if (!m.vd30_product_details[pCode]) {
+                          m.vd30_product_details[pCode] = { customers: new Set<string>(), volume: 0 };
+                        }
+                        m.vd30_product_details[pCode].customers.add(cNumStr);
+                        m.vd30_product_details[pCode].volume += pSale.volume;
+                      }
+                    }
+                  }
+                });
               }
             });
 

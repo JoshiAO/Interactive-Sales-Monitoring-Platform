@@ -748,13 +748,15 @@ const Customers: React.FC = () => {
                       const pVolume = pSales?.volume || 0;
                       const pNetValue = pSales?.netValue || 0;
 
-                      // Determine if THIS SPECIFIC product was bought by the customer
+                      // Determine if THIS SPECIFIC product was bought by the customer (formula: >= 1)
                       const isSpecificItemBought = (() => {
-                        if (pSales && (pSales.netValue > 0 || pSales.volume > 0)) return true;
+                        if (pSales !== undefined) {
+                          return (pSales.netValue >= 1 || pSales.volume >= 1);
+                        }
                         if (Array.isArray(vdScopeModal.vd30Bought)) {
                           return vdScopeModal.vd30Bought.some((b: string) => {
                             const bUpper = String(b).toUpperCase();
-                            return bUpper === vCode || bUpper.endsWith(`_${pCode}`) || bUpper === pCode;
+                            return bUpper === vCode || bUpper.endsWith(`_${pCode}`);
                           });
                         }
                         return false;
@@ -778,7 +780,7 @@ const Customers: React.FC = () => {
                             <span style={{ fontSize: '12px', color: 'var(--text-main)', lineHeight: 1.3 }}>
                               {prod.product_description}
                             </span>
-                            {isSpecificItemBought && (pVolume > 0 || pNetValue > 0) && (
+                            {isSpecificItemBought && (
                               <div style={{ fontSize: '11px', color: 'var(--accent-success)', display: 'flex', gap: '12px', marginTop: '2px', fontWeight: 600 }}>
                                 <span>Vol: {pVolume.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CS</span>
                                 <span>Net: ₱{pNetValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>

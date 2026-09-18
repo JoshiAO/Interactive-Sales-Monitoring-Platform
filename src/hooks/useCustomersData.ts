@@ -21,7 +21,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
         const lastDataUpload = globalData?.lastDataUpload || 0;
         const lastReferenceUpload = globalData?.lastReferenceUpload || 0;
 
-        const cacheKey = `customers_cache_v10_${currentUser.uid}_${selectedTeam}`;
+        const cacheKey = `customers_cache_v11_${currentUser.uid}_${selectedTeam}`;
         const cachedData = await get(cacheKey);
         const cachedLastUpload = await get('customers_lastUpload');
 
@@ -111,7 +111,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
             netValue: c.netValue || 0,
             gsr: c.gsr || 0,
             bsr: c.bsr || 0,
-            isBuying: c.isBuying || false,
+            isBuying: (typeof c.netValue === 'number' ? c.netValue >= 1 : (c.isBuying || false)),
             newCustomer: String(c['NEW CUSTOMER'] || '').trim().toUpperCase() === 'YES',
             notInCml: String(c['NOT IN CML'] || '').trim().toUpperCase() === 'YES',
             coverageDay: String(c['COVERAGE DAY'] || c['DAY'] || c['VISIT DAY'] || '').trim().toUpperCase(),
