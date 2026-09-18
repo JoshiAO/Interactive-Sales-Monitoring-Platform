@@ -94,13 +94,14 @@ const VD30: React.FC = () => {
         });
       }
 
-      const isBought = (vdNetValue >= 1 || vdVolume >= 1) || (
-        Array.isArray(c.vd30Bought) && (
-          c.vd30Bought.includes(baseCode) || 
-          c.vd30Bought.includes(fullCode) || 
-          c.vd30Bought.some((code: string) => String(code).toUpperCase().startsWith(baseCode))
-        )
-      );
+      const hasGroupProducts = groupProducts.length > 0;
+      const isBought = hasGroupProducts
+        ? (vdNetValue >= 1 || vdVolume >= 1)
+        : (Array.isArray(c.vd30Bought) && (
+            c.vd30Bought.includes(baseCode) || 
+            c.vd30Bought.includes(fullCode) || 
+            c.vd30Bought.some((code: string) => String(code).toUpperCase().startsWith(baseCode))
+          ));
 
       return {
         ...c,
@@ -483,12 +484,14 @@ const VD30: React.FC = () => {
                           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                             {cust.id} • {cust.barangay}, {cust.city}
                           </span>
-                          {(cust.vdVolume > 0 || cust.vdNetValue > 0) && (
-                            <div style={{ fontSize: '11px', color: 'var(--accent-success)', display: 'flex', gap: '12px', marginTop: '2px', fontWeight: 600 }}>
-                              <span>Vol: {cust.vdVolume.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CS</span>
-                              <span>Net: ₱{cust.vdNetValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                          )}
+                          <div style={{ 
+                            fontSize: '11px', 
+                            color: cust.isVdBought ? 'var(--accent-success)' : 'var(--text-muted)', 
+                            display: 'flex', gap: '12px', marginTop: '2px', fontWeight: 600 
+                          }}>
+                            <span>Vol: {cust.vdVolume.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CS</span>
+                            <span>Net: ₱{cust.vdNetValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
                         </div>
                         <span style={{
                           fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '10px', flexShrink: 0,
