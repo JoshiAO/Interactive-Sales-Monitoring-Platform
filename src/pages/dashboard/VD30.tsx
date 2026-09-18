@@ -136,14 +136,67 @@ const VD30: React.FC = () => {
     });
   }, [selectedItemCustomers, modalCustSearch, modalCustFilter, modalCustSort]);
 
-  if (loading && data.salesmen.length === 0) {
-    return <PageSkeleton />;
-  }
+  // Compute live verified VD actual customer counts from loaded customer sales
+  const liveVdActuals = useMemo(() => {
+    if (!customers || customers.length === 0) return {};
+    const map: Record<string, number> = {};
 
-  const displayItems = data.vd30.filter(item => item.target > 0);
+    (data.vd30 || []).forEach(item => {
+      const code = item.code || item.name || '';
+      const baseCode = code.split('_')[0].toUpperCase();
+      const fullCode = code.toUpperCase();
+      const baseCodeMatch = code.match(/F0*(\d+)/i);
+      const fNum = baseCodeMatch ? parseInt(baseCodeMatch[1], 10) : 1;
+      const groupProducts = productsByVd30Code[code] || [];
+
+      const count = customers.filter(c => {
+        if (!c.isSariSariStore) return false;
+        if (fNum >= 20 && fNum <= 30 && !c.isLargeSariSariStore) return false;
+
+        if (groupProducts.length > 0) {
+          let net = 0;
+          let vol = 0;
+          groupProducts.forEach(p => {
+            const pSales = c.productSales?.[p.product_code];
+            if (pSales) {
+              net += (pSales.netValue || 0);
+              vol += (pSales.volume || 0);
+            }
+          });
+          return net >= 1 || vol >= 1;
+        }
+
+        return Array.isArray(c.vd30Bought) && (
+          c.vd30Bought.includes(baseCode) ||
+          c.vd30Bought.includes(fullCode) ||
+          c.vd30Bought.some((b: string) => String(b).toUpperCase().startsWith(baseCode))
+        );
+      }).length;
+
+      map[code] = count;
+    });
+
+    return map;
+  }, [customers, data.vd30, productsByVd30Code]);
+
+  const displayItems = useMemo(() => {
+    return (data.vd30 || [])
+      .filter(item => item.target > 0)
+      .map(item => {
+        const liveActual = liveVdActuals[item.code];
+        return {
+          ...item,
+          actual: liveActual !== undefined ? liveActual : item.actual
+        };
+      });
+  }, [data.vd30, liveVdActuals]);
 
   // Get products for the selected VD30 item
   const selectedProducts = selectedItem ? (productsByVd30Code[selectedItem.code] || []) : [];
+
+  if (loading && data.salesmen.length === 0) {
+    return <PageSkeleton />;
+  }
 
   return (
     <div className="animate-fade-in">
