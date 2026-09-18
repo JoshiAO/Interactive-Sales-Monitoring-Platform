@@ -286,35 +286,40 @@ const VD30: React.FC = () => {
             </div>
 
             {/* Stats Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                <BarChart3 size={16} color="var(--text-muted)" />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Index</span>
-                <span style={{ fontWeight: 'bold', fontSize: '16px', color: selectedItem.actual >= selectedItem.target ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
-                  {((selectedItem.actual / (selectedItem.target || 1)) * 100).toFixed(1)}%
-                </span>
-              </div>
-              <div 
-                onClick={() => setModalTab('customers')}
-                style={{ 
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px', 
-                  background: modalTab === 'customers' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.05)', 
-                  borderRadius: '8px', cursor: 'pointer',
-                  border: modalTab === 'customers' ? '1px solid var(--accent-primary)' : '1px solid transparent',
-                  transition: 'all 0.2s'
-                }}
-                title="Click to view Customer List"
-              >
-                <Users size={16} color={modalTab === 'customers' ? 'var(--accent-primary)' : 'var(--text-muted)'} />
-                <span style={{ fontSize: '11px', color: modalTab === 'customers' ? 'var(--accent-primary)' : 'var(--text-muted)', marginTop: '4px' }}>Customers</span>
-                <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{selectedItem.actual}</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                <Package size={16} color="var(--text-muted)" />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Target</span>
-                <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{selectedItem.target}</span>
-              </div>
-            </div>
+            {(() => {
+              const displayActual = totalVdBuying;
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                    <BarChart3 size={16} color="var(--text-muted)" />
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Index</span>
+                    <span style={{ fontWeight: 'bold', fontSize: '16px', color: displayActual >= selectedItem.target ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
+                      {((displayActual / (selectedItem.target || 1)) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div 
+                    onClick={() => setModalTab('customers')}
+                    style={{ 
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px', 
+                      background: modalTab === 'customers' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.05)', 
+                      borderRadius: '8px', cursor: 'pointer',
+                      border: modalTab === 'customers' ? '1px solid var(--accent-primary)' : '1px solid transparent',
+                      transition: 'all 0.2s'
+                    }}
+                    title="Click to view Customer List"
+                  >
+                    <Users size={16} color={modalTab === 'customers' ? 'var(--accent-primary)' : 'var(--text-muted)'} />
+                    <span style={{ fontSize: '11px', color: modalTab === 'customers' ? 'var(--accent-primary)' : 'var(--text-muted)', marginTop: '4px' }}>Customers</span>
+                    <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{displayActual}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                    <Package size={16} color="var(--text-muted)" />
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Target</span>
+                    <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{selectedItem.target}</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Sub-Navigation Tabs */}
             <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
