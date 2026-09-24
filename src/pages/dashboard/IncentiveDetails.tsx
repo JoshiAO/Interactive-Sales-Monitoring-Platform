@@ -30,11 +30,14 @@ const IncentiveDetails: React.FC = () => {
   });
 
   const renderProgressBar = (actual: number, target: number) => {
-    const pct = target > 0 ? Math.min((actual / target) * 100, 100) : (actual > 0 ? 100 : 0);
+    let pct = 0;
+    if (actual > 0 && target > 0) {
+      pct = Math.min((actual / target) * 100, 100);
+    }
     const isHit = target > 0 && actual >= target;
     return (
       <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden', marginTop: '8px' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: isHit ? 'var(--accent-success)' : 'var(--accent-primary)', transition: 'width 0.5s ease' }} />
+        <div style={{ width: `${Math.max(0, pct)}%`, height: '100%', background: isHit ? 'var(--accent-success)' : 'var(--accent-primary)', transition: 'width 0.5s ease' }} />
       </div>
     );
   };  const getGroupActual = (res: any) => {

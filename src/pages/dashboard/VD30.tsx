@@ -10,7 +10,7 @@ import { PageSkeleton } from '../../components/ui/PageSkeleton';
 import { exportVd30ToExcel } from '../../utils/excelExport';
 
 const Meter: React.FC<{ target: number; actual: number }> = ({ target, actual }) => {
-  const percent = Math.min((actual / (target || 1)) * 100, 100).toFixed(0);
+  const percent = actual > 0 && target > 0 ? Math.min((actual / target) * 100, 100).toFixed(0) : '0';
   const color = actual >= target ? 'var(--accent-success)' : 'var(--accent-primary)';
   
   return (
