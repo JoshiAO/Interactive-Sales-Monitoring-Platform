@@ -82,7 +82,7 @@ const IncentiveDetails: React.FC = () => {
     const numStyle = { ...cellStyle, alignment: { horizontal: "right", vertical: "center" } };
     const pctStyle = { ...cellStyle, alignment: { horizontal: "right", vertical: "center" } };
 
-    // --- Build Structure ---
+    // --- Build Structure for Main Summary Sheet ---
     const headerRow1 = [
       { v: 'Salesman Code', t: 's', s: headerStyle },
       { v: 'Salesman Name', t: 's', s: headerStyle },
@@ -224,16 +224,195 @@ const IncentiveDetails: React.FC = () => {
     });
     aoa.push(totalRow);
 
-    const ws = XLSXStyle.utils.aoa_to_sheet(aoa);
-    ws['!merges'] = merges;
+    const wsSummary = XLSXStyle.utils.aoa_to_sheet(aoa);
+    wsSummary['!merges'] = merges;
     
     // Auto column widths
     const colWidths = [{ wch: 15 }, { wch: 25 }, { wch: 12 }];
     for (let i = 3; i < headerRow1.length; i++) colWidths.push({ wch: 12 });
-    ws['!cols'] = colWidths;
+    wsSummary['!cols'] = colWidths;
 
     const wb = XLSXStyle.utils.book_new();
-    XLSXStyle.utils.book_append_sheet(wb, ws, "Incentive Report");
+    XLSXStyle.utils.book_append_sheet(wb, wsSummary, "Incentive Summary");
+
+    // --- Build Dedicated Worksheets per Tracking Group with Sub-Product Groups ---
+    const existingSheetNames = new Set<string>(['incentive summary']);
+
+    sortedTrackingGroups.forEach((groupDef: any) => {
+      const groupId = groupDef.id;
+      const groupSubGroupsMap = new Map<string, { id: string; name: string }>();
+
+      // Collect sub-groups from configuration
+      if (groupDef?.subGroups) {
+        const sgList = Array.isArray(groupDef.subGroups) ? groupDef.subGroups : Object.values(groupDef.subGroups);
+        sgList.forEach((sg: any) => {
+          if (sg && (sg.id || sg.name)) {
+            groupSubGroupsMap.set(sg.id || sg.name, { id: sg.id || sg.name, name: sg.name || sg.id });
+          }
+        });
+      }
+
+      // Collect sub-groups from actual results
+      filteredSalesmen.forEach((s: any) => {
+        const res = s.trackingResults?.[groupId];
+        if (res?.subGroupsList) {
+          res.subGroupsList.forEach((sub: any) => {
+            if (sub && (sub.id || sub.name) && !groupSubGroupsMap.has(sub.id)) {
+              groupSubGroupsMap.set(sub.id, { id: sub.id, name: sub.name || sub.id });
+            }
+          });
+        }
+      });
+
+      const subGroupList = Array.from(groupSubGroupsMap.values());
+      
+      // Only generate dedicated sheet if tracking group has Sub-Product Groups
+      if (subGroupList.length > 0) {
+        let cleanName = (groupDef.name || groupId).replace(/[:\\/?*\[\]]/g, '').trim();
+        if (cleanName.length > 25) cleanName = cleanName.substring(0, 25).trim();
+        if (!cleanName) cleanName = 'Group';
+        
+        let sheetName = cleanName;
+        let counter = 1;
+        while (existingSheetNames.has(sheetName.toLowerCase())) {
+          sheetName = `${cleanName} (${counter})`;
+          counter++;
+        }
+        existingSheetNames.add(sheetName.toLowerCase());
+
+        // Header Row 1 & 2 for Group Sheet
+        const gHeaderRow1: any[] = [
+          { v: 'Salesman Code', t: 's', s: headerStyle },
+          { v: 'Salesman Name', t: 's', s: headerStyle },
+          { v: 'Team', t: 's', s: headerStyle },
+          { v: 'Overall Target', t: 's', s: headerStyle },
+          { v: 'Overall Actual', t: 's', s: headerStyle },
+          { v: 'Overall Balance', t: 's', s: headerStyle },
+          { v: 'Overall Index (%)', t: 's', s: headerStyle }
+        ];
+
+        const gHeaderRow2: any[] = [
+          { v: '', t: 's', s: headerStyle },
+          { v: '', t: 's', s: headerStyle },
+          { v: '', t: 's', s: headerStyle },
+          { v: '', t: 's', s: headerStyle },
+          { v: '', t: 's', s: headerStyle },
+          { v: '', t: 's', s: headerStyle },
+          { v: '', t: 's', s: headerStyle }
+        ];
+
+        const gMerges: any[] = [
+          { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },
+          { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } },
+          { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } },
+          { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } },
+          { s: { r: 0, c: 4 }, e: { r: 1, c: 4 } },
+          { s: { r: 0, c: 5 }, e: { r: 1, c: 5 } },
+          { s: { r: 0, c: 6 }, e: { r: 1, c: 6 } }
+        ];
+
+        let gCurrentCol = 7;
+        subGroupList.forEach((subGroup) => {
+          gHeaderRow1.push({ v: subGroup.name, t: 's', s: headerStyle });
+          gHeaderRow1.push({ v: '', t: 's', s: headerStyle });
+          gHeaderRow1.push({ v: '', t: 's', s: headerStyle });
+          gHeaderRow1.push({ v: '', t: 's', s: headerStyle });
+
+          gHeaderRow2.push({ v: 'Target', t: 's', s: headerStyle });
+          gHeaderRow2.push({ v: 'Actual', t: 's', s: headerStyle });
+          gHeaderRow2.push({ v: 'Balance', t: 's', s: headerStyle });
+          gHeaderRow2.push({ v: 'Index (%)', t: 's', s: headerStyle });
+
+          gMerges.push({ s: { r: 0, c: gCurrentCol }, e: { r: 0, c: gCurrentCol + 3 } });
+          gCurrentCol += 4;
+        });
+
+        const gAoa: any[][] = [gHeaderRow1, gHeaderRow2];
+
+        const subTotals: Record<string, { target: number; actual: number; balance: number }> = {};
+        subGroupList.forEach((sg) => {
+          subTotals[sg.id] = { target: 0, actual: 0, balance: 0 };
+        });
+        let gOverallTargetSum = 0;
+        let gOverallActualSum = 0;
+        let gOverallBalanceSum = 0;
+
+        filteredSalesmen.forEach((s: any) => {
+          const res = s.trackingResults?.[groupId] || { targetValue: 0, actualSTT: 0, actualUBA: 0 };
+          const actual = getGroupActual(res);
+          const target = res.targetValue || 0;
+          const balance = Math.max(0, target - actual);
+          const indexFraction = target > 0 ? actual / target : actual > 0 ? 1 : 0;
+          const resTargetType = res.definitionType === 'new_customer' ? 'UBA' : res.targetType || groupDef.targetType || 'STT';
+
+          gOverallTargetSum += target;
+          gOverallActualSum += actual;
+          gOverallBalanceSum += balance;
+
+          const row: any[] = [
+            { v: s.id, t: 's', s: cellStyle },
+            { v: s.name, t: 's', s: cellStyle },
+            { v: s.team || '-', t: 's', s: cellStyle },
+            { v: target, t: 'n', s: numStyle },
+            { v: actual, t: 'n', s: numStyle },
+            { v: balance, t: 'n', s: numStyle },
+            { v: indexFraction, t: 'n', s: pctStyle, z: '0.00%' }
+          ];
+
+          subGroupList.forEach((subGroup) => {
+            const subRes = res.subGroupsList?.find((sub: any) => sub.id === subGroup.id);
+            const subTarget = subRes?.targetValue || 0;
+            const subActual = (resTargetType === 'STT' ? subRes?.actualSTT : subRes?.actualUBA) || 0;
+            const subBalance = Math.max(0, subTarget - subActual);
+            const subIndexFraction = subTarget > 0 ? subActual / subTarget : subActual > 0 ? 1 : 0;
+
+            subTotals[subGroup.id].target += subTarget;
+            subTotals[subGroup.id].actual += subActual;
+            subTotals[subGroup.id].balance += subBalance;
+
+            row.push({ v: subTarget, t: 'n', s: numStyle });
+            row.push({ v: subActual, t: 'n', s: numStyle });
+            row.push({ v: subBalance, t: 'n', s: numStyle });
+            row.push({ v: subIndexFraction, t: 'n', s: pctStyle, z: '0.00%' });
+          });
+
+          gAoa.push(row);
+        });
+
+        // Group Total Row
+        const gOverallIndexFraction = gOverallTargetSum > 0 ? gOverallActualSum / gOverallTargetSum : gOverallActualSum > 0 ? 1 : 0;
+        const gTotalRow: any[] = [
+          { v: 'TOTAL', t: 's', s: headerStyle },
+          { v: '', t: 's', s: headerStyle },
+          { v: '', t: 's', s: headerStyle },
+          { v: gOverallTargetSum, t: 'n', s: totalNumStyle },
+          { v: gOverallActualSum, t: 'n', s: totalNumStyle },
+          { v: gOverallBalanceSum, t: 'n', s: totalNumStyle },
+          { v: gOverallIndexFraction, t: 'n', s: totalPctStyle, z: '0.00%' }
+        ];
+        gMerges.push({ s: { r: gAoa.length, c: 0 }, e: { r: gAoa.length, c: 2 } });
+
+        subGroupList.forEach((subGroup) => {
+          const st = subTotals[subGroup.id];
+          const subIndexFrac = st.target > 0 ? st.actual / st.target : st.actual > 0 ? 1 : 0;
+          gTotalRow.push({ v: st.target, t: 'n', s: totalNumStyle });
+          gTotalRow.push({ v: st.actual, t: 'n', s: totalNumStyle });
+          gTotalRow.push({ v: st.balance, t: 'n', s: totalNumStyle });
+          gTotalRow.push({ v: subIndexFrac, t: 'n', s: totalPctStyle, z: '0.00%' });
+        });
+
+        gAoa.push(gTotalRow);
+
+        const wsGroup = XLSXStyle.utils.aoa_to_sheet(gAoa);
+        wsGroup['!merges'] = gMerges;
+
+        const gColWidths = [{ wch: 15 }, { wch: 25 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+        for (let i = 7; i < gHeaderRow1.length; i++) gColWidths.push({ wch: 13 });
+        wsGroup['!cols'] = gColWidths;
+
+        XLSXStyle.utils.book_append_sheet(wb, wsGroup, sheetName);
+      }
+    });
     
     const programNameSafe = (program.title || program.id || 'Program').replace(/[^a-z0-9]/gi, '_').toLowerCase();
     XLSXStyle.writeFile(wb, `Incentive_${programNameSafe}_${new Date().toISOString().split('T')[0]}.xlsx`);
