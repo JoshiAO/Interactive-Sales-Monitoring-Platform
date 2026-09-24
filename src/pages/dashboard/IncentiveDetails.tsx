@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useIncentiveDashboard } from '../../hooks/useIncentiveDashboard';
 import { useTeams } from '../../hooks/useTeams';
-import { ArrowLeft, Trophy, CheckCircle, Circle, AlertCircle, Download } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ArrowLeft, Trophy, CheckCircle, Circle, AlertCircle, Download, Info } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import * as XLSXStyle from 'xlsx-js-style';
 import { getCropCss } from '../../utils/cropUtils';
 
@@ -14,6 +14,7 @@ const IncentiveDetails: React.FC = () => {
   const { role } = useAuth();
   const availableTeams = useTeams();
   const [selectedTeam, setSelectedTeam] = useState('all');
+  const [activeCardTabs, setActiveCardTabs] = useState<Record<string, string>>({});
   
   const { loading, program, dashboardData } = useIncentiveDashboard(programId);
 
@@ -22,6 +23,12 @@ const IncentiveDetails: React.FC = () => {
 
   const formatCurrency = (val: number) => `₱${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   
+  const sortedTrackingGroups: any[] = Object.values(program.trackingGroups || {}).sort((a: any, b: any) => {
+    const timeA = a.createdAt || Number((a.id || '').replace(/[^0-9]/g, '')) || 0;
+    const timeB = b.createdAt || Number((b.id || '').replace(/[^0-9]/g, '')) || 0;
+    return timeA - timeB;
+  });
+
   const renderProgressBar = (actual: number, target: number) => {
     const pct = target > 0 ? Math.min((actual / target) * 100, 100) : (actual > 0 ? 100 : 0);
     const isHit = target > 0 && actual >= target;
@@ -30,6 +37,14 @@ const IncentiveDetails: React.FC = () => {
         <div style={{ width: `${pct}%`, height: '100%', background: isHit ? 'var(--accent-success)' : 'var(--accent-primary)', transition: 'width 0.5s ease' }} />
       </div>
     );
+  };  const getGroupActual = (res: any) => {
+    if (!res) return 0;
+    const tType = res.definitionType === 'new_customer' ? 'UBA' : (res.targetType || 'STT');
+    if (tType === 'STT') return res.actualSTT || 0;
+    if (res.subGroupsList && res.subGroupsList.length > 0) {
+      return res.subGroupsList.reduce((acc: number, sub: any) => acc + (sub.actualUBA || 0), 0);
+    }
+    return res.actualUBA || 0;
   };
 
   const filteredSalesmen = dashboardData?.salesmen?.filter((s: any) => selectedTeam === 'all' || s.team === selectedTeam) || [];
@@ -39,7 +54,7 @@ const IncentiveDetails: React.FC = () => {
   const handleExport = () => {
     if (!filteredSalesmen.length) return;
 
-    const groupKeys = Object.keys(program.trackingGroups || {});
+    const groupKeys = sortedTrackingGroups.map((g: any) => g.id);
     
     // --- Define Styles ---
     const headerStyle = {
@@ -103,12 +118,12 @@ const IncentiveDetails: React.FC = () => {
       const groupDef = program.trackingGroups[groupId];
       
       let colsForGroup = 4; // Target, Actual, Balance, Index
-      if (groupDef.enableDailyBreakdown) {
+      if (groupDef?.enableDailyBreakdown) {
          colsForGroup += sortedDates.length * 2; // Daily STT and Daily UBA
       }
       
       // Top row spans `colsForGroup` cols
-      headerRow1.push({ v: groupDef.name, t: 's', s: headerStyle });
+      headerRow1.push({ v: groupDef?.name || groupId, t: 's', s: headerStyle });
       for (let i = 1; i < colsForGroup; i++) {
         headerRow1.push({ v: '', t: 's', s: headerStyle });
       }
@@ -119,7 +134,7 @@ const IncentiveDetails: React.FC = () => {
       headerRow2.push({ v: 'Balance', t: 's', s: headerStyle });
       headerRow2.push({ v: 'Index (%)', t: 's', s: headerStyle });
       
-      if (groupDef.enableDailyBreakdown) {
+      if (groupDef?.enableDailyBreakdown) {
          sortedDates.forEach(d => {
             headerRow2.push({ v: `${d} (STT)`, t: 's', s: headerStyle });
             headerRow2.push({ v: `${d} (UBA)`, t: 's', s: headerStyle });
@@ -134,7 +149,7 @@ const IncentiveDetails: React.FC = () => {
     const groupTotals: Record<string, { target: number, actual: number, balance: number, daily: Record<string, {stt: number, uba: number}> }> = {};
     groupKeys.forEach(g => {
        groupTotals[g] = { target: 0, actual: 0, balance: 0, daily: {} };
-       if (program.trackingGroups[g].enableDailyBreakdown) {
+       if (program.trackingGroups[g]?.enableDailyBreakdown) {
           sortedDates.forEach(d => {
              groupTotals[g].daily[d] = { stt: 0, uba: 0 };
           });
@@ -151,7 +166,7 @@ const IncentiveDetails: React.FC = () => {
       groupKeys.forEach(groupId => {
         const groupDef = program.trackingGroups[groupId];
         const res = s.trackingResults?.[groupId] || { targetValue: 0, actualSTT: 0, actualUBA: 0 };
-        const actual = groupDef.targetType === 'STT' ? res.actualSTT : res.actualUBA;
+        const actual = getGroupActual(res);
         const target = res.targetValue || 0;
         const balance = Math.max(0, target - actual);
         const indexFraction = target > 0 ? (actual / target) : (actual > 0 ? 1 : 0);
@@ -165,7 +180,7 @@ const IncentiveDetails: React.FC = () => {
         row.push({ v: balance, t: 'n', s: numStyle });
         row.push({ v: indexFraction, t: 'n', s: pctStyle, z: '0.00%' });
         
-        if (groupDef.enableDailyBreakdown) {
+        if (groupDef?.enableDailyBreakdown) {
            sortedDates.forEach(d => {
               const dailyStt = res.daily?.[d]?.stt || 0;
               const dailyUba = res.daily?.[d]?.uba || 0;
@@ -200,7 +215,7 @@ const IncentiveDetails: React.FC = () => {
       totalRow.push({ v: t.balance, t: 'n', s: totalNumStyle });
       totalRow.push({ v: indexFraction, t: 'n', s: totalPctStyle, z: '0.00%' });
       
-      if (groupDef.enableDailyBreakdown) {
+      if (groupDef?.enableDailyBreakdown) {
          sortedDates.forEach(d => {
             totalRow.push({ v: t.daily[d].stt, t: 'n', s: totalNumStyle });
             totalRow.push({ v: t.daily[d].uba, t: 'n', s: totalNumStyle });
@@ -327,50 +342,78 @@ const IncentiveDetails: React.FC = () => {
       {filteredSalesmen.length > 0 && (
         <div style={{ marginBottom: '24px' }}>
           {(() => {
-            const groupKeys = Object.keys(program.trackingGroups || {});
+            const groupKeys = sortedTrackingGroups.map((g: any) => g.id);
             
             if (groupKeys.length >= 2) {
-              // Render Bar Chart for multiple tracking groups
-              const chartData = groupKeys.map(groupId => {
-                const groupDef = program.trackingGroups[groupId];
+              // Render Bar Chart for tracking groups
+              const chartData = sortedTrackingGroups.map((groupDef: any) => {
                 let target = 0;
                 let actual = 0;
+                const groupTargetType = groupDef.definitionType === 'new_customer' ? 'UBA' : (groupDef.targetType || 'STT');
+
                 filteredSalesmen.forEach((s: any) => {
-                  if (s.trackingResults && s.trackingResults[groupId]) {
-                    target += s.trackingResults[groupId].targetValue || 0;
-                    actual += (groupDef.targetType === 'STT' ? (s.trackingResults[groupId].actualSTT || 0) : (s.trackingResults[groupId].actualUBA || 0));
+                  if (s.trackingResults && s.trackingResults[groupDef.id]) {
+                    const res = s.trackingResults[groupDef.id];
+                    const sTarget = res.targetValue || 0;
+                    const sActual = getGroupActual(res);
+                    if (sTarget > 0 || sActual > 0) {
+                      target += sTarget;
+                      actual += sActual;
+                    }
                   }
                 });
+                const indexPct = target > 0 ? (actual / target) * 100 : (actual > 0 ? 100 : 0);
                 return {
                   name: groupDef.name,
-                  Target: target,
-                  Actual: actual,
-                  type: groupDef.targetType
+                  'Target Benchmark': 100,
+                  'Actual Index (%)': Number(indexPct.toFixed(1)),
+                  targetRaw: target,
+                  actualRaw: actual,
+                  type: groupTargetType
                 };
               });
 
               return (
                 <div className="glass-panel" style={{ padding: '24px' }}>
-                  <h3 style={{ margin: '0 0 24px 0', color: 'var(--text-main)', fontSize: '18px', fontWeight: 600 }}>Performance by Tracking Group</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <div>
+                      <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '18px', fontWeight: 600 }}>Performance by Tracking Group</h3>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Achievement Index (% vs 100% Target Benchmark)</div>
+                    </div>
+                  </div>
                   <div style={{ width: '100%', height: '300px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                         <XAxis dataKey="name" stroke="var(--text-muted)" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} tickLine={false} />
-                        <YAxis stroke="var(--text-muted)" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(0)}k` : val} />
+                        <YAxis 
+                          stroke="var(--text-muted)" 
+                          tick={{ fill: 'var(--text-muted)', fontSize: 12 }} 
+                          axisLine={false} 
+                          tickLine={false} 
+                          domain={[0, (dataMax: number) => Math.max(120, Math.ceil(dataMax / 10) * 10)]}
+                          tickFormatter={(val) => `${val}%`} 
+                        />
+                        <ReferenceLine y={100} stroke="rgba(34, 197, 94, 0.6)" strokeDasharray="4 4" label={{ value: '100% Target', fill: '#4ade80', fontSize: 11, position: 'top' }} />
                         <Tooltip 
                           cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                           contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}
                           itemStyle={{ color: '#fff', fontWeight: 500 }}
                           formatter={(val: any, name: any, props: any) => {
-                            const type = props.payload.type;
-                            const formatted = type === 'STT' || type === 'Mixed' ? formatCurrency(Number(val)) : Number(val).toLocaleString();
-                            return [formatted, name];
+                            const payload = props.payload;
+                            const type = payload.type || 'STT';
+                            const formattedRawActual = type === 'STT' ? formatCurrency(payload.actualRaw) : `${payload.actualRaw.toLocaleString()} UBA`;
+                            const formattedRawTarget = type === 'STT' ? formatCurrency(payload.targetRaw) : `${payload.targetRaw.toLocaleString()} UBA`;
+                            
+                            if (name === 'Actual Index (%)') {
+                              return [`${val}% (${formattedRawActual} / ${formattedRawTarget})`, 'Achievement Index'];
+                            }
+                            return [`${val}% (Target Benchmark)`, name];
                           }}
                         />
                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                        <Bar dataKey="Target" fill="rgba(255, 255, 255, 0.2)" radius={[6, 6, 0, 0]} maxBarSize={60} />
-                        <Bar dataKey="Actual" fill="var(--accent-primary)" radius={[6, 6, 0, 0]} maxBarSize={60} />
+                        <Bar dataKey="Target Benchmark" fill="rgba(255, 255, 255, 0.12)" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                        <Bar dataKey="Actual Index (%)" fill="var(--accent-primary)" radius={[6, 6, 0, 0]} maxBarSize={50} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -386,10 +429,15 @@ const IncentiveDetails: React.FC = () => {
               
               filteredSalesmen.forEach((s: any) => {
                 Object.values(s.trackingResults).forEach((res: any) => {
-                  globalTarget += res.targetValue;
-                  globalActual += res.targetType === 'STT' ? res.actualSTT : res.actualUBA;
-                  if (!typeFound) typeFound = res.targetType;
-                  else if (typeFound !== res.targetType) isMixed = true;
+                  const sTarget = res.targetValue || 0;
+                  const sActual = getGroupActual(res);
+                  if (sTarget > 0 || sActual > 0) {
+                    globalTarget += sTarget;
+                    globalActual += sActual;
+                  }
+                  const resTargetType = res.definitionType === 'new_customer' ? 'UBA' : (res.targetType || 'STT');
+                  if (!typeFound) typeFound = resTargetType;
+                  else if (typeFound !== resTargetType) isMixed = true;
                 });
               });
               targetType = isMixed ? 'Mixed' : (typeFound || 'STT');
@@ -475,68 +523,209 @@ const IncentiveDetails: React.FC = () => {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
            {/* Detailed Salesman Cards */}
-           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
-             {filteredSalesmen.map((s: any) => (
-                <div key={s.id} className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', opacity: s.isAllowed ? 1 : 0.6 }}>
-                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                         <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                            {s.photoURL ? <img src={s.photoURL} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-muted)' }}>{s.name.charAt(0)}</span>}
-                         </div>
-                         <div>
-                            <h3 style={{ margin: 0, fontSize: '16px', color: 'white' }}>{s.name}</h3>
-                            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{s.id} • {s.team}</div>
-                         </div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '16px' }}>
-                         <Trophy size={14} color="var(--accent-warning)" />
-                         <span style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>{s.targetsHit} / {s.totalTargets}</span>
-                      </div>
-                   </div>
+           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '20px' }}>
+             {filteredSalesmen.map((s: any) => {
+                const subGroupTrackingGroups = sortedTrackingGroups.filter((g: any) => {
+                  const res = s.trackingResults?.[g.id];
+                  return (g.hasSubGroups && g.subGroups && Object.keys(g.subGroups).length > 0) || (res?.subGroupsList && res.subGroupsList.length > 0);
+                });
 
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {Object.values(s.trackingResults).map((res: any) => {
-                         if (res.definitionType === 'new_customer') {
+                const activeTab = activeCardTabs[s.id] || 'summary';
+                const hasSubGroupTabs = subGroupTrackingGroups.length > 0;
+                const isGroupTabActive = hasSubGroupTabs && activeTab !== 'summary' && subGroupTrackingGroups.some((g: any) => g.id === activeTab);
+
+                return (
+                  <div key={s.id} className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', opacity: s.isAllowed ? 1 : 0.6 }}>
+                     {/* Salesman Header */}
+                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                           <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--bg-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                              {s.photoURL ? <img src={s.photoURL} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-muted)' }}>{s.name.charAt(0)}</span>}
+                           </div>
+                           <div>
+                              <h3 style={{ margin: 0, fontSize: '15px', color: 'white', fontWeight: 600 }}>{s.name}</h3>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{s.id} • {s.team}</div>
+                           </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                           <Trophy size={13} color="var(--accent-warning)" />
+                           <span style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>{s.targetsHit} / {s.totalTargets}</span>
+                        </div>
+                     </div>
+
+                     {/* Horizontal Segmented Pill Tabs (Only rendered if there are Tracking Groups with Sub-Product Groups) */}
+                     {hasSubGroupTabs && (
+                       <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px', borderBottom: '1px solid rgba(255,255,255,0.08)', scrollbarWidth: 'none' }}>
+                         <button
+                           onClick={() => setActiveCardTabs(prev => ({ ...prev, [s.id]: 'summary' }))}
+                           style={{
+                             padding: '5px 12px',
+                             borderRadius: '14px',
+                             border: 'none',
+                             fontSize: '11px',
+                             fontWeight: 600,
+                             cursor: 'pointer',
+                             whiteSpace: 'nowrap',
+                             transition: 'all 0.2s ease',
+                             backgroundColor: !isGroupTabActive ? 'var(--accent-primary)' : 'rgba(255,255,255,0.06)',
+                             color: !isGroupTabActive ? '#fff' : 'var(--text-muted)'
+                           }}
+                         >
+                           Summary
+                         </button>
+                         {subGroupTrackingGroups.map((groupDef: any) => {
+                           const isSelected = isGroupTabActive && activeTab === groupDef.id;
+                           const res = s.trackingResults?.[groupDef.id];
+                           const isHit = res?.isHit;
                            return (
-                             <div key={res.id} style={{ background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6))', borderRadius: '12px', padding: '16px', border: res.isHit ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(255,255,255,0.05)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                               <div style={{ textAlign: 'center', marginBottom: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
-                                  {res.isHit ? <CheckCircle size={16} color="#4ade80" /> : <Circle size={16} color="var(--text-muted)" />}
-                                  <span style={{ fontSize: '15px', color: res.isHit ? '#fff' : 'var(--text-main)', fontWeight: 600, letterSpacing: '0.02em' }}>{res.name}</span>
-                               </div>
-                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', textAlign: 'center' }}>
-                                 <div style={{ borderRight: '1px solid rgba(255,255,255,0.1)', paddingRight: '16px' }}>
-                                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Buying Count</div>
-                                   <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--accent-primary)', textShadow: '0 2px 10px rgba(59, 130, 246, 0.2)' }}>{res.actualUBA}</div>
+                             <button
+                               key={groupDef.id}
+                               onClick={() => setActiveCardTabs(prev => ({ ...prev, [s.id]: groupDef.id }))}
+                               style={{
+                                 padding: '5px 12px',
+                                 borderRadius: '14px',
+                                 border: '1px solid',
+                                 borderColor: isSelected ? 'var(--accent-primary)' : 'transparent',
+                                 fontSize: '11px',
+                                 fontWeight: 600,
+                                 cursor: 'pointer',
+                                 whiteSpace: 'nowrap',
+                                 transition: 'all 0.2s ease',
+                                 display: 'flex',
+                                 alignItems: 'center',
+                                 gap: '5px',
+                                 backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.04)',
+                                 color: isSelected ? '#60a5fa' : 'var(--text-muted)'
+                               }}
+                             >
+                               {isHit && <CheckCircle size={10} color="#4ade80" />}
+                               {groupDef.name}
+                             </button>
+                           );
+                         })}
+                       </div>
+                     )}
+
+                     {/* Tab Content */}
+                     {!isGroupTabActive ? (
+                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                         {sortedTrackingGroups.map((groupDef: any) => {
+                           const res = s.trackingResults?.[groupDef.id];
+                           if (!res) return null;
+                           const resTargetType = res.definitionType === 'new_customer' ? 'UBA' : (res.targetType || groupDef.targetType || 'STT');
+                           const actual = getGroupActual(res);
+                           const target = res.targetValue || 0;
+                           const pct = target > 0 ? (actual / target) * 100 : (actual > 0 ? 100 : 0);
+                           const hasSubGroups = (groupDef.hasSubGroups && groupDef.subGroups && Object.keys(groupDef.subGroups).length > 0) || (res.subGroupsList && res.subGroupsList.length > 0);
+
+                           if (res.definitionType === 'new_customer') {
+                             return (
+                               <div key={groupDef.id} style={{ background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6))', borderRadius: '12px', padding: '16px', border: res.isHit ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(255,255,255,0.05)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                 <div style={{ textAlign: 'center', marginBottom: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                                    {res.isHit ? <CheckCircle size={16} color="#4ade80" /> : <Circle size={16} color="var(--text-muted)" />}
+                                    <span style={{ fontSize: '15px', color: res.isHit ? '#fff' : 'var(--text-main)', fontWeight: 600, letterSpacing: '0.02em' }}>{res.name}</span>
                                  </div>
-                                 <div style={{ paddingLeft: '16px' }}>
-                                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>New Customers</div>
-                                   <div style={{ fontSize: '28px', fontWeight: 700, color: 'white' }}>{res.targetValue}</div>
+                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', textAlign: 'center' }}>
+                                   <div style={{ borderRight: '1px solid rgba(255,255,255,0.1)', paddingRight: '16px' }}>
+                                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Buying Count</div>
+                                     <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--accent-primary)', textShadow: '0 2px 10px rgba(59, 130, 246, 0.2)' }}>{res.actualUBA}</div>
+                                   </div>
+                                   <div style={{ paddingLeft: '16px' }}>
+                                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>New Customers</div>
+                                     <div style={{ fontSize: '28px', fontWeight: 700, color: 'white' }}>{res.targetValue}</div>
+                                   </div>
                                  </div>
                                </div>
+                             );
+                           }
+
+                           return (
+                             <div 
+                               key={groupDef.id} 
+                               onClick={() => {
+                                 if (hasSubGroups) setActiveCardTabs(prev => ({ ...prev, [s.id]: groupDef.id }));
+                               }}
+                               style={{ 
+                                 background: 'rgba(0,0,0,0.2)', 
+                                 padding: '12px', 
+                                 borderRadius: '8px', 
+                                 cursor: hasSubGroups ? 'pointer' : 'default',
+                                 border: res.isHit ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(255,255,255,0.06)',
+                                 transition: 'all 0.2s ease'
+                               }}
+                             >
+                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginBottom: '8px' }}>
+                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: res.isHit ? '#fff' : 'var(--text-main)', fontWeight: res.isHit ? 600 : 500 }}>
+                                   {res.isHit ? <CheckCircle size={14} color="#4ade80" /> : <Circle size={14} color="var(--text-muted)" />}
+                                   <span>{res.name}</span>
+                                 </div>
+                                 <div style={{ fontSize: '12px', fontWeight: 600, color: res.isHit ? '#4ade80' : 'var(--text-muted)' }}>
+                                   {pct.toFixed(0)}%
+                                 </div>
+                               </div>
+                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
+                                 <span>Actual: {resTargetType === 'STT' ? formatCurrency(actual) : `${actual} UBA`}</span>
+                                 <span>Target: {resTargetType === 'STT' ? formatCurrency(res.targetValue) : res.targetValue}</span>
+                               </div>
+                               {renderProgressBar(actual, target)}
                              </div>
                            );
-                         }
+                         })}
+                       </div>
+                     ) : (() => {
+                        const res = s.trackingResults?.[activeTab];
+                        if (!res) return <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No data for this tracking group.</div>;
+                        const resTargetType = res.definitionType === 'new_customer' ? 'UBA' : (res.targetType || 'STT');
+                        const actual = getGroupActual(res);
 
-                         return (
-                           <div key={res.id} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px', border: res.isHit ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--border)' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    {res.isHit ? <CheckCircle size={14} color="#4ade80" /> : <Circle size={14} color="var(--text-muted)" />}
-                                    <span style={{ fontSize: '14px', color: res.isHit ? 'white' : 'var(--text-muted)', fontWeight: res.isHit ? 600 : 400 }}>{res.name}</span>
-                                 </div>
-                                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                                    {res.targetType === 'STT' ? formatCurrency(res.actualSTT) : `${res.actualUBA} UBA`} 
-                                    {' '} / {' '} 
-                                    {res.targetType === 'STT' ? formatCurrency(res.targetValue) : res.targetValue}
-                                 </span>
-                              </div>
-                              {renderProgressBar(res.targetType === 'STT' ? res.actualSTT : res.actualUBA, res.targetValue)}
-                           </div>
-                         );
-                      })}
-                   </div>
-                </div>
-             ))}
+                        return (
+                          <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px', border: res.isHit ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--border)' }}>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                   {res.isHit ? <CheckCircle size={14} color="#4ade80" /> : <Circle size={14} color="var(--text-muted)" />}
+                                   <span style={{ fontSize: '14px', color: res.isHit ? 'white' : 'var(--text-muted)', fontWeight: res.isHit ? 600 : 400 }}>{res.name}</span>
+                                </div>
+                                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                                   {resTargetType === 'STT' ? formatCurrency(actual) : `${actual} UBA`} 
+                                   {' '} / {' '} 
+                                   {resTargetType === 'STT' ? formatCurrency(res.targetValue) : res.targetValue}
+                                </span>
+                             </div>
+                             {renderProgressBar(actual, res.targetValue)}
+
+                             {res.subGroupsList && res.subGroupsList.length > 0 && (
+                               <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                 <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 600 }}>Sub-Product Groups ({res.subGroupsList.length})</div>
+                                 {res.subGroupsList.map((sub: any) => (
+                                   <div key={sub.id} style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 10px', borderRadius: '6px' }}>
+                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                         {sub.isHit ? <CheckCircle size={12} color="#4ade80" /> : <Circle size={12} color="var(--text-muted)" />}
+                                         <span style={{ color: sub.isHit ? '#fff' : 'var(--text-main)', fontWeight: sub.isHit ? 600 : 400 }}>{sub.name}</span>
+                                         {sub.items && sub.items.length > 0 && (
+                                           <span 
+                                             title={`Included Item Codes:\n${sub.items.join(', ')}`}
+                                             style={{ cursor: 'help', display: 'inline-flex', alignItems: 'center', opacity: 0.7, padding: '2px' }}
+                                           >
+                                             <Info size={12} color="var(--accent-primary)" />
+                                           </span>
+                                         )}
+                                       </div>
+                                       <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                                         {resTargetType === 'STT' ? formatCurrency(sub.actualSTT) : `${sub.actualUBA} UBA`} / {resTargetType === 'STT' ? formatCurrency(sub.targetValue) : sub.targetValue}
+                                       </span>
+                                     </div>
+                                     {renderProgressBar(resTargetType === 'STT' ? sub.actualSTT : sub.actualUBA, sub.targetValue)}
+                                   </div>
+                                 ))}
+                               </div>
+                             )}
+                          </div>
+                        );
+                     })()}
+                  </div>
+                );
+             })}
            </div>
         </div>
       )}

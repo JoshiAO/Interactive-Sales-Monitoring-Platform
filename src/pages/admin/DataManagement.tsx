@@ -323,14 +323,16 @@ const DataManagement: React.FC = () => {
             // 2. Aggregate Data
             const customerMetrics: Record<string, any> = {};
 
+            const normalizeCode = (c: any) => String(c || '').trim().toLowerCase().replace(/^0+/, '');
+
             json.forEach((row: any) => {
-              const salesmanCode = row['Employee Code'];
+              const salesmanCode = row['Employee Code'] || row['Employee_Code'] || row['Salesman Code'] || row['Sales Rep ID'] || row['Salesman ID'] || row['EMPLOYEE CODE'] || row['Salesman_Code'];
               if (!salesmanCode) return;
 
               if (!metrics[salesmanCode]) {
                 metrics[salesmanCode] = {
                   salesman_code: salesmanCode,
-                  salesman_name: row['Employee Name'] || '',
+                  salesman_name: row['Employee Name'] || row['Employee_Name'] || row['Salesman Name'] || '',
                   mtd_net_value: 0,
                   mtd_volume: 0,
                   gsr: 0,
@@ -349,22 +351,22 @@ const DataManagement: React.FC = () => {
               const m = metrics[salesmanCode];
               if (!m.incentives) m.incentives = {};
 
-              const netValue = parseFloat(row['Net Value']) || 0;
-              const volume = parseFloat(row['Volume']) || 0;
-              const gsr = parseFloat(row['Good Stock Returns']) || 0;
-              const bsr = parseFloat(row['Bad Stock Returns']) || 0;
-              const custNum = row['Sold To Customer number'];
-              const prodCode = row['Product Code'];
-              const category = row['Category'] || 'Uncategorized';
+              const netValue = parseFloat(row['Net Value'] || row['Net_Value'] || row['NET VALUE'] || 0) || 0;
+              const volume = parseFloat(row['Volume'] || row['VOLUME'] || 0) || 0;
+              const gsr = parseFloat(row['Good Stock Returns'] || row['GSR'] || 0) || 0;
+              const bsr = parseFloat(row['Bad Stock Returns'] || row['BSR'] || 0) || 0;
+              const custNum = row['Sold To Customer number'] || row['Sold-to Customer Number'] || row['Customer Code'] || row['Customer_Code'] || row['Sold To Customer Number'] || row['CUSTOMER CODE'];
+              const prodCode = row['Product Code'] || row['Item Code'] || row['Product_Code'] || row['item_code'] || row['Material'] || row['Material Number'] || row['ITEM CODE'];
+              const category = row['Category'] || row['Product Category'] || row['Item Category'] || row['CATEGORY'] || 'Uncategorized';
               
               // Read the raw classification from the Net Invoiced row
-              const classificationRaw = String(row['Channel_Classification'] || 'Uncategorized').trim();
+              const classificationRaw = String(row['Channel_Classification'] || row['Channel Classification'] || row['Channel'] || 'Uncategorized').trim();
               
               // Use the dynamic mapping from reference_channels to determine the base Channel, or fallback to the classification itself
               const channel = channelMap[classificationRaw.toLowerCase()] || classificationRaw;
 
-              const brgy = row['Brgy'] || 'Unknown';
-              const town = row['Town'] || 'Unknown';
+              const brgy = row['Brgy'] || row['Barangay'] || 'Unknown';
+              const town = row['Town'] || row['City'] || 'Unknown';
               const week = row['Week'];
 
               let formattedDate = '';
@@ -411,7 +413,7 @@ const DataManagement: React.FC = () => {
                     product_sales: {},
                     vd30_bought: new Set<string>(),
                     salesmanCode: salesmanCode,
-                    custName: row['Sold-to Customer Name'] || row['Sold To Customer Name'] || custNum,
+                    custName: row['Sold-to Customer Name'] || row['Sold To Customer Name'] || row['Customer Name'] || custNum,
                     brgy: brgy,
                     city: town,
                     channel: channel
@@ -450,27 +452,43 @@ const DataManagement: React.FC = () => {
                 
                 Object.values(prog.trackingGroups || {}).forEach((group: any) => {
                   if (!m.incentives[prog.id][group.id]) {
-                    m.incentives[prog.id][group.id] = { stt: 0, uba_customers: new Set<string>() };
+                    m.incentives[prog.id][group.id] = { stt: 0, uba_customers: new Set<string>(), subGroups: {} };
                   }
                   
                   const gState = m.incentives[prog.id][group.id];
-                  let isMatch = false;
                   
-                  // Check Channel logic
+                  // Check Channel logic (case-insensitive & supports 'All')
                   if (group.channels && group.channels.length > 0) {
-                     // If it's not "All" and doesn't explicitly include the row's channel, we skip
-                     if (!group.channels.includes('All') && !group.channels.includes(channel)) {
+                     const isAll = group.channels.some((c: string) => c.toLowerCase() === 'all' || c.toLowerCase().includes('all channels'));
+                     if (!isAll && !group.channels.some((c: string) => c.toLowerCase() === channel.toLowerCase())) {
                         return;
                      }
                   }
+
+                  let isMatch = false;
                   
                   // Check Items logic
-                  if (group.definitionType === 'new_customer') {
+                  if (group.hasSubGroups && group.subGroups) {
+                     if (!gState.subGroups) gState.subGroups = {};
+                     Object.values(group.subGroups).forEach((sub: any) => {
+                        if (!gState.subGroups[sub.id]) {
+                           gState.subGroups[sub.id] = { stt: 0, uba_customers: new Set<string>() };
+                        }
+                        const subState = gState.subGroups[sub.id];
+                        if (sub.items && prodCode && sub.items.some((item: any) => normalizeCode(item) === normalizeCode(prodCode))) {
+                           isMatch = true;
+                           subState.stt += netValue;
+                           if (custNum && netValue >= (group.minDropSize || 0)) {
+                              subState.uba_customers.add(String(custNum).replace(/[^a-zA-Z0-9_]/g, ''));
+                           }
+                        }
+                     });
+                  } else if (group.definitionType === 'new_customer') {
                      if (custNum && newCustomersSet.has(String(custNum).replace(/[^a-zA-Z0-9_]/g, ''))) isMatch = true;
                   } else if (group.definitionType === 'category') {
-                     if (group.items && group.items.includes(category)) isMatch = true;
+                     if (group.items && group.items.some((item: any) => String(item || '').trim().toLowerCase() === String(category || '').trim().toLowerCase())) isMatch = true;
                   } else if (group.definitionType === 'products') {
-                     if (group.items && group.items.includes(String(prodCode))) isMatch = true;
+                     if (group.items && prodCode && group.items.some((item: any) => normalizeCode(item) === normalizeCode(prodCode))) isMatch = true;
                   }
                   
                   if (isMatch) {
@@ -746,11 +764,21 @@ const DataManagement: React.FC = () => {
                         };
                       });
                     }
+                    const subGroupsSerialized: Record<string, { stt: number, uba: number }> = {};
+                    if (gState.subGroups) {
+                      Object.keys(gState.subGroups).forEach(subId => {
+                        subGroupsSerialized[subId] = {
+                          stt: gState.subGroups[subId].stt,
+                          uba: gState.subGroups[subId].uba_customers.size
+                        };
+                      });
+                    }
                     finalIncentives[progId][groupId] = {
                       stt: gState.stt,
                       uba: gState.uba_customers.size,
                       uba_customers: Array.from(gState.uba_customers),
-                      ...(Object.keys(dailySerialized).length > 0 ? { daily: dailySerialized } : {})
+                      ...(Object.keys(dailySerialized).length > 0 ? { daily: dailySerialized } : {}),
+                      ...(Object.keys(subGroupsSerialized).length > 0 ? { subGroups: subGroupsSerialized } : {})
                     };
                   });
                 });

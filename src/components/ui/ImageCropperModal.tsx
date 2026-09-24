@@ -3,6 +3,7 @@ import Cropper from 'react-easy-crop';
 import { Modal } from './Modal';
 import { ChevronLeft, ChevronRight, Check, ZoomIn, ZoomOut, Crop } from 'lucide-react';
 import type { CropSettings } from '../../utils/cropUtils';
+export type { CropSettings };
 
 interface ImageCropperModalProps {
   isOpen: boolean;

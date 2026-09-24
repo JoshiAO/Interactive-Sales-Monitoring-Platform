@@ -5,11 +5,22 @@ import { X } from 'lucide-react';
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
+  maxWidth?: string;
+  headerRight?: React.ReactNode;
+  hideCloseButton?: boolean;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+export const Modal: React.FC<ModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  title, 
+  children, 
+  maxWidth = '500px',
+  headerRight,
+  hideCloseButton = false
+}) => {
   if (!isOpen) return null;
   
   return createPortal(
@@ -19,12 +30,17 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 1000
     }}>
-      <div className="glass-panel animate-fade-in" style={{ width: '90%', maxWidth: '500px', padding: '24px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="glass-panel animate-fade-in" style={{ width: '90%', maxWidth: maxWidth, padding: '24px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexShrink: 0 }}>
-          <h3 style={{ margin: 0 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-            <X size={24} />
-          </button>
+          {typeof title === 'string' ? <h3 style={{ margin: 0 }}>{title}</h3> : title}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {headerRight}
+            {!hideCloseButton && (
+              <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <X size={24} />
+              </button>
+            )}
+          </div>
         </div>
         <div style={{ overflowY: 'auto', paddingRight: '8px', paddingBottom: '4px' }}>
           {children}
