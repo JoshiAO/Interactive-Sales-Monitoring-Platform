@@ -585,14 +585,18 @@ const IncentiveDetails: React.FC = () => {
                       }
                     });
 
-                    const indexPct = subTarget > 0 && subActual > 0 ? (subActual / subTarget) * 100 : 0;
+                    const rawIndexPct = subTarget > 0 && subActual > 0 ? (subActual / subTarget) * 100 : 0;
+                    const actualIndexVal = Number(rawIndexPct.toFixed(1));
+                    const displayIndexVal = Math.min(actualIndexVal, 120);
+
                     chartData.push({
                       chartKey: `${groupDef.id}_${subGroup.id}`,
                       name: subGroup.altName || subGroup.name,
                       fullName: subGroup.name,
                       groupName: groupDef.name,
                       groupId: groupDef.id,
-                      'Actual Index (%)': Number(indexPct.toFixed(1)),
+                      'Actual Index (%)': displayIndexVal,
+                      realIndexPct: actualIndexVal,
                       targetRaw: subTarget,
                       actualRaw: subActual,
                       type: groupTargetType
@@ -616,14 +620,18 @@ const IncentiveDetails: React.FC = () => {
                       }
                     }
                   });
-                  const indexPct = target > 0 && actual > 0 ? (actual / target) * 100 : 0;
+                  const rawIndexPct = target > 0 && actual > 0 ? (actual / target) * 100 : 0;
+                  const actualIndexVal = Number(rawIndexPct.toFixed(1));
+                  const displayIndexVal = Math.min(actualIndexVal, 120);
+
                   return {
                     chartKey: groupDef.id,
                     name: groupDef.name,
                     fullName: groupDef.name,
                     groupName: '',
                     groupId: groupDef.id,
-                    'Actual Index (%)': Number(indexPct.toFixed(1)),
+                    'Actual Index (%)': displayIndexVal,
+                    realIndexPct: actualIndexVal,
                     targetRaw: target,
                     actualRaw: actual,
                     type: groupTargetType
@@ -631,33 +639,47 @@ const IncentiveDetails: React.FC = () => {
                 });
               }
 
+              const groupRanges: { id: string; name: string; count: number }[] = [];
+              if (chartView === 'subgroup') {
+                chartData.forEach((item: any) => {
+                  const last = groupRanges[groupRanges.length - 1];
+                  if (last && last.id === item.groupId) {
+                    last.count++;
+                  } else {
+                    groupRanges.push({ id: item.groupId, name: item.groupName, count: 1 });
+                  }
+                });
+              }
+
               const CustomTick = (props: any) => {
                 const { x, y, payload } = props;
                 const item = chartData.find((d: any) => d.chartKey === payload.value || d.name === payload.value);
+                const displayName = item?.name || payload.value || '';
 
-                if (chartView !== 'subgroup' || !item) {
-                  const label = item?.name || payload.value || '';
-                  const displayLabel = label.length > 22 ? `${label.substring(0, 19)}...` : label;
+                if (chartView === 'subgroup') {
+                  const truncated = displayName.length > 22 ? `${displayName.substring(0, 19)}...` : displayName;
                   return (
                     <g transform={`translate(${x},${y})`}>
-                      <text x={0} y={14} textAnchor="middle" fill="var(--text-muted)" fontSize={11}>
-                        {displayLabel}
+                      <text
+                        x={-4}
+                        y={10}
+                        transform="rotate(-30)"
+                        textAnchor="end"
+                        fill="var(--text-muted)"
+                        fontSize={11}
+                        fontWeight={500}
+                      >
+                        {truncated}
                       </text>
                     </g>
                   );
                 }
 
-                const groupLabel = item.groupName;
-                const displayName = item.name;
-                const truncatedSubName = displayName.length > 18 ? `${displayName.substring(0, 16)}...` : displayName;
-
+                const displayLabel = displayName.length > 22 ? `${displayName.substring(0, 19)}...` : displayName;
                 return (
                   <g transform={`translate(${x},${y})`}>
-                    <text x={0} y={12} textAnchor="middle" fill="#60a5fa" fontSize={10} fontWeight={600}>
-                      {groupLabel}
-                    </text>
-                    <text x={0} y={26} textAnchor="middle" fill="var(--text-muted)" fontSize={11}>
-                      {truncatedSubName}
+                    <text x={0} y={14} textAnchor="middle" fill="var(--text-muted)" fontSize={11}>
+                      {displayLabel}
                     </text>
                   </g>
                 );
@@ -713,7 +735,7 @@ const IncentiveDetails: React.FC = () => {
 
                   {chartView === 'subgroup' && parentGroupsWithSubGroups.length > 1 && (
                     <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, marginRight: '4px' }}>Parent Group:</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, marginRight: '4px' }}>Parent Group Filter:</span>
                       <button
                         onClick={() => setChartGroupFilter('all')}
                         style={{
@@ -752,9 +774,9 @@ const IncentiveDetails: React.FC = () => {
                     </div>
                   )}
 
-                  <div style={{ width: '100%', height: '340px' }}>
+                  <div style={{ width: '100%', height: chartView === 'subgroup' ? '360px' : '320px' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: chartView === 'subgroup' ? 35 : 25 }}>
+                      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: chartView === 'subgroup' ? 65 : 25 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                         <XAxis 
                           dataKey={chartView === 'subgroup' ? 'chartKey' : 'name'} 
@@ -769,7 +791,8 @@ const IncentiveDetails: React.FC = () => {
                           tick={{ fill: 'var(--text-muted)', fontSize: 12 }} 
                           axisLine={false} 
                           tickLine={false} 
-                          domain={[0, (dataMax: number) => Math.max(120, Math.ceil(dataMax / 10) * 10)]}
+                          domain={[0, 120]}
+                          ticks={[0, 30, 60, 90, 120]}
                           tickFormatter={(val) => `${val}%`} 
                         />
                         <ReferenceLine y={100} stroke="rgba(34, 197, 94, 0.6)" strokeDasharray="4 4" label={{ value: '100% Target', fill: '#4ade80', fontSize: 11, position: 'top' }} />
@@ -780,9 +803,10 @@ const IncentiveDetails: React.FC = () => {
                           formatter={(val: any, _name: any, props: any) => {
                             const payload = props.payload;
                             const type = payload.type || 'STT';
+                            const realPct = payload.realIndexPct !== undefined ? payload.realIndexPct : val;
                             const formattedRawActual = type === 'STT' ? formatCurrency(payload.actualRaw) : `${payload.actualRaw.toLocaleString()} UBA`;
                             const formattedRawTarget = type === 'STT' ? formatCurrency(payload.targetRaw) : `${payload.targetRaw.toLocaleString()} UBA`;
-                            return [`${val}% (${formattedRawActual} / ${formattedRawTarget})`, 'Achievement Index'];
+                            return [`${realPct}% (${formattedRawActual} / ${formattedRawTarget})`, 'Achievement Index'];
                           }}
                           labelFormatter={(label: any, payload: readonly any[]) => {
                             if (payload && payload.length > 0 && payload[0].payload) {
@@ -806,6 +830,55 @@ const IncentiveDetails: React.FC = () => {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
+
+                  {chartView === 'subgroup' && groupRanges.length > 0 && (
+                    <div style={{ 
+                      display: 'flex', 
+                      width: '100%', 
+                      paddingLeft: '55px', 
+                      paddingRight: '30px', 
+                      marginTop: '10px', 
+                      boxSizing: 'border-box'
+                    }}>
+                      {groupRanges.map((gRange) => (
+                        <div 
+                          key={gRange.id} 
+                          style={{ 
+                            flex: gRange.count, 
+                            textAlign: 'center', 
+                            padding: '0 6px',
+                            boxSizing: 'border-box'
+                          }}
+                        >
+                          <div 
+                            style={{ 
+                              borderBottom: '2px solid #60a5fa', 
+                              borderLeft: '2px solid #60a5fa', 
+                              borderRight: '2px solid #60a5fa', 
+                              height: '8px', 
+                              borderRadius: '0 0 4px 4px',
+                              opacity: 0.6
+                            }} 
+                          />
+                          <div style={{ marginTop: '6px' }}>
+                            <span style={{ 
+                              fontSize: '11px', 
+                              fontWeight: 600, 
+                              color: '#60a5fa', 
+                              background: 'rgba(59, 130, 246, 0.15)', 
+                              border: '1px solid rgba(59, 130, 246, 0.3)',
+                              padding: '3px 12px', 
+                              borderRadius: '12px',
+                              whiteSpace: 'nowrap',
+                              display: 'inline-block'
+                            }}>
+                              {gRange.name}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             } else {
