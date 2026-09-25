@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useIncentiveDashboard } from '../../hooks/useIncentiveDashboard';
 import { useTeams } from '../../hooks/useTeams';
 import { ArrowLeft, Trophy, CheckCircle, Circle, AlertCircle, Download, Info } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import * as XLSXStyle from 'xlsx-js-style';
 import { getCropCss } from '../../utils/cropUtils';
 
@@ -15,6 +15,7 @@ const IncentiveDetails: React.FC = () => {
   const availableTeams = useTeams();
   const [selectedTeam, setSelectedTeam] = useState('all');
   const [activeCardTabs, setActiveCardTabs] = useState<Record<string, string>>({});
+  const [chartView, setChartView] = useState<'tracking' | 'subgroup'>('tracking');
   
   const { loading, program, dashboardData } = useIncentiveDashboard(programId);
 
@@ -525,49 +526,160 @@ const IncentiveDetails: React.FC = () => {
         <div style={{ marginBottom: '24px' }}>
           {(() => {
             const groupKeys = sortedTrackingGroups.map((g: any) => g.id);
-            
-            if (groupKeys.length >= 2) {
-              // Render Bar Chart for tracking groups
-              const chartData = sortedTrackingGroups.map((groupDef: any) => {
-                let target = 0;
-                let actual = 0;
-                const groupTargetType = groupDef.definitionType === 'new_customer' ? 'UBA' : (groupDef.targetType || 'STT');
+            const hasSubGroupsAvailable = sortedTrackingGroups.some((groupDef: any) => {
+              return (groupDef.hasSubGroups && groupDef.subGroups && Object.keys(groupDef.subGroups).length > 0);
+            });
 
-                filteredSalesmen.forEach((s: any) => {
-                  if (s.trackingResults && s.trackingResults[groupDef.id]) {
-                    const res = s.trackingResults[groupDef.id];
-                    const sTarget = res.targetValue || 0;
-                    const sActual = getGroupActual(res);
-                    if (sTarget > 0 || sActual > 0) {
-                      target += sTarget;
-                      actual += sActual;
-                    }
+            const shouldShowChart = groupKeys.length >= 2 || hasSubGroupsAvailable;
+
+            if (shouldShowChart) {
+              let chartData: any[] = [];
+
+              if (chartView === 'subgroup' && hasSubGroupsAvailable) {
+                sortedTrackingGroups.forEach((groupDef: any) => {
+                  const groupTargetType = groupDef.definitionType === 'new_customer' ? 'UBA' : (groupDef.targetType || 'STT');
+                  const subGroupMap = new Map<string, { id: string; name: string; altName?: string }>();
+
+                  if (groupDef.subGroups) {
+                    const sgList = Array.isArray(groupDef.subGroups) ? groupDef.subGroups : Object.values(groupDef.subGroups);
+                    sgList.forEach((sg: any) => {
+                      if (sg && (sg.id || sg.name)) {
+                        subGroupMap.set(sg.id || sg.name, { id: sg.id || sg.name, name: sg.name || sg.id, altName: sg.altName });
+                      }
+                    });
                   }
+
+                  filteredSalesmen.forEach((s: any) => {
+                    const res = s.trackingResults?.[groupDef.id];
+                    if (res?.subGroupsList) {
+                      res.subGroupsList.forEach((sub: any) => {
+                        if (sub && (sub.id || sub.name) && !subGroupMap.has(sub.id)) {
+                          subGroupMap.set(sub.id, { id: sub.id, name: sub.name || sub.id, altName: sub.altName });
+                        }
+                      });
+                    }
+                  });
+
+                  Array.from(subGroupMap.values()).forEach((subGroup) => {
+                    let subTarget = 0;
+                    let subActual = 0;
+
+                    filteredSalesmen.forEach((s: any) => {
+                      const res = s.trackingResults?.[groupDef.id];
+                      if (res?.subGroupsList) {
+                        const subRes = res.subGroupsList.find((sub: any) => sub.id === subGroup.id);
+                        if (subRes) {
+                          const sTar = subRes.targetValue || 0;
+                          const sAct = groupTargetType === 'STT' ? (subRes.actualSTT || 0) : (subRes.actualUBA || 0);
+                          if (sTar > 0 || sAct > 0) {
+                            subTarget += sTar;
+                            subActual += sAct;
+                          }
+                        }
+                      }
+                    });
+
+                    const indexPct = subTarget > 0 && subActual > 0 ? (subActual / subTarget) * 100 : 0;
+                    chartData.push({
+                      name: subGroup.altName || subGroup.name,
+                      fullName: subGroup.name,
+                      groupName: groupDef.name,
+                      'Actual Index (%)': Number(indexPct.toFixed(1)),
+                      targetRaw: subTarget,
+                      actualRaw: subActual,
+                      type: groupTargetType
+                    });
+                  });
                 });
-                const indexPct = target > 0 ? (actual / target) * 100 : (actual > 0 ? 100 : 0);
-                return {
-                  name: groupDef.name,
-                  'Target Benchmark': 100,
-                  'Actual Index (%)': Number(indexPct.toFixed(1)),
-                  targetRaw: target,
-                  actualRaw: actual,
-                  type: groupTargetType
-                };
-              });
+              } else {
+                chartData = sortedTrackingGroups.map((groupDef: any) => {
+                  let target = 0;
+                  let actual = 0;
+                  const groupTargetType = groupDef.definitionType === 'new_customer' ? 'UBA' : (groupDef.targetType || 'STT');
+
+                  filteredSalesmen.forEach((s: any) => {
+                    if (s.trackingResults && s.trackingResults[groupDef.id]) {
+                      const res = s.trackingResults[groupDef.id];
+                      const sTarget = res.targetValue || 0;
+                      const sActual = getGroupActual(res);
+                      if (sTarget > 0 || sActual > 0) {
+                        target += sTarget;
+                        actual += sActual;
+                      }
+                    }
+                  });
+                  const indexPct = target > 0 && actual > 0 ? (actual / target) * 100 : 0;
+                  return {
+                    name: groupDef.name,
+                    fullName: groupDef.name,
+                    groupName: '',
+                    'Actual Index (%)': Number(indexPct.toFixed(1)),
+                    targetRaw: target,
+                    actualRaw: actual,
+                    type: groupTargetType
+                  };
+                });
+              }
 
               return (
                 <div className="glass-panel" style={{ padding: '24px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                     <div>
-                      <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '18px', fontWeight: 600 }}>Performance by Tracking Group</h3>
+                      <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '18px', fontWeight: 600 }}>
+                        {chartView === 'subgroup' && hasSubGroupsAvailable ? 'Performance by Sub-Product Group' : 'Performance by Tracking Group'}
+                      </h3>
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Achievement Index (% vs 100% Target Benchmark)</div>
                     </div>
+
+                    {hasSubGroupsAvailable && (
+                      <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <button
+                          onClick={() => setChartView('tracking')}
+                          style={{
+                            padding: '5px 14px',
+                            borderRadius: '16px',
+                            border: 'none',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            backgroundColor: chartView === 'tracking' ? 'var(--accent-primary)' : 'transparent',
+                            color: chartView === 'tracking' ? '#fff' : 'var(--text-muted)'
+                          }}
+                        >
+                          Tracking Groups
+                        </button>
+                        <button
+                          onClick={() => setChartView('subgroup')}
+                          style={{
+                            padding: '5px 14px',
+                            borderRadius: '16px',
+                            border: 'none',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            backgroundColor: chartView === 'subgroup' ? 'var(--accent-primary)' : 'transparent',
+                            color: chartView === 'subgroup' ? '#fff' : 'var(--text-muted)'
+                          }}
+                        >
+                          Sub-Product Groups
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div style={{ width: '100%', height: '300px' }}>
+                  <div style={{ width: '100%', height: '320px' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 25 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                        <XAxis dataKey="name" stroke="var(--text-muted)" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} tickLine={false} />
+                        <XAxis 
+                          dataKey="name" 
+                          stroke="var(--text-muted)" 
+                          tick={{ fill: 'var(--text-muted)', fontSize: 11 }} 
+                          axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} 
+                          tickLine={false} 
+                          interval={0}
+                        />
                         <YAxis 
                           stroke="var(--text-muted)" 
                           tick={{ fill: 'var(--text-muted)', fontSize: 12 }} 
@@ -586,16 +698,27 @@ const IncentiveDetails: React.FC = () => {
                             const type = payload.type || 'STT';
                             const formattedRawActual = type === 'STT' ? formatCurrency(payload.actualRaw) : `${payload.actualRaw.toLocaleString()} UBA`;
                             const formattedRawTarget = type === 'STT' ? formatCurrency(payload.targetRaw) : `${payload.targetRaw.toLocaleString()} UBA`;
-                            
-                            if (name === 'Actual Index (%)') {
-                              return [`${val}% (${formattedRawActual} / ${formattedRawTarget})`, 'Achievement Index'];
+                            return [`${val}% (${formattedRawActual} / ${formattedRawTarget})`, 'Achievement Index'];
+                          }}
+                          labelFormatter={(label: any, payload: any[]) => {
+                            if (payload && payload.length > 0 && payload[0].payload) {
+                              const p = payload[0].payload;
+                              if (p.groupName) {
+                                return `${p.groupName} → ${p.fullName}`;
+                              }
+                              return p.fullName || label;
                             }
-                            return [`${val}% (Target Benchmark)`, name];
+                            return label;
                           }}
                         />
-                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                        <Bar dataKey="Target Benchmark" fill="rgba(255, 255, 255, 0.12)" radius={[6, 6, 0, 0]} maxBarSize={50} />
-                        <Bar dataKey="Actual Index (%)" fill="var(--accent-primary)" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                        <Bar dataKey="Actual Index (%)" radius={[6, 6, 0, 0]} maxBarSize={50}>
+                          {chartData.map((entry: any, index: number) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={entry['Actual Index (%)'] >= 100 ? '#4ade80' : 'var(--accent-primary)'} 
+                            />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

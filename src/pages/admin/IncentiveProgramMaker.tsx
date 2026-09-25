@@ -12,6 +12,7 @@ import { recalculateIncentiveAchievements } from '../../utils/recalculateIncenti
 export interface SubProductGroup {
   id: string;
   name: string;
+  altName?: string;
   items: string[];
   targetValue?: number;
   individualTargets?: Record<string, any>;
@@ -1672,6 +1673,14 @@ const IncentiveProgramMaker: React.FC = () => {
                             value={sub.name} 
                             onChange={e => handleUpdateSubGroup(group.id, sub.id, { name: e.target.value })} 
                             style={{ flex: 1, minWidth: '160px', padding: '6px 10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '4px', color: 'white', fontSize: '13px' }} 
+                          />
+                          <input 
+                            type="text" 
+                            placeholder="Alt Name / Chart Label (Optional)" 
+                            value={sub.altName || ''} 
+                            onChange={e => handleUpdateSubGroup(group.id, sub.id, { altName: e.target.value })} 
+                            style={{ width: '160px', padding: '6px 10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '4px', color: 'white', fontSize: '13px' }} 
+                            title="Short label for graph axes"
                           />
                           <button 
                             type="button"
