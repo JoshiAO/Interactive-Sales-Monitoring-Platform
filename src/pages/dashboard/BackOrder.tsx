@@ -159,9 +159,7 @@ const BackOrder: React.FC = () => {
   const availableTeams = useTeams();
   const { usersCache } = useUsersCache();
   const [selectedTeam, setSelectedTeam] = useState('all');
-  const [activeTab, setActiveTab] = useState<'trade' | 'warehouse' | 'van'>(
-    role === 'warehouse_supervisor' ? 'warehouse' : 'trade'
-  );
+  const [activeTab, setActiveTab] = useState<'trade' | 'warehouse' | 'van'>('trade');
   const [tradeMode, setTradeMode] = useState<'salesman' | 'product'>('salesman');
   
   const [selectedSalesman, setSelectedSalesman] = useState<any | null>(null);
@@ -186,12 +184,6 @@ const BackOrder: React.FC = () => {
   useEffect(() => {
     setCustProductCategory('all');
   }, [selectedCustomer]);
-
-  useEffect(() => {
-    if (role === 'warehouse_supervisor' && activeTab === 'trade') {
-      setActiveTab('warehouse');
-    }
-  }, [role, activeTab]);
 
   const canSeeAdminTabs = role === 'admin' || role === 'manager' || role === 'supervisor' || role === 'warehouse_supervisor';
 
@@ -409,9 +401,8 @@ const BackOrder: React.FC = () => {
   };
 
   const availableTabs = useMemo(() => {
-    if (role === 'warehouse_supervisor') return ['warehouse', 'van'];
     return ['trade', ...(canSeeAdminTabs ? ['warehouse', 'van'] : [])];
-  }, [role, canSeeAdminTabs]);
+  }, [canSeeAdminTabs]);
 
   return (
     <div className="animate-fade-in">
@@ -424,7 +415,7 @@ const BackOrder: React.FC = () => {
       </div>
 
       {/* Trade History Line Graph */}
-      {role !== 'warehouse_supervisor' && tradeHistory.length > 0 && (
+      {tradeHistory.length > 0 && (
         <div className="glass-panel" style={{ marginBottom: '24px', height: '260px', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '12px' }}>Trade B.O. History (BSR)</h3>
           <div style={{ flex: 1 }}>
@@ -443,12 +434,10 @@ const BackOrder: React.FC = () => {
 
       {/* Summary Cards */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        {role !== 'warehouse_supervisor' && (
-          <div className="glass-panel" style={{ flex: 1, minWidth: '220px', padding: '20px' }}>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>Trade B.O. (BSR)</div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-danger)' }}>{formatCurrency(totalBsr)}</div>
-          </div>
-        )}
+        <div className="glass-panel" style={{ flex: 1, minWidth: '220px', padding: '20px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>Trade B.O. (BSR)</div>
+          <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-danger)' }}>{formatCurrency(totalBsr)}</div>
+        </div>
         {canSeeAdminTabs && (
           <>
             <div className="glass-panel" style={{ flex: 1, minWidth: '220px', padding: '20px' }}>
@@ -524,29 +513,31 @@ const BackOrder: React.FC = () => {
             )}
           </div>
 
-          {/* Right: Salesman / Product Mode Switch */}
-          <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <button
-              onClick={() => setTradeMode('salesman')}
-              style={{
-                padding: '5px 14px', borderRadius: '16px', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
-                backgroundColor: tradeMode === 'salesman' ? 'var(--accent-primary)' : 'transparent',
-                color: tradeMode === 'salesman' ? '#fff' : 'var(--text-muted)'
-              }}
-            >
-              Salesman
-            </button>
-            <button
-              onClick={() => setTradeMode('product')}
-              style={{
-                padding: '5px 14px', borderRadius: '16px', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
-                backgroundColor: tradeMode === 'product' ? 'var(--accent-primary)' : 'transparent',
-                color: tradeMode === 'product' ? '#fff' : 'var(--text-muted)'
-              }}
-            >
-              Product
-            </button>
-          </div>
+          {/* Right: Salesman / Product Mode Switch (Hidden for Warehouse Supervisor) */}
+          {role !== 'warehouse_supervisor' && (
+            <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <button
+                onClick={() => setTradeMode('salesman')}
+                style={{
+                  padding: '5px 14px', borderRadius: '16px', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+                  backgroundColor: tradeMode === 'salesman' ? 'var(--accent-primary)' : 'transparent',
+                  color: tradeMode === 'salesman' ? '#fff' : 'var(--text-muted)'
+                }}
+              >
+                Salesman
+              </button>
+              <button
+                onClick={() => setTradeMode('product')}
+                style={{
+                  padding: '5px 14px', borderRadius: '16px', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+                  backgroundColor: tradeMode === 'product' ? 'var(--accent-primary)' : 'transparent',
+                  color: tradeMode === 'product' ? '#fff' : 'var(--text-muted)'
+                }}
+              >
+                Product
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -554,7 +545,7 @@ const BackOrder: React.FC = () => {
       {activeTab === 'trade' && (
         (tradeLoading || custDataLoading) ? (
           <PageSkeleton />
-        ) : tradeMode === 'salesman' ? (
+        ) : (role !== 'warehouse_supervisor' && tradeMode === 'salesman') ? (
           /* Salesman Mode Layout */
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
             {salesmen.map(s => (
