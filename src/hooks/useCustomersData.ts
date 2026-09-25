@@ -122,7 +122,8 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
             isLargeSariSariStore,
             isSmallSariSariStore,
             vd30Bought: Array.isArray(c.vd30_bought) ? c.vd30_bought : (Array.isArray(c.vd30Bought) ? c.vd30Bought : []),
-            productSales: c.product_sales || c.productSales || {}
+            productSales: c.product_sales || c.productSales || {},
+            bsrProducts: c.bsr_products || c.bsrProducts || {}
           };
         };
 

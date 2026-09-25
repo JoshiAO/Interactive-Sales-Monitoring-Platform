@@ -7,6 +7,7 @@ import { Search, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Calendar, Arro
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeams } from '../../hooks/useTeams';
 import { useTradeBoData, useTradeBoCustomers, type TradeCustomer } from '../../hooks/useTradeBoData';
+import { useCustomersData } from '../../hooks/useCustomersData';
 import { useWarehouseBoData } from '../../hooks/useWarehouseBoData';
 import { useVanBoData } from '../../hooks/useVanBoData';
 import { usePricelist } from '../../hooks/usePricelist';
@@ -84,7 +85,7 @@ const SortableTable: React.FC<SortableTableProps> = ({ columns, rows, emptyMsg }
             <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
               {columns.map(col => (
                 <td key={col.key} style={{ padding: '9px 12px', textAlign: col.align || 'left', whiteSpace: col.align === 'right' ? 'nowrap' : undefined }}>
-                  {col.key === 'amount' ? formatCurrency(row[col.key] || 0) : (row[col.key] ?? '-')}
+                  {col.key === 'amount' ? formatCurrency(row[col.key] || 0) : col.key === 'volume_cs' ? `${(row[col.key] || 0).toFixed(2)} CS` : (row[col.key] ?? '-')}
                 </td>
               ))}
             </tr>
@@ -157,12 +158,23 @@ const BackOrder: React.FC = () => {
   const availableTeams = useTeams();
   const [selectedTeam, setSelectedTeam] = useState('all');
   const [activeTab, setActiveTab] = useState<'trade' | 'warehouse' | 'van'>('trade');
+  const [tradeMode, setTradeMode] = useState<'salesman' | 'product'>('salesman');
+  
   const [selectedSalesman, setSelectedSalesman] = useState<any | null>(null);
   const [selectedVan, setSelectedVan] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<TradeCustomer | null>(null);
+  
+  // Trade Product Mode filters
+  const [tSearch, setTSearch] = useState('');
+  const [tBranch, setTBranch] = useState('all');
+  const [tCategory, setTCategory] = useState('all');
+
+  // Warehouse filters
   const [wSearch, setWSearch] = useState('');
   const [wBranch, setWBranch] = useState('all');
   const [wCategory, setWCategory] = useState('all');
+  
+  // Van filters
   const [vSearch, setVSearch] = useState('');
   const [vCategory, setVCategory] = useState('all');
   const [custProductCategory, setCustProductCategory] = useState('all');
@@ -176,9 +188,89 @@ const BackOrder: React.FC = () => {
   const { loading: priceLoading, priceMap } = usePricelist();
   const { categoryMap } = useItemCategories();
   const { loading: tradeLoading, salesmen, history: tradeHistory, totalBsr } = useTradeBoData(selectedTeam);
+  const { loading: custDataLoading, customers: allTradeCustomers } = useCustomersData(selectedTeam);
   const { loading: whLoading, items: whItems, categories: whCats, branches: whBranches, totalAmount: whTotalAmount, uploadDate: whUploadDate } = useWarehouseBoData(priceMap, priceLoading);
   const { loading: vanLoading, items: vanItems, categories: vanCats, vans, totalAmount: vanTotalAmount, uploadDate: vanUploadDate } = useVanBoData(priceMap, priceLoading);
   const { loading: custLoading, customers } = useTradeBoCustomers(selectedSalesman?.code || null);
+
+  // ─── Trade B.O. Product Mode derived data ────────────────────────────────
+  const tradeProductItems = useMemo(() => {
+    const map: Record<string, {
+      date: string;
+      branch_name: string;
+      team: string;
+      category: string;
+      product_code: string;
+      product_description: string;
+      volume_cs: number;
+      amount: number;
+    }> = {};
+
+    const teamByCode: Record<string, string> = {};
+    salesmen.forEach(s => { teamByCode[s.code] = s.team; });
+
+    const currentDateStr = new Date().toISOString().split('T')[0];
+
+    allTradeCustomers.forEach((c: any) => {
+      if ((c.bsr || 0) <= 0 || !c.bsrProducts) return;
+      const branch = c.city && c.city !== '-' ? c.city : (c.province && c.province !== '-' ? c.province : 'Main');
+      const teamName = teamByCode[c.salesmanId] || 'Unassigned';
+
+      Object.entries(c.bsrProducts as Record<string, number>).forEach(([code, amt]) => {
+        if (amt <= 0) return;
+        const cat = categoryMap[code] || 'Uncategorized';
+        const desc = priceMap[code]?.product_description || code;
+        const casePrice = priceMap[code]?.case_price || priceMap[code]?.price || 0;
+        const vol = casePrice > 0 ? amt / casePrice : 0;
+        const key = `${branch}_${teamName}_${code}`;
+
+        if (!map[key]) {
+          map[key] = {
+            date: currentDateStr,
+            branch_name: branch,
+            team: teamName,
+            category: cat,
+            product_code: code,
+            product_description: desc,
+            volume_cs: vol,
+            amount: amt
+          };
+        } else {
+          map[key].volume_cs += vol;
+          map[key].amount += amt;
+        }
+      });
+    });
+
+    return Object.values(map).sort((a, b) => b.amount - a.amount);
+  }, [allTradeCustomers, salesmen, priceMap, categoryMap]);
+
+  const tradeBranches = useMemo(() => Array.from(new Set(tradeProductItems.map(i => i.branch_name))).sort(), [tradeProductItems]);
+  const tradeCats = useMemo(() => Array.from(new Set(tradeProductItems.map(i => i.category))).sort(), [tradeProductItems]);
+
+  const filteredTradeProducts = useMemo(() => tradeProductItems.filter(i =>
+    (tBranch === 'all' || i.branch_name === tBranch) &&
+    (tCategory === 'all' || i.category === tCategory) &&
+    (!tSearch || i.product_code.toLowerCase().includes(tSearch.toLowerCase()) || i.product_description.toLowerCase().includes(tSearch.toLowerCase()))
+  ), [tradeProductItems, tBranch, tCategory, tSearch]);
+
+  const tradeCategoryChart = useMemo(() => {
+    const m: Record<string, number> = {};
+    filteredTradeProducts.forEach(i => { m[i.category] = (m[i.category] || 0) + i.amount; });
+    return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
+  }, [filteredTradeProducts]);
+
+  const tradeBranchChart = useMemo(() => {
+    const m: Record<string, number> = {};
+    filteredTradeProducts.forEach(i => { m[i.branch_name] = (m[i.branch_name] || 0) + i.amount; });
+    return Object.entries(m).map(([name, value]) => ({ name, value }));
+  }, [filteredTradeProducts]);
+
+  const tradeTeamChart = useMemo(() => {
+    const m: Record<string, number> = {};
+    filteredTradeProducts.forEach(i => { m[i.team] = (m[i.team] || 0) + i.amount; });
+    return Object.entries(m).map(([name, value]) => ({ name, value }));
+  }, [filteredTradeProducts]);
 
   // ─── Warehouse derived data ─────────────────────────────────────────────
   const filteredWh = useMemo(() => whItems.filter(i =>
@@ -244,8 +336,6 @@ const BackOrder: React.FC = () => {
     labelStyle: { color: '#94a3b8' }
   };
 
-
-
   return (
     <div className="animate-fade-in">
       {/* Header */}
@@ -254,21 +344,6 @@ const BackOrder: React.FC = () => {
           <h2>Back Order</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '4px', fontSize: '14px' }}>Trade, Warehouse, and Van back order tracking</p>
         </div>
-        {(role === 'manager' || role === 'admin') && availableTeams.length > 0 && activeTab === 'trade' && (
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            {availableTeams.map(t => (
-              <button key={t} onClick={() => setSelectedTeam(t)} style={{
-                padding: '4px 12px', borderRadius: '16px', border: '1px solid',
-                borderColor: selectedTeam === t ? 'var(--accent-primary)' : 'var(--border)',
-                backgroundColor: selectedTeam === t ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
-                color: selectedTeam === t ? '#fff' : 'var(--text-muted)', fontSize: '12px', cursor: 'pointer'
-              }}>{t}</button>
-            ))}
-            {selectedTeam !== 'all' && (
-              <button onClick={() => setSelectedTeam('all')} style={{ padding: '4px 12px', borderRadius: '16px', border: 'none', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)', fontSize: '12px', cursor: 'pointer' }}>Clear</button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Trade History Line Graph */}
@@ -326,7 +401,7 @@ const BackOrder: React.FC = () => {
       </div>
 
       {/* Tab Selector */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '10px', width: '100%' }}>
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '10px', width: '100%' }}>
         {(['trade', ...(canSeeAdminTabs ? ['warehouse', 'van'] : [])] as string[]).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab as any)} style={{
             flex: 1, padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer',
@@ -337,11 +412,71 @@ const BackOrder: React.FC = () => {
         ))}
       </div>
 
+      {/* Sub-controls under Trade Tab */}
+      {activeTab === 'trade' && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+          {/* Left: Team Slicer */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {(role === 'manager' || role === 'admin') && availableTeams.length > 0 && (
+              <>
+                <button
+                  onClick={() => setSelectedTeam('all')}
+                  style={{
+                    padding: '4px 12px', borderRadius: '16px', border: '1px solid',
+                    borderColor: selectedTeam === 'all' ? 'var(--accent-primary)' : 'var(--border)',
+                    backgroundColor: selectedTeam === 'all' ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
+                    color: selectedTeam === 'all' ? '#fff' : 'var(--text-muted)', fontSize: '12px', cursor: 'pointer'
+                  }}
+                >
+                  All Teams
+                </button>
+                {availableTeams.map(t => (
+                  <button key={t} onClick={() => setSelectedTeam(t)} style={{
+                    padding: '4px 12px', borderRadius: '16px', border: '1px solid',
+                    borderColor: selectedTeam === t ? 'var(--accent-primary)' : 'var(--border)',
+                    backgroundColor: selectedTeam === t ? 'var(--accent-primary)' : 'rgba(0,0,0,0.2)',
+                    color: selectedTeam === t ? '#fff' : 'var(--text-muted)', fontSize: '12px', cursor: 'pointer'
+                  }}>{t}</button>
+                ))}
+                {selectedTeam !== 'all' && (
+                  <button onClick={() => setSelectedTeam('all')} style={{ padding: '4px 12px', borderRadius: '16px', border: 'none', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)', fontSize: '12px', cursor: 'pointer' }}>Clear</button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Right: Salesman / Product Mode Switch */}
+          <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <button
+              onClick={() => setTradeMode('salesman')}
+              style={{
+                padding: '5px 14px', borderRadius: '16px', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+                backgroundColor: tradeMode === 'salesman' ? 'var(--accent-primary)' : 'transparent',
+                color: tradeMode === 'salesman' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              Salesman
+            </button>
+            <button
+              onClick={() => setTradeMode('product')}
+              style={{
+                padding: '5px 14px', borderRadius: '16px', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+                backgroundColor: tradeMode === 'product' ? 'var(--accent-primary)' : 'transparent',
+                color: tradeMode === 'product' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              Product
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ═══ TRADE TAB ═══════════════════════════════════════════════════════ */}
       {activeTab === 'trade' && (
-        tradeLoading ? (
+        (tradeLoading || custDataLoading) ? (
           <PageSkeleton />
-        ) : (
+        ) : tradeMode === 'salesman' ? (
+          /* Salesman Mode Layout */
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
             {salesmen.map(s => (
               <div key={s.code} className="glass-panel interactive" onClick={() => { setSelectedSalesman(s); setCustSearch(''); setCustProvince('all'); setCustCity('all'); setCustBarangay('all'); }}
@@ -383,6 +518,95 @@ const BackOrder: React.FC = () => {
                 No Trade B.O. data available. Upload Net Invoiced data to see BSR values.
               </div>
             )}
+          </div>
+        ) : (
+          /* Product Mode Layout */
+          <div>
+            {/* Bar + Pie Charts */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+              {/* Left: By Category */}
+              <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '12px' }}>By Category</h3>
+                <div style={{ flex: 1 }}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                    <BarChart data={tradeCategoryChart} layout="vertical" margin={{ left: 0, right: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                      <XAxis type="number" stroke="var(--text-muted)" fontSize={11} tickFormatter={v => `₱${(v / 1000).toFixed(0)}k`} />
+                      <YAxis type="category" dataKey="name" width={90} stroke="var(--text-muted)" fontSize={10} />
+                      <Tooltip {...chartTooltipStyle} formatter={(v: any) => formatCurrency(Number(v))} />
+                      <Bar dataKey="value" fill="var(--accent-danger)" radius={[0, 4, 4, 0]} name="Amount" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Right: By Branch & By Team in same card */}
+              <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '8px' }}>By Branch & By Team</h3>
+                <div style={{ flex: 1, display: 'flex', gap: '8px' }}>
+                  {/* By Branch Pie */}
+                  <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>By Branch</div>
+                    <div style={{ flex: 1, width: '100%' }}>
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                        <PieChart>
+                          <Pie data={tradeBranchChart} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={55} label={({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={9}>
+                            {tradeBranchChart.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip {...chartTooltipStyle} formatter={(v: any) => formatCurrency(Number(v))} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* By Team Pie */}
+                  <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>By Team</div>
+                    <div style={{ flex: 1, width: '100%' }}>
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                        <PieChart>
+                          <Pie data={tradeTeamChart} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={55} label={({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={9}>
+                            {tradeTeamChart.map((_, i) => <Cell key={i} fill={PIE_COLORS[(i + 3) % PIE_COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip {...chartTooltipStyle} formatter={(v: any) => formatCurrency(Number(v))} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Trade B.O. Items Table Container */}
+            <div className="glass-panel" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '15px', marginBottom: '16px' }}>Trade B.O. Items</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input type="text" placeholder="Search items..." value={tSearch} onChange={e => setTSearch(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px 8px 28px', boxSizing: 'border-box', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'white', fontSize: '13px' }} />
+                </div>
+                {tradeBranches.length > 0 && (
+                  <SlicerRow options={tradeBranches} selected={tBranch} onSelect={setTBranch} label="Branches:" />
+                )}
+                {tradeCats.length > 0 && (
+                  <SlicerRow options={tradeCats} selected={tCategory} onSelect={setTCategory} label="Categories:" />
+                )}
+              </div>
+              <SortableTable
+                columns={[
+                  { key: 'date', label: 'Date' },
+                  { key: 'branch_name', label: 'Branch' },
+                  { key: 'category', label: 'Category' },
+                  { key: 'product_code', label: 'Product Code' },
+                  { key: 'product_description', label: 'Description' },
+                  { key: 'volume_cs', label: 'Volume (CS)', align: 'right' },
+                  { key: 'amount', label: 'Amount', align: 'right' }
+                ]}
+                rows={filteredTradeProducts}
+                emptyMsg="No trade B.O. items available."
+              />
+            </div>
           </div>
         )
       )}
@@ -579,56 +803,56 @@ const BackOrder: React.FC = () => {
                   </div>
                 </div>
 
-            {/* Filters */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-              <div style={{ position: 'relative' }}>
-                <Search size={13} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input type="text" placeholder="Search customer..." value={custSearch} onChange={e => setCustSearch(e.target.value)}
-                  style={{ width: '100%', padding: '7px 9px 7px 26px', boxSizing: 'border-box', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '6px', color: 'white', fontSize: '12px' }} />
-              </div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                <select value={custProvince} onChange={e => { setCustProvince(e.target.value); setCustCity('all'); setCustBarangay('all'); }} style={{ ...selectStyle, flex: 1, minWidth: '100px' }}>
-                  <option value="all">All Provinces</option>
-                  {provinces.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-                <select value={custCity} onChange={e => { setCustCity(e.target.value); setCustBarangay('all'); }} style={{ ...selectStyle, flex: 1, minWidth: '100px' }}>
-                  <option value="all">All Cities</option>
-                  {cities.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <select value={custBarangay} onChange={e => setCustBarangay(e.target.value)} style={{ ...selectStyle, flex: 1, minWidth: '100px' }}>
-                  <option value="all">All Barangays</option>
-                  {barangays.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
-            </div>
+                {/* Filters */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <Search size={13} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input type="text" placeholder="Search customer..." value={custSearch} onChange={e => setCustSearch(e.target.value)}
+                      style={{ width: '100%', padding: '7px 9px 7px 26px', boxSizing: 'border-box', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '6px', color: 'white', fontSize: '12px' }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <select value={custProvince} onChange={e => { setCustProvince(e.target.value); setCustCity('all'); setCustBarangay('all'); }} style={{ ...selectStyle, flex: 1, minWidth: '100px' }}>
+                      <option value="all">All Provinces</option>
+                      {provinces.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <select value={custCity} onChange={e => { setCustCity(e.target.value); setCustBarangay('all'); }} style={{ ...selectStyle, flex: 1, minWidth: '100px' }}>
+                      <option value="all">All Cities</option>
+                      {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <select value={custBarangay} onChange={e => setCustBarangay(e.target.value)} style={{ ...selectStyle, flex: 1, minWidth: '100px' }}>
+                      <option value="all">All Barangays</option>
+                      {barangays.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
+                </div>
 
-            {custLoading ? (
-              <div className="flex-center" style={{ height: '120px', color: 'var(--accent-primary)' }}><Loader2 size={24} className="animate-spin" /></div>
-            ) : filteredCustomers.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>No customers with BSR.</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto' }}>
-                {filteredCustomers.map(c => (
-                  <div key={c.id} className="interactive" onClick={() => setSelectedCustomer(c)}
-                    style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '13px' }}>{c.name}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{c.id}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {[c.barangay, c.city, c.province].filter(v => v && v !== '-').join(', ')}
+                {custLoading ? (
+                  <div className="flex-center" style={{ height: '120px', color: 'var(--accent-primary)' }}><Loader2 size={24} className="animate-spin" /></div>
+                ) : filteredCustomers.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>No customers with BSR.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto' }}>
+                    {filteredCustomers.map(c => (
+                      <div key={c.id} className="interactive" onClick={() => setSelectedCustomer(c)}
+                        style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '13px' }}>{c.name}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{c.id}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              {[c.barangay, c.city, c.province].filter(v => v && v !== '-').join(', ')}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>BSR</div>
+                            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--accent-danger)' }}>{formatCurrency(c.bsr)}</div>
+                          </div>
                         </div>
                       </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>BSR</div>
-                        <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--accent-danger)' }}>{formatCurrency(c.bsr)}</div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-            </>
+                )}
+              </>
             ) : (
               // Customer Details View
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
