@@ -48,7 +48,7 @@ service cloud.firestore {
     }
     
     match /dashboard_metrics/{docId} { 
-      allow read: if isManagerOrAdmin() || isOwner(docId) || isSupervisor(); 
+      allow read: if isManagerOrAdmin() || isOwner(docId) || isSupervisor() || isWarehouseSupervisor(); 
       allow write: if isAdmin(); 
     }
     
@@ -58,7 +58,7 @@ service cloud.firestore {
     }
     
     match /customer_data/{docId} { 
-      allow read: if isManagerOrAdmin() || isOwner(docId) || isSupervisor(); 
+      allow read: if isManagerOrAdmin() || isOwner(docId) || isSupervisor() || isWarehouseSupervisor(); 
       allow write: if isAdmin(); 
     }
 

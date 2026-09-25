@@ -513,8 +513,8 @@ const BackOrder: React.FC = () => {
             )}
           </div>
 
-          {/* Right: Salesman / Product Mode Switch (Hidden for Warehouse Supervisor) */}
-          {role !== 'warehouse_supervisor' && (
+          {/* Right: Salesman / Product Mode Switch (Hidden for Salesman and Warehouse Supervisor) */}
+          {role !== 'warehouse_supervisor' && role !== 'salesman' && (
             <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
               <button
                 onClick={() => setTradeMode('salesman')}
@@ -545,7 +545,7 @@ const BackOrder: React.FC = () => {
       {activeTab === 'trade' && (
         (tradeLoading || custDataLoading) ? (
           <PageSkeleton />
-        ) : (role !== 'warehouse_supervisor' && tradeMode === 'salesman') ? (
+        ) : (role === 'salesman' || (role !== 'warehouse_supervisor' && tradeMode === 'salesman')) ? (
           /* Salesman Mode Layout */
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
             {salesmen.map(s => (
