@@ -105,6 +105,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
             barangay: c['BARANGAY'] || '-',
             city: c['CITY'] || '-',
             province: c['PROVINCE'] || c['REGION'] || '-',
+            branch: c['BRANCH'] || c['BRANCH NAME'] || c['BRANCH CODE'] || c['DISTRIBUTOR BRANCH'] || c.branch || '',
             status: c['STATUS'] || '',
             salesmanId: String(c['SALES REP ID'] || ''),
             volume: c.volume || 0,

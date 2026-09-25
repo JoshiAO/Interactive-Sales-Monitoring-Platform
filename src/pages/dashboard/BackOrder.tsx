@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTeams } from '../../hooks/useTeams';
 import { useTradeBoData, useTradeBoCustomers, type TradeCustomer } from '../../hooks/useTradeBoData';
 import { useCustomersData } from '../../hooks/useCustomersData';
+import { useUsersCache } from '../../hooks/useUsersCache';
 import { useWarehouseBoData } from '../../hooks/useWarehouseBoData';
 import { useVanBoData } from '../../hooks/useVanBoData';
 import { usePricelist } from '../../hooks/usePricelist';
@@ -156,6 +157,7 @@ const SlicerRow: React.FC<{ options: string[], selected: string, onSelect: (val:
 const BackOrder: React.FC = () => {
   const { role } = useAuth();
   const availableTeams = useTeams();
+  const { usersCache } = useUsersCache();
   const [selectedTeam, setSelectedTeam] = useState('all');
   const [activeTab, setActiveTab] = useState<'trade' | 'warehouse' | 'van'>('trade');
   const [tradeMode, setTradeMode] = useState<'salesman' | 'product'>('salesman');
@@ -209,18 +211,32 @@ const BackOrder: React.FC = () => {
     const teamByCode: Record<string, string> = {};
     salesmen.forEach(s => { teamByCode[s.code] = s.team; });
 
+    const userBranchMap: Record<string, string> = {};
+    usersCache.forEach(u => {
+      if (u.salesmanId && u.branch) {
+        userBranchMap[String(u.salesmanId)] = u.branch;
+      }
+    });
+
     const currentDateStr = new Date().toISOString().split('T')[0];
 
     allTradeCustomers.forEach((c: any) => {
       if ((c.bsr || 0) <= 0 || !c.bsrProducts) return;
-      const branch = c.city && c.city !== '-' ? c.city : (c.province && c.province !== '-' ? c.province : 'Main');
+      
+      let branch = c.branch || userBranchMap[c.salesmanId] || '';
+      if (!branch && c.salesmanId) {
+        const prefix = String(c.salesmanId).replace(/[^a-zA-Z]/g, '').toUpperCase();
+        if (prefix) branch = prefix;
+      }
+      if (!branch) branch = 'Main';
+
       const teamName = teamByCode[c.salesmanId] || 'Unassigned';
 
       Object.entries(c.bsrProducts as Record<string, number>).forEach(([code, amt]) => {
         if (amt <= 0) return;
         const cat = categoryMap[code] || 'Uncategorized';
         const desc = priceMap[code]?.product_description || code;
-        const casePrice = priceMap[code]?.case_price || priceMap[code]?.price || 0;
+        const casePrice = priceMap[code]?.case_price || priceMap[code]?.piece_price || 0;
         const vol = casePrice > 0 ? amt / casePrice : 0;
         const key = `${branch}_${teamName}_${code}`;
 
@@ -243,7 +259,7 @@ const BackOrder: React.FC = () => {
     });
 
     return Object.values(map).sort((a, b) => b.amount - a.amount);
-  }, [allTradeCustomers, salesmen, priceMap, categoryMap]);
+  }, [allTradeCustomers, salesmen, priceMap, categoryMap, usersCache]);
 
   const tradeBranches = useMemo(() => Array.from(new Set(tradeProductItems.map(i => i.branch_name))).sort(), [tradeProductItems]);
   const tradeCats = useMemo(() => Array.from(new Set(tradeProductItems.map(i => i.category))).sort(), [tradeProductItems]);

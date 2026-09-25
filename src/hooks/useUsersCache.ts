@@ -13,6 +13,7 @@ export interface UserCacheData {
   salesmanType?: string;
   team?: string;
   company_code?: string;
+  branch?: string;
 }
 
 export const useUsersCache = () => {
