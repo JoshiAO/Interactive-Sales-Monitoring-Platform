@@ -155,7 +155,7 @@ const SlicerRow: React.FC<{ options: string[], selected: string, onSelect: (val:
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const BackOrder: React.FC = () => {
-  const { role, branch: userBranch } = useAuth();
+  const { role } = useAuth();
   const availableTeams = useTeams();
   const { usersCache } = useUsersCache();
   const [selectedTeam, setSelectedTeam] = useState('all');
