@@ -72,7 +72,7 @@ export const useCustomersData = (selectedTeam: string = 'all') => {
           teamSnapDocs.forEach(row => {
             if (supervisorTeams.includes(row.team)) allowedSalesmen.add(String(row.salesman_code));
           });
-        } else if (role === 'manager' || role === 'admin') {
+        } else {
           teamSnapDocs.forEach(row => {
             if (selectedTeam === 'all' || row.team === selectedTeam) {
               allowedSalesmen.add(String(row.salesman_code));
