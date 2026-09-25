@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useIncentiveDashboard } from '../../hooks/useIncentiveDashboard';
 import { useTeams } from '../../hooks/useTeams';
 import { ArrowLeft, Trophy, CheckCircle, Circle, AlertCircle, Download, Info } from 'lucide-react';
-import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import * as XLSXStyle from 'xlsx-js-style';
 import { getCropCss } from '../../utils/cropUtils';
 
@@ -693,14 +693,14 @@ const IncentiveDetails: React.FC = () => {
                           cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                           contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}
                           itemStyle={{ color: '#fff', fontWeight: 500 }}
-                          formatter={(val: any, name: any, props: any) => {
+                          formatter={(val: any, _name: any, props: any) => {
                             const payload = props.payload;
                             const type = payload.type || 'STT';
                             const formattedRawActual = type === 'STT' ? formatCurrency(payload.actualRaw) : `${payload.actualRaw.toLocaleString()} UBA`;
                             const formattedRawTarget = type === 'STT' ? formatCurrency(payload.targetRaw) : `${payload.targetRaw.toLocaleString()} UBA`;
                             return [`${val}% (${formattedRawActual} / ${formattedRawTarget})`, 'Achievement Index'];
                           }}
-                          labelFormatter={(label: any, payload: any[]) => {
+                          labelFormatter={(label: any, payload: readonly any[]) => {
                             if (payload && payload.length > 0 && payload[0].payload) {
                               const p = payload[0].payload;
                               if (p.groupName) {
