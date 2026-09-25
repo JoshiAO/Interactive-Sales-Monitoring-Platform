@@ -159,7 +159,9 @@ const BackOrder: React.FC = () => {
   const availableTeams = useTeams();
   const { usersCache } = useUsersCache();
   const [selectedTeam, setSelectedTeam] = useState('all');
-  const [activeTab, setActiveTab] = useState<'trade' | 'warehouse' | 'van'>('trade');
+  const [activeTab, setActiveTab] = useState<'trade' | 'warehouse' | 'van'>(
+    role === 'warehouse_supervisor' ? 'warehouse' : 'trade'
+  );
   const [tradeMode, setTradeMode] = useState<'salesman' | 'product'>('salesman');
   
   const [selectedSalesman, setSelectedSalesman] = useState<any | null>(null);
@@ -185,15 +187,31 @@ const BackOrder: React.FC = () => {
     setCustProductCategory('all');
   }, [selectedCustomer]);
 
+  useEffect(() => {
+    if (role === 'warehouse_supervisor' && activeTab === 'trade') {
+      setActiveTab('warehouse');
+    }
+  }, [role, activeTab]);
+
   const canSeeAdminTabs = role === 'admin' || role === 'manager' || role === 'supervisor' || role === 'warehouse_supervisor';
 
   const { loading: priceLoading, priceMap } = usePricelist();
   const { categoryMap } = useItemCategories();
-  const { loading: tradeLoading, salesmen, history: tradeHistory, totalBsr } = useTradeBoData(selectedTeam);
-  const { loading: custDataLoading, customers: allTradeCustomers } = useCustomersData(selectedTeam);
+  const { loading: tradeLoading, salesmen: rawSalesmen, history: tradeHistory } = useTradeBoData('all');
+  const { loading: custDataLoading, customers: allTradeCustomers } = useCustomersData('all');
   const { loading: whLoading, items: whItems, categories: whCats, branches: whBranches, totalAmount: whTotalAmount, uploadDate: whUploadDate } = useWarehouseBoData(priceMap, priceLoading);
   const { loading: vanLoading, items: vanItems, categories: vanCats, vans, totalAmount: vanTotalAmount, uploadDate: vanUploadDate } = useVanBoData(priceMap, priceLoading);
   const { loading: custLoading, customers } = useTradeBoCustomers(selectedSalesman?.code || null);
+
+  // Filter salesmen and calculate total BSR based on selectedTeam in memory
+  const salesmen = useMemo(() => {
+    if (selectedTeam === 'all') return rawSalesmen;
+    return rawSalesmen.filter(s => s.team === selectedTeam);
+  }, [rawSalesmen, selectedTeam]);
+
+  const totalBsr = useMemo(() => {
+    return salesmen.reduce((acc, s) => acc + s.bsr, 0);
+  }, [salesmen]);
 
   // ─── Trade B.O. Product Mode derived data ────────────────────────────────
   const tradeProductItems = useMemo(() => {
@@ -209,7 +227,7 @@ const BackOrder: React.FC = () => {
     }> = {};
 
     const teamByCode: Record<string, string> = {};
-    salesmen.forEach(s => { teamByCode[s.code] = s.team; });
+    rawSalesmen.forEach(s => { teamByCode[s.code] = s.team; });
 
     const userBranchMap: Record<string, string> = {};
     usersCache.forEach(u => {
@@ -223,6 +241,9 @@ const BackOrder: React.FC = () => {
     allTradeCustomers.forEach((c: any) => {
       if ((c.bsr || 0) <= 0 || !c.bsrProducts) return;
       
+      const teamName = teamByCode[c.salesmanId] || 'Unassigned';
+      if (selectedTeam !== 'all' && teamName !== selectedTeam) return;
+
       let branch = c.branch || userBranchMap[c.salesmanId] || '';
       if (!branch && c.salesmanId) {
         const prefix = String(c.salesmanId).replace(/[^a-zA-Z]/g, '').toUpperCase();
@@ -230,15 +251,13 @@ const BackOrder: React.FC = () => {
       }
       if (!branch) branch = 'Main';
 
-      const teamName = teamByCode[c.salesmanId] || 'Unassigned';
-
       Object.entries(c.bsrProducts as Record<string, number>).forEach(([code, amt]) => {
         if (amt <= 0) return;
         const cat = categoryMap[code] || 'Uncategorized';
         const desc = priceMap[code]?.product_description || code;
         const casePrice = priceMap[code]?.case_price || priceMap[code]?.piece_price || 0;
         const vol = casePrice > 0 ? amt / casePrice : 0;
-        const key = `${branch}_${teamName}_${code}`;
+        const key = `${branch}_${code}`;
 
         if (!map[key]) {
           map[key] = {
@@ -254,12 +273,15 @@ const BackOrder: React.FC = () => {
         } else {
           map[key].volume_cs += vol;
           map[key].amount += amt;
+          if (teamName && !map[key].team.includes(teamName)) {
+            map[key].team = `${map[key].team}, ${teamName}`;
+          }
         }
       });
     });
 
     return Object.values(map).sort((a, b) => b.amount - a.amount);
-  }, [allTradeCustomers, salesmen, priceMap, categoryMap, usersCache]);
+  }, [allTradeCustomers, rawSalesmen, priceMap, categoryMap, usersCache, selectedTeam]);
 
   const tradeBranches = useMemo(() => Array.from(new Set(tradeProductItems.map(i => i.branch_name))).sort(), [tradeProductItems]);
   const tradeCats = useMemo(() => Array.from(new Set(tradeProductItems.map(i => i.category))).sort(), [tradeProductItems]);
@@ -284,9 +306,43 @@ const BackOrder: React.FC = () => {
 
   const tradeTeamChart = useMemo(() => {
     const m: Record<string, number> = {};
-    filteredTradeProducts.forEach(i => { m[i.team] = (m[i.team] || 0) + i.amount; });
+    const teamByCode: Record<string, string> = {};
+    rawSalesmen.forEach(s => { teamByCode[s.code] = s.team; });
+
+    const userBranchMap: Record<string, string> = {};
+    usersCache.forEach(u => {
+      if (u.salesmanId && u.branch) {
+        userBranchMap[String(u.salesmanId)] = u.branch;
+      }
+    });
+
+    allTradeCustomers.forEach((c: any) => {
+      if ((c.bsr || 0) <= 0 || !c.bsrProducts) return;
+      const teamName = teamByCode[c.salesmanId] || 'Unassigned';
+      if (selectedTeam !== 'all' && teamName !== selectedTeam) return;
+
+      let branch = c.branch || userBranchMap[c.salesmanId] || '';
+      if (!branch && c.salesmanId) {
+        const prefix = String(c.salesmanId).replace(/[^a-zA-Z]/g, '').toUpperCase();
+        if (prefix) branch = prefix;
+      }
+      if (!branch) branch = 'Main';
+
+      if (tBranch !== 'all' && branch !== tBranch) return;
+
+      Object.entries(c.bsrProducts as Record<string, number>).forEach(([code, amt]) => {
+        if (amt <= 0) return;
+        const cat = categoryMap[code] || 'Uncategorized';
+        if (tCategory !== 'all' && cat !== tCategory) return;
+        const desc = priceMap[code]?.product_description || code;
+        if (tSearch && !code.toLowerCase().includes(tSearch.toLowerCase()) && !desc.toLowerCase().includes(tSearch.toLowerCase())) return;
+
+        m[teamName] = (m[teamName] || 0) + amt;
+      });
+    });
+
     return Object.entries(m).map(([name, value]) => ({ name, value }));
-  }, [filteredTradeProducts]);
+  }, [allTradeCustomers, rawSalesmen, selectedTeam, tBranch, tCategory, tSearch, categoryMap, priceMap, usersCache]);
 
   // ─── Warehouse derived data ─────────────────────────────────────────────
   const filteredWh = useMemo(() => whItems.filter(i =>
@@ -352,6 +408,11 @@ const BackOrder: React.FC = () => {
     labelStyle: { color: '#94a3b8' }
   };
 
+  const availableTabs = useMemo(() => {
+    if (role === 'warehouse_supervisor') return ['warehouse', 'van'];
+    return ['trade', ...(canSeeAdminTabs ? ['warehouse', 'van'] : [])];
+  }, [role, canSeeAdminTabs]);
+
   return (
     <div className="animate-fade-in">
       {/* Header */}
@@ -363,7 +424,7 @@ const BackOrder: React.FC = () => {
       </div>
 
       {/* Trade History Line Graph */}
-      {tradeHistory.length > 0 && (
+      {role !== 'warehouse_supervisor' && tradeHistory.length > 0 && (
         <div className="glass-panel" style={{ marginBottom: '24px', height: '260px', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '12px' }}>Trade B.O. History (BSR)</h3>
           <div style={{ flex: 1 }}>
@@ -382,10 +443,12 @@ const BackOrder: React.FC = () => {
 
       {/* Summary Cards */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div className="glass-panel" style={{ flex: 1, minWidth: '220px', padding: '20px' }}>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>Trade B.O. (BSR)</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-danger)' }}>{formatCurrency(totalBsr)}</div>
-        </div>
+        {role !== 'warehouse_supervisor' && (
+          <div className="glass-panel" style={{ flex: 1, minWidth: '220px', padding: '20px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>Trade B.O. (BSR)</div>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-danger)' }}>{formatCurrency(totalBsr)}</div>
+          </div>
+        )}
         {canSeeAdminTabs && (
           <>
             <div className="glass-panel" style={{ flex: 1, minWidth: '220px', padding: '20px' }}>
@@ -418,7 +481,7 @@ const BackOrder: React.FC = () => {
 
       {/* Tab Selector */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '10px', width: '100%' }}>
-        {(['trade', ...(canSeeAdminTabs ? ['warehouse', 'van'] : [])] as string[]).map(tab => (
+        {availableTabs.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab as any)} style={{
             flex: 1, padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer',
             background: activeTab === tab ? 'var(--accent-primary)' : 'transparent',
