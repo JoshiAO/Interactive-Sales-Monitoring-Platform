@@ -16,6 +16,7 @@ const IncentiveDetails: React.FC = () => {
   const [selectedTeam, setSelectedTeam] = useState('all');
   const [activeCardTabs, setActiveCardTabs] = useState<Record<string, string>>({});
   const [chartView, setChartView] = useState<'tracking' | 'subgroup'>('tracking');
+  const [chartGroupFilter, setChartGroupFilter] = useState<string>('all');
   
   const { loading, program, dashboardData } = useIncentiveDashboard(programId);
 
@@ -534,9 +535,14 @@ const IncentiveDetails: React.FC = () => {
 
             if (shouldShowChart) {
               let chartData: any[] = [];
+              const parentGroupsWithSubGroups = sortedTrackingGroups.filter((g: any) => g.hasSubGroups && g.subGroups && Object.keys(g.subGroups).length > 0);
 
               if (chartView === 'subgroup' && hasSubGroupsAvailable) {
                 sortedTrackingGroups.forEach((groupDef: any) => {
+                  if (chartGroupFilter !== 'all' && chartGroupFilter !== groupDef.id) {
+                    return;
+                  }
+
                   const groupTargetType = groupDef.definitionType === 'new_customer' ? 'UBA' : (groupDef.targetType || 'STT');
                   const subGroupMap = new Map<string, { id: string; name: string; altName?: string }>();
 
@@ -581,9 +587,11 @@ const IncentiveDetails: React.FC = () => {
 
                     const indexPct = subTarget > 0 && subActual > 0 ? (subActual / subTarget) * 100 : 0;
                     chartData.push({
+                      chartKey: `${groupDef.id}_${subGroup.id}`,
                       name: subGroup.altName || subGroup.name,
                       fullName: subGroup.name,
                       groupName: groupDef.name,
+                      groupId: groupDef.id,
                       'Actual Index (%)': Number(indexPct.toFixed(1)),
                       targetRaw: subTarget,
                       actualRaw: subActual,
@@ -610,9 +618,11 @@ const IncentiveDetails: React.FC = () => {
                   });
                   const indexPct = target > 0 && actual > 0 ? (actual / target) * 100 : 0;
                   return {
+                    chartKey: groupDef.id,
                     name: groupDef.name,
                     fullName: groupDef.name,
                     groupName: '',
+                    groupId: groupDef.id,
                     'Actual Index (%)': Number(indexPct.toFixed(1)),
                     targetRaw: target,
                     actualRaw: actual,
@@ -621,9 +631,41 @@ const IncentiveDetails: React.FC = () => {
                 });
               }
 
+              const CustomTick = (props: any) => {
+                const { x, y, payload } = props;
+                const item = chartData.find((d: any) => d.chartKey === payload.value || d.name === payload.value);
+
+                if (chartView !== 'subgroup' || !item) {
+                  const label = item?.name || payload.value || '';
+                  const displayLabel = label.length > 22 ? `${label.substring(0, 19)}...` : label;
+                  return (
+                    <g transform={`translate(${x},${y})`}>
+                      <text x={0} y={14} textAnchor="middle" fill="var(--text-muted)" fontSize={11}>
+                        {displayLabel}
+                      </text>
+                    </g>
+                  );
+                }
+
+                const groupLabel = item.groupName;
+                const displayName = item.name;
+                const truncatedSubName = displayName.length > 18 ? `${displayName.substring(0, 16)}...` : displayName;
+
+                return (
+                  <g transform={`translate(${x},${y})`}>
+                    <text x={0} y={12} textAnchor="middle" fill="#60a5fa" fontSize={10} fontWeight={600}>
+                      {groupLabel}
+                    </text>
+                    <text x={0} y={26} textAnchor="middle" fill="var(--text-muted)" fontSize={11}>
+                      {truncatedSubName}
+                    </text>
+                  </g>
+                );
+              };
+
               return (
                 <div className="glass-panel" style={{ padding: '24px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: chartView === 'subgroup' ? '12px' : '20px', flexWrap: 'wrap', gap: '12px' }}>
                     <div>
                       <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '18px', fontWeight: 600 }}>
                         {chartView === 'subgroup' && hasSubGroupsAvailable ? 'Performance by Sub-Product Group' : 'Performance by Tracking Group'}
@@ -668,14 +710,56 @@ const IncentiveDetails: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <div style={{ width: '100%', height: '320px' }}>
+
+                  {chartView === 'subgroup' && parentGroupsWithSubGroups.length > 1 && (
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, marginRight: '4px' }}>Parent Group:</span>
+                      <button
+                        onClick={() => setChartGroupFilter('all')}
+                        style={{
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          border: '1px solid',
+                          borderColor: chartGroupFilter === 'all' ? '#60a5fa' : 'rgba(255,255,255,0.1)',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          backgroundColor: chartGroupFilter === 'all' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.03)',
+                          color: chartGroupFilter === 'all' ? '#60a5fa' : 'var(--text-muted)'
+                        }}
+                      >
+                        All Parent Groups
+                      </button>
+                      {parentGroupsWithSubGroups.map((groupDef: any) => (
+                        <button
+                          key={groupDef.id}
+                          onClick={() => setChartGroupFilter(groupDef.id)}
+                          style={{
+                            padding: '4px 12px',
+                            borderRadius: '12px',
+                            border: '1px solid',
+                            borderColor: chartGroupFilter === groupDef.id ? '#60a5fa' : 'rgba(255,255,255,0.1)',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            backgroundColor: chartGroupFilter === groupDef.id ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.03)',
+                            color: chartGroupFilter === groupDef.id ? '#60a5fa' : 'var(--text-muted)'
+                          }}
+                        >
+                          {groupDef.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ width: '100%', height: '340px' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 25 }}>
+                      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: chartView === 'subgroup' ? 35 : 25 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                         <XAxis 
-                          dataKey="name" 
+                          dataKey={chartView === 'subgroup' ? 'chartKey' : 'name'} 
                           stroke="var(--text-muted)" 
-                          tick={{ fill: 'var(--text-muted)', fontSize: 11 }} 
+                          tick={<CustomTick />} 
                           axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} 
                           tickLine={false} 
                           interval={0}
@@ -714,7 +798,7 @@ const IncentiveDetails: React.FC = () => {
                         <Bar dataKey="Actual Index (%)" radius={[6, 6, 0, 0]} maxBarSize={50}>
                           {chartData.map((entry: any, index: number) => (
                             <Cell 
-                              key={`cell-${index}`} 
+                              key={`cell-${entry.chartKey || index}`} 
                               fill={entry['Actual Index (%)'] >= 100 ? '#4ade80' : 'var(--accent-primary)'} 
                             />
                           ))}
