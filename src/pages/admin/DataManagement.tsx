@@ -606,7 +606,7 @@ const DataManagement: React.FC = () => {
               }
             });
 
-            const chunkBatch = writeBatch(db);
+            // Removed single chunkBatch init
 
             const foundInCml = new Set<string>();
             const salesmenCustomers: Record<string, any[]> = {};
@@ -679,12 +679,16 @@ const DataManagement: React.FC = () => {
               }
             });
 
-            Object.keys(salesmenCustomers).forEach(sCode => {
-              const docRef = doc(collection(db, 'customer_data'), sCode);
-              chunkBatch.set(docRef, { customers: JSON.stringify(salesmenCustomers[sCode]) }, { merge: true });
-            });
-
-            await chunkBatch.commit();
+            const customerSalesmanCodes = Object.keys(salesmenCustomers);
+            for (let i = 0; i < customerSalesmanCodes.length; i += 5) {
+              const custBatch = writeBatch(db);
+              const chunk = customerSalesmanCodes.slice(i, i + 5);
+              chunk.forEach(sCode => {
+                const docRef = doc(collection(db, 'customer_data'), sCode);
+                custBatch.set(docRef, { customers: JSON.stringify(salesmenCustomers[sCode]) }, { merge: true });
+              });
+              await custBatch.commit();
+            }
 
             setProgress({ step: 'Saving Aggregated Dashboards...', current: 80, total: 100 });
             // Read existing metrics to preserve cml_count (set by CML upload)
@@ -812,8 +816,8 @@ const DataManagement: React.FC = () => {
             const summaryMetricsDoc: Record<string, any> = {};
 
             const salesmanCodes = Object.keys(allMetricsDoc);
-            for (let i = 0; i < salesmanCodes.length; i += 400) {
-              const chunk = salesmanCodes.slice(i, i + 400);
+            for (let i = 0; i < salesmanCodes.length; i += 20) {
+              const chunk = salesmanCodes.slice(i, i + 20);
               const chunkBatch = writeBatch(db);
               chunk.forEach(code => {
                 const m = allMetricsDoc[code];

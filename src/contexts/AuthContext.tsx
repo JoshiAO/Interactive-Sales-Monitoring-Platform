@@ -3,7 +3,7 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 
-export type UserRole = 'admin' | 'manager' | 'supervisor' | 'salesman' | 'warehouse_supervisor' | null;
+export type UserRole = 'admin' | 'manager' | 'supervisor' | 'salesman' | 'warehouse_supervisor' | 'delivery_team' | 'encoder' | null;
 
 interface AuthContextType {
   currentUser: User | null;
@@ -61,6 +61,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             else if (email.includes('salesman')) demoRole = 'salesman';
             else if (email.includes('supervisor') && !email.includes('warehouse')) demoRole = 'supervisor';
             else if (email.includes('warehouse')) demoRole = 'warehouse_supervisor';
+            else if (email.includes('delivery')) demoRole = 'delivery_team';
+            else if (email.includes('encoder')) demoRole = 'encoder';
 
             setRole(demoRole);
             setCompanyCode('DEMO-CPNY-CODE-0000');

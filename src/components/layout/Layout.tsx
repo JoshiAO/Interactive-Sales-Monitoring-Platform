@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { LayoutDashboard, ShoppingCart, Target, Users, Database, Settings, LogOut, Menu, BarChart2, Package, Clock, AlertTriangle, Medal, Gift, X, Map } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Target, Users, Database, Settings, LogOut, Menu, BarChart2, Package, Clock, AlertTriangle, Medal, Gift, X, Map, Truck, Calendar, ClipboardList, FileSpreadsheet } from 'lucide-react';
 import { logout } from '../../firebase/auth';
 import { doc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import PerformancePanel from './PerformancePanel';
 import { MonthPicker } from '../ui/MonthPicker';
+import { PendingSyncManager } from '../logistics/PendingSyncManager';
 
 const Layout: React.FC = () => {
   const { role, currentUser, name, photoURL, selectedMonth, setSelectedMonth } = useAuth();
@@ -95,6 +96,43 @@ const Layout: React.FC = () => {
               </>
             )}
           </>
+        {/* ─── Logistics & Delivery Group (Under Development) ─── */}
+        {(role === 'admin' || role === 'manager' || role === 'supervisor' || role === 'warehouse_supervisor' || role === 'delivery_team' || role === 'encoder' || role === 'salesman') && (
+          <>
+            <div style={{ margin: '8px 0', height: '1px', background: 'var(--border)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: '12px', paddingRight: '8px', marginBottom: '4px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>LOGISTICS & DELIVERY</div>
+              <span style={{ fontSize: '9px', background: 'rgba(234, 179, 8, 0.15)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 600 }}>Under Dev</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none', userSelect: 'none' }} title="Logistics & Delivery is currently under development">
+              {(role === 'admin' || role === 'warehouse_supervisor' || role === 'manager' || role === 'supervisor') && (
+                <div className="btn" style={{ justifyContent: 'flex-start', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'not-allowed' }}>
+                  <Truck size={18} /> Manning
+                </div>
+              )}
+              {(role === 'admin' || role === 'warehouse_supervisor' || role === 'manager' || role === 'supervisor' || role === 'encoder') && (
+                <div className="btn" style={{ justifyContent: 'flex-start', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'not-allowed' }}>
+                  <Calendar size={18} /> Schedule
+                </div>
+              )}
+              {(role === 'admin' || role === 'warehouse_supervisor' || role === 'manager' || role === 'supervisor' || role === 'delivery_team' || role === 'salesman') && (
+                <div className="btn" style={{ justifyContent: 'flex-start', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'not-allowed' }}>
+                  <Package size={18} /> Deliveries
+                </div>
+              )}
+              {(role === 'admin' || role === 'warehouse_supervisor' || role === 'manager' || role === 'supervisor' || role === 'encoder') && (
+                <div className="btn" style={{ justifyContent: 'flex-start', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'not-allowed' }}>
+                  <ClipboardList size={18} /> Picklist
+                </div>
+              )}
+              {(role === 'admin' || role === 'warehouse_supervisor' || role === 'manager' || role === 'supervisor' || role === 'encoder' || role === 'salesman') && (
+                <div className="btn" style={{ justifyContent: 'flex-start', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'not-allowed' }}>
+                  <FileSpreadsheet size={18} /> DDRMS
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {role === 'admin' && (
@@ -281,6 +319,8 @@ const Layout: React.FC = () => {
           </div>
         </div>
       )}
+
+      <PendingSyncManager />
     </div>
   );
 };

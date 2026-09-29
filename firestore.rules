@@ -100,7 +100,33 @@ service cloud.firestore {
     match /weekly_commitments/{document=**} {
       allow read, write: if isAuthenticated();
     }
-    
+
+    // Logistics & Delivery Collections
+    match /logistics_manning/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isWarehouseSupervisor();
+    }
+
+    match /delivery_schedules/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isWarehouseSupervisor();
+    }
+
+    match /picklists/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isWarehouseSupervisor() || isAuthenticated(); // Encoders & Warehouse Sup
+    }
+
+    match /ddrms/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated(); // Admin, Encoder, Warehouse Sup, Delivery Team status updates
+    }
+
+    match /collections/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isWarehouseSupervisor() || isAuthenticated();
+    }
+
     // Default deny for any other collections
     match /{document=**} {
       allow read, write: if false;

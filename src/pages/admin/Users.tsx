@@ -51,7 +51,7 @@ const Users: React.FC = () => {
     name: '', email: '', password: '', confirmPassword: '', role: 'salesman', team: '', salesmanType: 'Ex-Truck', salesmanId: '', supervisor: '', branch: ''
   });
 
-  const roles = ['admin', 'manager', 'supervisor', 'salesman', 'warehouse_supervisor'];
+  const roles = ['admin', 'manager', 'supervisor', 'salesman', 'warehouse_supervisor', 'delivery_team', 'encoder'];
   const availableSupervisors = users.filter(u => u.role === 'supervisor');
 
   useEffect(() => {
@@ -304,7 +304,7 @@ const Users: React.FC = () => {
             <div key={role}>
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '8px', gap: '16px' }}>
                 <h3 style={{ textTransform: 'capitalize', margin: 0, color: 'var(--text-muted)' }}>
-                  {role === 'salesman' ? 'Salesmen' : role === 'warehouse_supervisor' ? 'Warehouse Supervisors' : `${role}s`} ({role === 'salesman' && selectedTeamFilter !== 'All Teams' ? roleUsers.filter(u => u.team === selectedTeamFilter).length : roleUsers.length})
+                  {role === 'salesman' ? 'Salesmen' : role === 'warehouse_supervisor' ? 'Warehouse Supervisors' : role === 'delivery_team' ? 'Delivery Teams' : `${role}s`} ({role === 'salesman' && selectedTeamFilter !== 'All Teams' ? roleUsers.filter(u => u.team === selectedTeamFilter).length : roleUsers.length})
                 </h3>
                 {role === 'salesman' && availableTeams.length > 0 && (
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -472,6 +472,8 @@ const Users: React.FC = () => {
               <option value="supervisor">Supervisor</option>
               <option value="salesman">Salesman</option>
               <option value="warehouse_supervisor">Warehouse Supervisor</option>
+              <option value="delivery_team">Delivery Team</option>
+              <option value="encoder">Encoder</option>
             </select>
           </div>
 

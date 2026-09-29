@@ -19,6 +19,8 @@ import IncentiveDetails from './pages/dashboard/IncentiveDetails';
 import ArchivedIncentives from './pages/dashboard/ArchivedIncentives';
 import MasterCoveragePlan from './pages/dashboard/MasterCoveragePlan';
 
+import UnderDevelopment from './components/ui/UnderDevelopment';
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, loading } = useAuth();
   
@@ -51,6 +53,13 @@ function AppRoutes() {
         <Route path="incentives" element={<IncentivesPage />} />
         <Route path="incentives/archived" element={<ArchivedIncentives />} />
         <Route path="incentives/:programId" element={<IncentiveDetails />} />
+
+        {/* Logistics & Delivery Routes (Under Development) */}
+        <Route path="logistics/manning" element={<UnderDevelopment title="Manning Schedule" />} />
+        <Route path="logistics/schedule" element={<UnderDevelopment title="Delivery Schedule" />} />
+        <Route path="logistics/deliveries" element={<UnderDevelopment title="Deliveries Management" />} />
+        <Route path="logistics/picklist" element={<UnderDevelopment title="Picklist Management" />} />
+        <Route path="logistics/ddrms" element={<UnderDevelopment title="DDRMS Management" />} />
       </Route>
       
       <Route path="*" element={<Navigate to="/" replace />} />
