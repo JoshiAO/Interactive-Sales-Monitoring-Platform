@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ClipboardList, Plus, Trash2, Save, Search, Eye, Edit3, User, FileSpreadsheet, MapPin, Briefcase } from 'lucide-react';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
+import { useUI } from '../../contexts/UIContext';
 import type { Picklist } from '../../types/logistics';
 import { saveDraft } from '../../utils/indexedDB';
 import * as XLSX from 'xlsx-js-style';
@@ -10,13 +11,16 @@ import { Modal } from '../../components/ui/Modal';
 
 const PicklistPage: React.FC = () => {
   const { role, currentUser, name } = useAuth();
+  const { canEditPage } = useUI();
   const [picklists, setPicklists] = useState<Picklist[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingRecord, setEditingRecord] = useState<Picklist | null>(null);
   const [saving, setSaving] = useState(false);
   
-  const canCreate = role === 'admin' || role === 'encoder';
+  const canEdit = canEditPage('logistics_picklist', role!);
+  const canCreate = canEdit;
   const canEditStatus = role === 'admin' || role === 'warehouse_supervisor';
+  const canDelete = role === 'admin';
   const [viewMode, setViewMode] = useState<'edit' | 'read'>(canCreate ? 'edit' : 'read');
 
   // Filters
@@ -35,6 +39,8 @@ const PicklistPage: React.FC = () => {
 
   // Read View State
   const [selectedSalesmanForRead, setSelectedSalesmanForRead] = useState<string | null>(null);
+  const [selectedPicklistForRead, setSelectedPicklistForRead] = useState<Picklist | null>(null);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
 
   // Form state
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
@@ -48,6 +54,11 @@ const PicklistPage: React.FC = () => {
   const [formAmount, setFormAmount] = useState(0);
   const [formAccounts, setFormAccounts] = useState(0);
   const [formChecker, setFormChecker] = useState('');
+  const [formCustomers, setFormCustomers] = useState<any[]>([]);
+  const [pasteText, setPasteText] = useState('');
+  
+  const [currentSalesmanCustomers, setCurrentSalesmanCustomers] = useState<any[]>([]);
+  const [readModeCmlMap, setReadModeCmlMap] = useState<Record<string, any>>({});
 
   // Real-time listener for Picklists
   useEffect(() => {
@@ -67,7 +78,7 @@ const PicklistPage: React.FC = () => {
       const sms: {code: string, name: string}[] = [];
       snap.forEach(d => {
         const u = d.data();
-        if (u.role === 'salesman') {
+        if (u.role === 'salesman' && u.salesmanType === 'Booking') {
           sms.push({ code: u.salesmanId || '-', name: u.name || '-' });
         }
       });
@@ -120,6 +131,83 @@ const PicklistPage: React.FC = () => {
 
     fetchGeoCities();
   }, []);
+
+  useEffect(() => {
+    if (formCustomers.length > 0) {
+      setFormAccounts(formCustomers.length);
+    }
+  }, [formCustomers]);
+
+  // Fetch CML when salesman changes in Edit Mode
+  useEffect(() => {
+    if (!formSalesmanCode) {
+      setCurrentSalesmanCustomers([]);
+      return;
+    }
+    const safeId = formSalesmanCode.replace(/[^a-zA-Z0-9_]/g, '');
+    getDoc(doc(db, 'customer_data', safeId)).then(snap => {
+      if (snap.exists()) {
+        try {
+          const arr = JSON.parse(snap.data().customers || '[]');
+          setCurrentSalesmanCustomers(arr);
+        } catch(e) {
+          setCurrentSalesmanCustomers([]);
+        }
+      } else {
+        setCurrentSalesmanCustomers([]);
+      }
+    });
+  }, [formSalesmanCode]);
+
+  // Auto-map missing customer details when CML data loads or formCustomers changes
+  useEffect(() => {
+    if (currentSalesmanCustomers.length === 0 || formCustomers.length === 0) return;
+    
+    let updated = false;
+    const remapped = formCustomers.map(c => {
+      if (!c.barangay && !c.city) {
+        const cmlData = currentSalesmanCustomers.find(cml => 
+          String(cml['CUSTOMER CODE'] || cml['CUSTOMER NUMBER'] || cml['CUSTOMER ID'] || '').toUpperCase() === c.code.toUpperCase()
+        );
+        if (cmlData) {
+          updated = true;
+          return {
+            ...c,
+            barangay: String(cmlData['BARANGAY'] || cmlData['BRGY'] || ''),
+            city: String(cmlData['CITY'] || cmlData['MUNICIPALITY'] || ''),
+            province: String(cmlData['PROVINCE'] || ''),
+          };
+        }
+      }
+      return c;
+    });
+
+    if (updated) {
+      setFormCustomers(remapped);
+    }
+  }, [currentSalesmanCustomers, formCustomers]);
+
+  // Fetch CML for Read Mode live mapping
+  useEffect(() => {
+    if (!selectedPicklistForRead || !selectedPicklistForRead.salesmanCode) return;
+    
+    const safeId = selectedPicklistForRead.salesmanCode.replace(/[^a-zA-Z0-9_]/g, '');
+    getDoc(doc(db, 'customer_data', safeId)).then(snap => {
+      if (snap.exists()) {
+        try {
+          const arr = JSON.parse(snap.data().customers || '[]');
+          const map: Record<string, any> = {};
+          arr.forEach((c: any) => {
+            const code = String(c['CUSTOMER CODE'] || c['CUSTOMER NUMBER'] || c['CUSTOMER ID'] || '').toUpperCase();
+            if (code) map[code] = c;
+          });
+          setReadModeCmlMap(map);
+        } catch(e) { }
+      } else {
+        setReadModeCmlMap({});
+      }
+    });
+  }, [selectedPicklistForRead]);
 
   const filteredPicklists = useMemo(() => {
     let filtered = picklists;
@@ -181,6 +269,8 @@ const PicklistPage: React.FC = () => {
     setFormAmount(0);
     setFormAccounts(0);
     setFormChecker('');
+    setFormCustomers([]);
+    setPasteText('');
   };
 
   const handleSelectForEdit = (record: Picklist) => {
@@ -196,6 +286,29 @@ const PicklistPage: React.FC = () => {
     setFormAmount(record.estimatedAmount);
     setFormAccounts(record.numberOfAccounts);
     setFormChecker(record.assignedChecker || '');
+    setFormCustomers(record.customers || []);
+    setPasteText('');
+  };
+
+  const handleParsePaste = () => {
+    if (!pasteText.trim()) return;
+    const items = pasteText.split(': ;').map(i => i.trim()).filter(Boolean);
+    const parsed = items.map(item => {
+      const parts = item.split('|').map(p => p.trim());
+      if (parts.length >= 2) {
+        return { name: parts[0], code: parts[1] };
+      }
+      return null;
+    }).filter(Boolean) as {name: string, code: string}[];
+
+    if (parsed.length > 0) {
+      setFormCustomers(prev => {
+        const currentCodes = new Set(prev.map(p => p.code));
+        const newCustomers = parsed.filter(p => !currentCodes.has(p.code));
+        return [...prev, ...newCustomers];
+      });
+      setPasteText('');
+    }
   };
 
   const handleSaveToDraft = async () => {
@@ -217,6 +330,7 @@ const PicklistPage: React.FC = () => {
         numberOfAccounts: formAccounts,
         systemStatus: editingRecord?.systemStatus || 'Allocated',
         assignedChecker: formChecker.trim() || null,
+        customers: formCustomers,
         encoderId: editingRecord?.encoderId || currentUser?.uid || '',
         encoderName: editingRecord?.encoderName || name || '',
         createdAt: editingRecord?.createdAt || new Date().toISOString(),
@@ -328,10 +442,10 @@ const PicklistPage: React.FC = () => {
       </div>
 
       {viewMode === 'edit' ? (
-        /* EDIT VIEW: 80/20 Layout */
-        <div style={{ display: 'grid', gridTemplateColumns: '8fr 2fr', gap: '24px', flex: 1, minHeight: 0 }}>
+        /* EDIT VIEW: 60/40 Layout */
+        <div style={{ display: 'grid', gridTemplateColumns: '6fr 4fr', gap: '24px', flex: 1, minHeight: 0 }}>
           
-          {/* LEFT COLUMN: 80% Form */}
+          {/* LEFT COLUMN: 60% Form */}
           <div className="glass-panel" style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', borderRadius: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
               <h3 style={{ margin: 0 }}>{editingRecord ? 'Edit Picklist' : 'Create New Picklist'}</h3>
@@ -342,70 +456,126 @@ const PicklistPage: React.FC = () => {
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr 1.5fr', gap: '16px' }}>
               <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>Picklist Date *</label>
-                <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} style={{ width: '100%' }} />
+                <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px', whiteSpace: 'nowrap' }}>Picklist Date *</label>
+                <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} style={{ width: '100%', padding: '8px', fontSize: '12px' }} />
               </div>
               <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>Picklist Number *</label>
-                <input type="text" placeholder="PL-001" value={formNumber} onChange={(e) => setFormNumber(e.target.value)} style={{ width: '100%' }} />
+                <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px', whiteSpace: 'nowrap' }}>Picklist Number *</label>
+                <input type="text" placeholder="PL-001" value={formNumber} onChange={(e) => setFormNumber(e.target.value)} style={{ width: '100%', padding: '8px', fontSize: '12px' }} />
               </div>
 
               <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>City *</label>
+                <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>City *</label>
                 <button 
                   className="btn" 
                   onClick={() => {
                     setSelectedModalCities(formCity ? formCity.split(', ') : []);
                     setShowCityModal('form');
                   }}
-                  style={{ width: '100%', justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)', padding: '10px' }}
+                  style={{ width: '100%', justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)', padding: '8px', fontSize: '12px' }}
                 >
-                  <MapPin size={14} style={{ marginRight: '8px' }}/> 
-                  {formCity || 'Select City...'}
+                  <MapPin size={14} style={{ marginRight: '8px', flexShrink: 0 }}/> 
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formCity || 'Select City...'}</span>
                 </button>
               </div>
 
               <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>Salesman *</label>
+                <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>Salesman *</label>
                 <button 
                   className="btn" 
                   onClick={() => setShowSalesmanModal('form')}
-                  style={{ width: '100%', justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)', padding: '10px' }}
+                  style={{ width: '100%', justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)', padding: '8px', fontSize: '12px' }}
                 >
-                  <User size={14} style={{ marginRight: '8px' }}/> 
-                  {formSalesmanCode ? `${formSalesmanCode} - ${formSalesmanName}` : 'Select Salesman...'}
+                  <User size={14} style={{ marginRight: '8px', flexShrink: 0 }}/> 
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formSalesmanCode ? `${formSalesmanCode} - ${formSalesmanName}` : 'Select Salesman...'}</span>
                 </button>
               </div>
 
-              <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+              <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1.5fr 1fr', gap: '16px' }}>
                 <div>
-                  <label style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>CS</label>
-                  <input type="number" min={0} value={formCS} onChange={(e) => setFormCS(parseInt(e.target.value) || 0)} style={{ width: '100%' }} />
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>CS</label>
+                  <input type="number" min={0} value={formCS} onChange={(e) => setFormCS(parseInt(e.target.value) || 0)} style={{ width: '100%', padding: '8px' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>SC</label>
-                  <input type="number" min={0} value={formSC} onChange={(e) => setFormSC(parseInt(e.target.value) || 0)} style={{ width: '100%' }} />
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>SC</label>
+                  <input type="number" min={0} value={formSC} onChange={(e) => setFormSC(parseInt(e.target.value) || 0)} style={{ width: '100%', padding: '8px' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>PC</label>
-                  <input type="number" min={0} value={formPC} onChange={(e) => setFormPC(parseInt(e.target.value) || 0)} style={{ width: '100%' }} />
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>PC</label>
+                  <input type="number" min={0} value={formPC} onChange={(e) => setFormPC(parseInt(e.target.value) || 0)} style={{ width: '100%', padding: '8px' }} />
                 </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>Estimated Amount (₱)</label>
-                <input type="number" min={0} value={formAmount} onChange={(e) => setFormAmount(parseFloat(e.target.value) || 0)} style={{ width: '100%' }} />
-              </div>
-              <div>
-                <label style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>No. of Accounts</label>
-                <input type="number" min={0} value={formAccounts} onChange={(e) => setFormAccounts(parseInt(e.target.value) || 0)} style={{ width: '100%' }} />
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px', whiteSpace: 'nowrap' }}>Est. Amount (₱)</label>
+                  <input type="number" min={0} value={formAmount} onChange={(e) => setFormAmount(parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '8px' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px', whiteSpace: 'nowrap' }}>Accounts</label>
+                  <input 
+                    type="number" 
+                    min={0} 
+                    value={formAccounts} 
+                    onChange={(e) => setFormAccounts(parseInt(e.target.value) || 0)} 
+                    disabled={formCustomers.length > 0}
+                    style={{ width: '100%', padding: '8px', opacity: formCustomers.length > 0 ? 0.7 : 1, cursor: formCustomers.length > 0 ? 'not-allowed' : 'auto' }} 
+                  />
+                </div>
               </div>
 
               <div>
                 <label style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>Assigned Checker</label>
                 <input type="text" placeholder="Checker name" value={formChecker} onChange={(e) => setFormChecker(e.target.value)} style={{ width: '100%' }} />
+              </div>
+
+              <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Customer Allocations (Paste DMS Data)</label>
+                  <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: 600 }}>{formCustomers.length} Added</span>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                  <textarea
+                    placeholder="STORE NAME A | CODE123 | : ;&#10;STORE NAME B | CODE456 | CODE456 : ;"
+                    value={pasteText}
+                    onChange={(e) => setPasteText(e.target.value)}
+                    style={{ flex: 1, minHeight: '60px', padding: '8px', fontSize: '12px', resize: 'vertical' }}
+                  />
+                  <button 
+                    onClick={handleParsePaste}
+                    className="btn btn-primary"
+                    disabled={!pasteText.trim()}
+                    style={{ flexShrink: 0, padding: '0 16px' }}
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {formCustomers.length > 0 && (
+                  <div style={{ maxHeight: '150px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {formCustomers.map((cust, idx) => {
+                      const location = [cust.barangay, cust.city, cust.province].filter(Boolean).join(', ');
+                      return (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: 'var(--bg-panel)', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '12px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                            <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.name}</span>
+                            {location && <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><MapPin size={10} style={{ display: 'inline', marginRight: '4px' }}/>{location}</span>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                            <span style={{ color: 'var(--text-muted)' }}>{cust.code}</span>
+                            <button 
+                              onClick={() => setFormCustomers(prev => prev.filter((_, i) => i !== idx))}
+                              className="btn-icon"
+                              style={{ color: 'var(--accent-danger)' }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -438,39 +608,44 @@ const PicklistPage: React.FC = () => {
               />
             </div>
 
-            <button 
-              onClick={() => setShowSalesmanModal('filter')}
-              className="btn" 
-              style={{ width: '100%', justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)' }}
-            >
-              <User size={14} /> {filterSalesman === 'all' ? 'All Salesmen' : filterSalesman}
-            </button>
-            
-            <button 
-              onClick={() => {
-                setSelectedModalCities(filterCity === 'all' ? [] : filterCity.split(', '));
-                setShowCityModal('filter');
-              }}
-              className="btn" 
-              style={{ width: '100%', justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)' }}
-            >
-              <MapPin size={14} /> 
-              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {filterCity === 'all' ? 'All Cities' : filterCity}
-              </span>
-            </button>
-            
-            <select 
-              value={statusFilter} 
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ width: '100%', fontSize: '13px' }}
-            >
-              <option value="all">All Statuses</option>
-              <option value="Allocated">Allocated</option>
-              <option value="Invoiced">Invoiced</option>
-              <option value="Scheduled">Scheduled</option>
-              <option value="Completed">Completed</option>
-            </select>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                onClick={() => setShowSalesmanModal('filter')}
+                className="btn" 
+                style={{ flex: 1, justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)', overflow: 'hidden' }}
+              >
+                <User size={14} style={{ flexShrink: 0 }} /> 
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {filterSalesman === 'all' ? 'All Salesmen' : filterSalesman}
+                </span>
+              </button>
+              
+              <button 
+                onClick={() => {
+                  setSelectedModalCities(filterCity === 'all' ? [] : filterCity.split(', '));
+                  setShowCityModal('filter');
+                }}
+                className="btn" 
+                style={{ flex: 1, justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)', overflow: 'hidden' }}
+              >
+                <MapPin size={14} style={{ flexShrink: 0 }} /> 
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {filterCity === 'all' ? 'All Cities' : filterCity}
+                </span>
+              </button>
+              
+              <select 
+                value={statusFilter} 
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{ flex: 1, fontSize: '13px' }}
+              >
+                <option value="all">All Statuses</option>
+                <option value="Allocated">Allocated</option>
+                <option value="Invoiced">Invoiced</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
 
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
               {loading ? (
@@ -490,13 +665,15 @@ const PicklistPage: React.FC = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div style={{ fontWeight: 700, fontSize: '14px' }}>#{pl.picklistNumber}</div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteConfirm(pl.id); }}
-                        className="btn-icon"
-                        style={{ width: '24px', height: '24px' }}
-                      >
-                        <Trash2 size={12} color="var(--accent-danger)" />
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeleteConfirm(pl.id); }}
+                          className="btn-icon"
+                          style={{ width: '24px', height: '24px' }}
+                        >
+                          <Trash2 size={12} color="var(--accent-danger)" />
+                        </button>
+                      )}
                     </div>
                     
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -533,10 +710,10 @@ const PicklistPage: React.FC = () => {
           </div>
         </div>
       ) : (
-        /* READ VIEW: 80/20 Layout */
-        <div style={{ display: 'grid', gridTemplateColumns: '8fr 2fr', gap: '24px', flex: 1, minHeight: 0 }}>
+        /* READ VIEW: 60/40 Layout */
+        <div style={{ display: 'grid', gridTemplateColumns: '6fr 4fr', gap: '24px', flex: 1, minHeight: 0 }}>
           
-          {/* LEFT COLUMN: 80% Filter & Salesman Cards */}
+          {/* LEFT COLUMN: 60% Filter & Salesman Cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'hidden' }}>
             {/* Top 50%: Salesman Cards */}
             <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px', height: '50%', display: 'flex', flexDirection: 'column' }}>
@@ -583,14 +760,51 @@ const PicklistPage: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Search customers..."
+                  value={customerSearchQuery}
+                  onChange={(e) => setCustomerSearchQuery(e.target.value)}
                   style={{ width: '100%', paddingLeft: '36px' }}
                 />
               </div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border)', borderRadius: '12px' }}>
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <p style={{ fontSize: '14px', margin: 0, fontWeight: 500 }}>Customer full card data</p>
-                  <p style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px' }}>(Will populate when customer mapping is implemented)</p>
-                </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+                {selectedPicklistForRead ? (
+                  selectedPicklistForRead.customers && selectedPicklistForRead.customers.length > 0 ? (
+                    <div style={{ overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedPicklistForRead.customers
+                        .filter(c => c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || c.code.toLowerCase().includes(customerSearchQuery.toLowerCase()))
+                        .map((c, i) => {
+                          const cmlInfo = readModeCmlMap[c.code.toUpperCase()];
+                          const brgy = c.barangay || (cmlInfo ? (cmlInfo['BARANGAY'] || cmlInfo['BRGY']) : '');
+                          const cty = c.city || (cmlInfo ? (cmlInfo['CITY'] || cmlInfo['MUNICIPALITY']) : '');
+                          const prov = c.province || (cmlInfo ? cmlInfo['PROVINCE'] : '');
+                          const location = [brgy, cty, prov].filter(Boolean).join(', ');
+
+                          return (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--bg-panel)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: 600, fontSize: '13px' }}>{c.name}</span>
+                                {location && <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><MapPin size={10} style={{ display: 'inline', marginRight: '4px' }}/>{location}</span>}
+                              </div>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{c.code}</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <p style={{ fontSize: '14px', margin: 0 }}>No customers allocated</p>
+                        <p style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px' }}>This picklist has no customer data.</p>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <p style={{ fontSize: '14px', margin: 0, fontWeight: 500 }}>Select a Picklist</p>
+                      <p style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px' }}>Click a picklist card to view customers</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -612,46 +826,59 @@ const PicklistPage: React.FC = () => {
                   style={{ paddingLeft: '28px', width: '100%', fontSize: '12px', padding: '6px 6px 6px 28px' }}
                 />
               </div>
-              <button 
-                onClick={() => setShowSalesmanModal('filter')}
-                className="btn" 
-                style={{ width: '100%', justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)', fontSize: '12px', padding: '6px' }}
-              >
-                <User size={12} /> {filterSalesman === 'all' ? 'All Salesmen' : filterSalesman}
-              </button>
-              
-              <button 
-                onClick={() => {
-                  setSelectedModalCities(filterCity === 'all' ? [] : filterCity.split(', '));
-                  setShowCityModal('filter');
-                }}
-                className="btn" 
-                style={{ width: '100%', justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)', fontSize: '12px', padding: '6px' }}
-              >
-                <MapPin size={12} /> 
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {filterCity === 'all' ? 'All Cities' : filterCity}
-                </span>
-              </button>
-
-              <select 
-                value={statusFilter} 
-                onChange={(e) => setStatusFilter(e.target.value)}
-                style={{ width: '100%', fontSize: '12px', padding: '6px' }}
-              >
-                <option value="all">All Statuses</option>
-                <option value="Allocated">Allocated</option>
-                <option value="Invoiced">Invoiced</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="Completed">Completed</option>
-              </select>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={() => setShowSalesmanModal('filter')}
+                  className="btn" 
+                  style={{ flex: 1, justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)', fontSize: '12px', padding: '6px', overflow: 'hidden' }}
+                >
+                  <User size={12} style={{ flexShrink: 0 }} /> 
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {filterSalesman === 'all' ? 'All Salesmen' : filterSalesman}
+                  </span>
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    setSelectedModalCities(filterCity === 'all' ? [] : filterCity.split(', '));
+                    setShowCityModal('filter');
+                  }}
+                  className="btn" 
+                  style={{ flex: 1, justifyContent: 'flex-start', background: 'var(--bg-panel)', border: '1px solid var(--border)', fontSize: '12px', padding: '6px', overflow: 'hidden' }}
+                >
+                  <MapPin size={12} style={{ flexShrink: 0 }} /> 
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {filterCity === 'all' ? 'All Cities' : filterCity}
+                  </span>
+                </button>
+  
+                <select 
+                  value={statusFilter} 
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  style={{ flex: 1, fontSize: '12px', padding: '6px' }}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="Allocated">Allocated</option>
+                  <option value="Invoiced">Invoiced</option>
+                  <option value="Scheduled">Scheduled</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px', marginTop: '8px' }}>
               {filteredPicklists.slice(0, 10).map(pl => {
                 const sty = getStatusStyle(pl.systemStatus);
                 return (
-                  <div key={pl.id} style={{ padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
+                  <div 
+                    key={pl.id} 
+                    onClick={() => setSelectedPicklistForRead(pl)}
+                    style={{ 
+                      padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', 
+                      border: selectedPicklistForRead?.id === pl.id ? '1px solid var(--accent-primary)' : '1px solid var(--border)',
+                      cursor: 'pointer' 
+                    }}
+                  >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '15px' }}>#{pl.picklistNumber}</div>

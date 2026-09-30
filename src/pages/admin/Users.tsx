@@ -24,6 +24,8 @@ type UserData = {
   photoURL: string;
   supervisor: string;
   branch?: string;
+  plateNumber?: string;
+  vehicleType?: string;
 };
 
 const Users: React.FC = () => {
@@ -48,7 +50,7 @@ const Users: React.FC = () => {
 
   // Form State
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', confirmPassword: '', role: 'salesman', team: '', salesmanType: 'Ex-Truck', salesmanId: '', supervisor: '', branch: ''
+    name: '', email: '', password: '', confirmPassword: '', role: 'salesman', team: '', salesmanType: 'Ex-Truck', salesmanId: '', supervisor: '', branch: '', plateNumber: '', vehicleType: 'Elf'
   });
 
   const roles = ['admin', 'manager', 'supervisor', 'salesman', 'warehouse_supervisor', 'delivery_team', 'encoder'];
@@ -70,7 +72,9 @@ const Users: React.FC = () => {
           companyCode: u.companyCode || '-',
           photoURL: u.photoURL || '',
           supervisor: u.supervisor || '-',
-          branch: u.branch || ''
+          branch: u.branch || '',
+          plateNumber: u.plateNumber || '',
+          vehicleType: u.vehicleType || 'Elf'
         });
       });
       setUsers(data);
@@ -98,14 +102,16 @@ const Users: React.FC = () => {
       salesmanId: user.salesmanId === '-' ? '' : user.salesmanId,
       salesmanType: user.salesmanType === '-' ? 'Ex-Truck' : user.salesmanType,
       supervisor: user.supervisor === '-' ? '' : user.supervisor,
-      branch: user.branch || ''
+      branch: user.branch || '',
+      plateNumber: user.plateNumber || '',
+      vehicleType: user.vehicleType || 'Elf'
     });
     setIsModalOpen(true);
   };
 
   const handleCreate = () => {
     setEditingUser(null);
-    setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'salesman', team: '', salesmanType: 'Ex-Truck', salesmanId: '', supervisor: '', branch: '' });
+    setFormData({ name: '', email: '', password: '', confirmPassword: '', role: 'salesman', team: '', salesmanType: 'Ex-Truck', salesmanId: '', supervisor: '', branch: '', plateNumber: '', vehicleType: 'Elf' });
     setIsModalOpen(true);
   };
 
@@ -124,11 +130,15 @@ const Users: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      const isDT = formData.role === 'delivery_team';
+      const nameVal = isDT ? (formData.plateNumber || formData.name).toUpperCase() : formData.name;
+      const plateVal = isDT ? (formData.plateNumber || formData.name).toUpperCase() : '';
+
       if (!editingUser) {
         const functions = getFunctions();
         const createUserFn = httpsCallable(functions, 'createUser');
         await createUserFn({
-          name: formData.name,
+          name: nameVal,
           email: formData.email,
           password: formData.password,
           role: formData.role,
@@ -137,17 +147,21 @@ const Users: React.FC = () => {
           salesmanType: formData.salesmanType,
           companyCode: companyCode,
           supervisor: formData.supervisor,
-          branch: formData.branch
+          branch: formData.branch,
+          plateNumber: plateVal,
+          vehicleType: formData.vehicleType
         });
       } else {
         await updateDoc(doc(db, 'users', editingUser.id), {
-          name: formData.name,
+          name: nameVal,
           role: formData.role,
           team: (formData.role === 'salesman' || formData.role === 'supervisor') ? (formData.team || '-') : '-',
           salesmanId: formData.salesmanId || '-',
           salesmanType: formData.salesmanType || '-',
           supervisor: formData.role === 'salesman' ? (formData.supervisor || '-') : '-',
-          branch: formData.role === 'warehouse_supervisor' ? (formData.branch || '') : ''
+          branch: formData.role === 'warehouse_supervisor' ? (formData.branch || '') : '',
+          plateNumber: plateVal,
+          vehicleType: isDT ? (formData.vehicleType || 'Elf') : ''
         });
 
         if (formData.password) {
@@ -409,6 +423,18 @@ const Users: React.FC = () => {
                           <span>{user.branch}</span>
                         </div>
                       )}
+                      {role === 'delivery_team' && (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Plate Number:</span>
+                            <span style={{ fontWeight: 600 }}>{user.plateNumber || user.name}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Vehicle Type:</span>
+                            <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>{user.vehicleType || 'Elf'}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     <div style={{ marginTop: 'auto', display: 'flex', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
@@ -430,8 +456,26 @@ const Users: React.FC = () => {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUser ? 'Edit User' : 'Create New User'}>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Name</label>
-            <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required style={{ width: '100%' }} className="input-field" />
+            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>
+              {formData.role === 'delivery_team' ? 'Plate Number (Team Name) *' : 'Name'}
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={e => {
+                const val = e.target.value;
+                if (formData.role === 'delivery_team') {
+                  const upper = val.toUpperCase();
+                  setFormData({ ...formData, name: upper, plateNumber: upper });
+                } else {
+                  setFormData({ ...formData, name: val });
+                }
+              }}
+              placeholder={formData.role === 'delivery_team' ? 'E.G. ABC-1234' : ''}
+              required
+              style={{ width: '100%', textTransform: formData.role === 'delivery_team' ? 'uppercase' : 'none' }}
+              className="input-field"
+            />
           </div>
           <div>
             <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Email</label>
@@ -466,7 +510,20 @@ const Users: React.FC = () => {
 
           <div>
             <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Role</label>
-            <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} style={{ width: '100%' }} className="glass-panel">
+            <select
+              value={formData.role}
+              onChange={e => {
+                const newRole = e.target.value;
+                if (newRole === 'delivery_team') {
+                  const upperName = formData.name.toUpperCase();
+                  setFormData({ ...formData, role: newRole, plateNumber: upperName, name: upperName });
+                } else {
+                  setFormData({ ...formData, role: newRole });
+                }
+              }}
+              style={{ width: '100%' }}
+              className="glass-panel"
+            >
               <option value="admin">Admin</option>
               <option value="manager">Manager</option>
               <option value="supervisor">Supervisor</option>
@@ -539,6 +596,19 @@ const Users: React.FC = () => {
             <div>
               <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Branch</label>
               <input type="text" value={formData.branch} onChange={e => setFormData({...formData, branch: e.target.value.toUpperCase()})} placeholder="e.g. KEA, KNE" style={{ width: '100%', textTransform: 'uppercase' }} className="input-field" />
+            </div>
+          )}
+
+          {formData.role === 'delivery_team' && (
+            <div>
+              <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Vehicle Type *</label>
+              <select value={formData.vehicleType} onChange={e => setFormData({...formData, vehicleType: e.target.value})} style={{ width: '100%' }} className="glass-panel">
+                <option value="Elf">🚐 Elf</option>
+                <option value="Forward">🚚 Forward</option>
+                <option value="10WH">🚚 10WH</option>
+                <option value="6WH">🚐 6WH</option>
+                <option value="Tractor">🚛 Tractor</option>
+              </select>
             </div>
           )}
           

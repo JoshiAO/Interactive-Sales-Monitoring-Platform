@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login, resetPassword } from '../firebase/auth';
+import { useAuth } from '../contexts/AuthContext';
 import { LogIn, ShieldAlert } from 'lucide-react';
 import { verifyRecaptcha, loadRecaptcha } from '../utils/recaptcha';
 import {
@@ -12,6 +13,7 @@ import {
 } from '../utils/rateLimiter';
 
 const Login: React.FC = () => {
+  const { currentUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,6 +22,13 @@ const Login: React.FC = () => {
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
   const lockoutTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
+
+  // If user is already logged in, redirect to home
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/', { replace: true });
+    }
+  }, [currentUser, navigate]);
 
   useEffect(() => {
     const companyCode = localStorage.getItem('companyCode');
@@ -91,7 +100,7 @@ const Login: React.FC = () => {
       // 4. Firebase Auth
       await login(email, password);
       resetLockout();
-      navigate('/');
+      // Navigation is now handled by the useEffect watching currentUser
     } catch (err: any) {
       recordFailedAttempt();
 

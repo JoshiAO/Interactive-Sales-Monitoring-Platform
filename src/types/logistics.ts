@@ -16,6 +16,22 @@ export interface LogisticsManning {
   updatedAt: string;
 }
 
+export interface LogisticsDriver {
+  id: string;
+  name: string;
+  phone?: string;
+  photoURL?: string;
+  createdAt?: string;
+}
+
+export interface LogisticsHelper {
+  id: string;
+  name: string;
+  phone?: string;
+  photoURL?: string;
+  createdAt?: string;
+}
+
 // ─── 2. Delivery Schedule ───────────────────────────────────────────────────
 export interface DeliverySchedule {
   id: string;
@@ -26,7 +42,9 @@ export interface DeliverySchedule {
   noOfAccounts: number;
   qtyCS: number;
   salesmen: string[];
+  driverName?: string;
   helpers: string[];
+  noOfPushcart?: number; // Added No. of Pushcart
   remarks?: string;
   status: 'Scheduled' | 'In Transit' | 'Completed';
   createdBy: string;
@@ -49,6 +67,7 @@ export interface Picklist {
   numberOfAccounts: number;
   systemStatus: 'Allocated' | 'Invoiced' | 'Scheduled' | 'Completed';
   assignedChecker?: string;
+  customers?: { name: string; code: string; barangay?: string; city?: string; province?: string }[];
   encoderId: string;
   encoderName: string;
   createdAt: string;
@@ -92,6 +111,7 @@ export interface DDRMSHeader {
   deliveryDate: string;
   driverName: string;
   noOfHelpers: number;
+  noOfPushcart?: number; // Added No. of Pushcart
   routeCity: string;
   encoderId: string;
   encoderName: string;
@@ -109,6 +129,7 @@ export interface DDRMSHeader {
   remittanceChecks?: number;
   createdAt: string;
   updatedAt: string;
+  qrScanTime?: string;
 }
 
 // ─── 6. Collection / Remittance ─────────────────────────────────────────────

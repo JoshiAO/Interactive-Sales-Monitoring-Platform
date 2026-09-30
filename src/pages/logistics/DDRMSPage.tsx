@@ -1,33 +1,43 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { FileSpreadsheet, Plus, Search, Download, Printer, Save, Trash2, ChevronDown, ChevronUp, DollarSign, AlertTriangle, ClipboardPaste, Settings, Eye, Edit3 } from 'lucide-react';
+import { FileSpreadsheet, Plus, Search, Download, Printer, Save, Trash2, ChevronDown, ChevronUp, DollarSign, AlertTriangle, ClipboardPaste, Settings, Eye, Edit3, Check } from 'lucide-react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../../components/ui/Modal';
 import { saveDraft } from '../../utils/indexedDB';
-import type { DDRMSHeader, DDRMSInvoice, DDRMSGlobalConfig, DDRMSCollection, RemittanceCheck } from '../../types/logistics';
+import type { DDRMSHeader, DDRMSInvoice, DDRMSGlobalConfig, DDRMSCollection, RemittanceCheck, DeliverySchedule, LogisticsManning, Picklist } from '../../types/logistics';
 import { DELIVERY_STATUS_PRIORITY } from '../../types/logistics';
+import QRCode from 'qrcode';
 
 // ─── DDRMS Page Component ───────────────────────────────────────────────────
 const DDRMSPage: React.FC = () => {
   const { role, currentUser, name } = useAuth();
   const [ddrmsRecords, setDdrmsRecords] = useState<DDRMSHeader[]>([]);
+  const [schedules, setSchedules] = useState<DeliverySchedule[]>([]);
+  const [manningRecords, setManningRecords] = useState<LogisticsManning[]>([]);
+  const [picklists, setPicklists] = useState<Picklist[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
+  // Dynamic Selection Modals
+  const [isPlateModalOpen, setIsPlateModalOpen] = useState(false);
+  const [plateSearchQuery, setPlateSearchQuery] = useState('');
+  const [isSalesmanModalOpen, setIsSalesmanModalOpen] = useState(false);
+  const [salesmanSearchQuery, setSalesmanSearchQuery] = useState('');
+
   // Create DDRMS Modal state
-  // const [showCreateModal, setShowCreateModal] = useState(false);
   const [formNumber, setFormNumber] = useState('');
   const [formSalesmanCode, setFormSalesmanCode] = useState('');
   const [formSalesmanName, setFormSalesmanName] = useState('');
   const [formPlate, setFormPlate] = useState('');
-  const [formDate, setFormDate] = useState('');
+  const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formDriver, setFormDriver] = useState('');
   const [formHelpers, setFormHelpers] = useState(0);
   const [formCity, setFormCity] = useState('');
+  const [formNoOfPushcart, setFormNoOfPushcart] = useState(0);
   const [formInvoices, setFormInvoices] = useState<DDRMSInvoice[]>([]);
   const [saving, setSaving] = useState(false);
   const [editingDDRMS, setEditingDDRMS] = useState<DDRMSHeader | null>(null);
@@ -62,6 +72,7 @@ const DDRMSPage: React.FC = () => {
   const canExport = role === 'admin';
   const canConfigureGlobal = role === 'admin';
   const canCollect = role === 'admin' || role === 'encoder';
+  const canDelete = role === 'admin';
 
   const [viewMode, setViewMode] = useState<'edit' | 'read'>(canCreate ? 'edit' : 'read');
 
@@ -71,9 +82,24 @@ const DDRMSPage: React.FC = () => {
       onSnapshot(collection(db, 'logistics_ddrms'), (snap) => {
         const records: DDRMSHeader[] = [];
         snap.forEach((d) => records.push({ id: d.id, ...d.data() } as DDRMSHeader));
-        records.sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate) || b.ddrmsNumber.localeCompare(a.ddrmsNumber));
+        records.sort((a, b) => (b.createdAt || b.deliveryDate).localeCompare(a.createdAt || a.deliveryDate) || b.ddrmsNumber.localeCompare(a.ddrmsNumber));
         setDdrmsRecords(records);
         setLoading(false);
+      }),
+      onSnapshot(collection(db, 'logistics_schedules'), (snap) => {
+        const data: DeliverySchedule[] = [];
+        snap.forEach((d) => data.push({ id: d.id, ...d.data() } as DeliverySchedule));
+        setSchedules(data);
+      }),
+      onSnapshot(collection(db, 'logistics_manning'), (snap) => {
+        const data: LogisticsManning[] = [];
+        snap.forEach((d) => data.push({ id: d.id, ...d.data() } as LogisticsManning));
+        setManningRecords(data);
+      }),
+      onSnapshot(collection(db, 'logistics_picklists'), (snap) => {
+        const data: Picklist[] = [];
+        snap.forEach((d) => data.push({ id: d.id, ...d.data() } as Picklist));
+        setPicklists(data);
       }),
     ];
 
@@ -115,6 +141,79 @@ const DDRMSPage: React.FC = () => {
     });
     return counts;
   }, [ddrmsRecords]);
+
+  // ─── Dynamic Selection Data ────────────────────────────────────────────────
+  const availablePlates = useMemo(() => {
+    if (!formDate) return [];
+    const daySchedules = schedules.filter(s => s.date === formDate);
+    const plates = daySchedules.map(s => s.plateNumber);
+    const q = plateSearchQuery.toLowerCase();
+    return Array.from(new Set(plates)).filter(p => p.toLowerCase().includes(q));
+  }, [schedules, formDate, plateSearchQuery]);
+
+  const availableSalesmen = useMemo(() => {
+    if (!formPlate || !formDate) return [];
+    const schedule = schedules.find(s => s.plateNumber === formPlate && s.date === formDate);
+    if (!schedule) return [];
+
+    const pls = picklists.filter(p => schedule.picklistNumbers.includes(p.picklistNumber));
+    
+    const uniqueSalesmenMap = new Map<string, string>();
+    pls.forEach(p => {
+      if (p.salesmanCode) {
+        uniqueSalesmenMap.set(p.salesmanCode, p.salesmanName || '');
+      }
+    });
+
+    const results = Array.from(uniqueSalesmenMap.entries()).map(([code, name]) => ({ code, name }));
+    const q = salesmanSearchQuery.toLowerCase();
+    return results.filter(s => s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
+  }, [schedules, picklists, formPlate, formDate, salesmanSearchQuery]);
+
+  const scheduledPicklists = useMemo(() => {
+    if (!formPlate || !formDate || !formSalesmanCode) return [];
+    const schedule = schedules.find(s => s.plateNumber === formPlate && s.date === formDate);
+    if (!schedule) return [];
+
+    return picklists.filter(p => 
+      schedule.picklistNumbers.includes(p.picklistNumber) && 
+      p.salesmanCode === formSalesmanCode
+    );
+  }, [schedules, picklists, formPlate, formDate, formSalesmanCode]);
+
+  // ─── Selection Handlers ────────────────────────────────────────────────────
+  const handlePlateSelect = (plate: string) => {
+    setFormPlate(plate);
+    
+    const schedule = schedules.find(s => s.plateNumber === plate && s.date === formDate);
+    if (schedule) {
+      setFormCity(schedule.route);
+      setFormHelpers(schedule.helpers.length);
+      setFormNoOfPushcart(schedule.noOfPushcart || 0);
+    } else {
+      setFormCity('');
+      setFormHelpers(0);
+      setFormNoOfPushcart(0);
+    }
+
+    const manning = manningRecords.find(m => m.plateNumber === plate);
+    if (manning) {
+      setFormDriver(manning.driverName);
+    } else {
+      setFormDriver('');
+    }
+    
+    // Reset Salesman when plate changes
+    setFormSalesmanCode('');
+    setFormSalesmanName('');
+    setIsPlateModalOpen(false);
+  };
+
+  const handleSalesmanSelect = (code: string, name: string) => {
+    setFormSalesmanCode(code);
+    setFormSalesmanName(name);
+    setIsSalesmanModalOpen(false);
+  };
 
   // ─── Excel Clipboard Paste Parser ─────────────────────────────────────────
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -158,6 +257,81 @@ const DDRMSPage: React.FC = () => {
       alert('Could not parse clipboard data. Expected tab-separated values with at least 5 columns.');
     }
   }, []);
+
+  // ─── Direct Grid Paste Handler ────────────────────────────────────────────
+  const handleGridPaste = useCallback((e: React.ClipboardEvent<HTMLInputElement>, startRowIndex: number, startField: keyof DDRMSInvoice) => {
+    const text = e.clipboardData.getData('text/plain');
+    if (!text) return;
+    
+    const lines = text.split('\n').filter(l => l.trim() || l.includes('\t'));
+    
+    // If it's just a single cell without tabs, let default input behavior handle it
+    if (lines.length <= 1 && !text.includes('\t')) return;
+    
+    e.preventDefault();
+
+    const fieldsOrder: (keyof DDRMSInvoice)[] = [
+      'invoiceDate',
+      'picklistNumber',
+      'systemInvoiceNumber',
+      'invoiceNumberSeries',
+      'customerCode',
+      'customerName',
+      'grossAmount'
+    ];
+    
+    const startColIndex = fieldsOrder.indexOf(startField);
+    if (startColIndex === -1) return;
+
+    setFormInvoices(prev => {
+      const newInvoices = [...prev];
+      
+      lines.forEach((line, lineOffset) => {
+        const cells = line.split('\t');
+        const targetRowIndex = startRowIndex + lineOffset;
+        
+        // If we exceed existing rows, append a new one
+        if (targetRowIndex >= newInvoices.length) {
+          newInvoices.push({
+            id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            invoiceDate: formDate || '',
+            picklistNumber: '',
+            systemInvoiceNumber: '',
+            invoiceNumberSeries: '',
+            customerCode: '',
+            customerName: '',
+            barangay: '',
+            city: formCity || '',
+            province: '',
+            grossAmount: 0,
+            cs: 0,
+            pc: 0,
+            sc: 0,
+            deliveryStatus: 'Pending',
+            updatedAt: new Date().toISOString(),
+          });
+        }
+        
+        // Fill cells
+        cells.forEach((cellValue, cellOffset) => {
+          const targetColIndex = startColIndex + cellOffset;
+          if (targetColIndex < fieldsOrder.length) {
+            const fieldName = fieldsOrder[targetColIndex];
+            const cleanValue = cellValue.replace(/\r/g, '').trim();
+            
+            if (fieldName === 'grossAmount') {
+              newInvoices[targetRowIndex][fieldName] = parseFloat(cleanValue) || 0;
+            } else {
+              // @ts-ignore
+              newInvoices[targetRowIndex][fieldName] = cleanValue;
+            }
+          }
+        });
+      });
+      
+      return newInvoices;
+    });
+  }, [formDate, formCity]);
 
   // ─── Add Manual Invoice Row ───────────────────────────────────────────────
   const handleAddInvoiceRow = () => {
@@ -204,6 +378,7 @@ const DDRMSPage: React.FC = () => {
     setFormDate(new Date().toISOString().split('T')[0]);
     setFormDriver('');
     setFormHelpers(0);
+    setFormNoOfPushcart(0);
     setFormCity('');
     setFormInvoices([]);
   };
@@ -217,6 +392,7 @@ const DDRMSPage: React.FC = () => {
     setFormDate(ddrms.deliveryDate);
     setFormDriver(ddrms.driverName);
     setFormHelpers(ddrms.noOfHelpers);
+    setFormNoOfPushcart(ddrms.noOfPushcart || 0);
     setFormCity(ddrms.routeCity);
     setFormInvoices(ddrms.invoices ? [...ddrms.invoices] : []);
   };
@@ -238,7 +414,7 @@ const DDRMSPage: React.FC = () => {
         { totalGrossAmount: 0, totalCS: 0, totalPC: 0, totalSC: 0 }
       );
 
-      const payload = {
+      const payload: DDRMSHeader = {
         id: docId,
         ddrmsNumber: formNumber.trim(),
         salesmanCode: formSalesmanCode.trim(),
@@ -247,6 +423,7 @@ const DDRMSPage: React.FC = () => {
         deliveryDate: formDate,
         driverName: formDriver.trim(),
         noOfHelpers: formHelpers,
+        noOfPushcart: formNoOfPushcart,
         routeCity: formCity.trim(),
         encoderId: editingDDRMS?.encoderId || currentUser?.uid || '',
         encoderName: editingDDRMS?.encoderName || name || '',
@@ -356,13 +533,13 @@ const DDRMSPage: React.FC = () => {
   // ─── Excel Export ─────────────────────────────────────────────────────────
   const handleExport = async (type: 'raw' | 'formatted') => {
     try {
-      const XlsxStyle = await import('xlsx-js-style');
-      const XLSX = await import('xlsx');
+      const ExcelJS = (await import('exceljs')).default || await import('exceljs');
+      const { saveAs } = await import('file-saver');
 
       // Filter DDRMS by date range
       let exportRecords = ddrmsRecords;
-      if (exportDateFrom) exportRecords = exportRecords.filter((d) => d.deliveryDate >= exportDateFrom);
-      if (exportDateTo) exportRecords = exportRecords.filter((d) => d.deliveryDate <= exportDateTo);
+      if (exportDateFrom) exportRecords = exportRecords.filter((d) => (d.createdAt?.split('T')[0] || d.deliveryDate) >= exportDateFrom);
+      if (exportDateTo) exportRecords = exportRecords.filter((d) => (d.createdAt?.split('T')[0] || d.deliveryDate) <= exportDateTo);
 
       if (exportRecords.length === 0) {
         alert('No DDRMS records found for the selected date range');
@@ -370,8 +547,8 @@ const DDRMSPage: React.FC = () => {
       }
 
       if (type === 'raw') {
-        // Raw data export - flat rows
-        const wb = XLSX.utils.book_new();
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet('DDRMS Raw Data');
         const rows = exportRecords.flatMap((ddrms) =>
           (ddrms.invoices || []).map((inv) => ({
             'DDRMS No': ddrms.ddrmsNumber,
@@ -399,123 +576,453 @@ const DDRMSPage: React.FC = () => {
             'Remarks': inv.remarks || '',
           }))
         );
-        const ws = XLSX.utils.json_to_sheet(rows);
-        XLSX.utils.book_append_sheet(wb, ws, 'DDRMS Raw Data');
-        XLSX.writeFile(wb, `DDRMS_Raw_${exportDateFrom || 'all'}_to_${exportDateTo || 'all'}.xlsx`);
+        if (rows.length > 0) {
+          ws.columns = Object.keys(rows[0]).map(k => ({ header: k, key: k, width: 20 }));
+          ws.addRows(rows);
+        }
+        const buffer = await wb.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `DDRMS_Raw_${exportDateFrom || 'all'}_to_${exportDateTo || 'all'}.xlsx`);
       } else {
-        // Formatted export - one sheet per DDRMS with template layout
-        const wb = XlsxStyle.utils.book_new();
+        const wb = new ExcelJS.Workbook();
+        
         exportRecords.forEach((ddrms) => {
           const invoices = ddrms.invoices || [];
           const pageSize = 25;
           const totalPages = Math.ceil(invoices.length / pageSize) || 1;
-
-          // For each page, create rows
-          const sheetData: any[][] = [];
+          
+          const sheetName = ddrms.ddrmsNumber.substring(0, 31);
+          const ws = wb.addWorksheet(sheetName, {
+            pageSetup: { 
+              paperSize: 14 as any, 
+              orientation: 'landscape', 
+              fitToPage: true, 
+              fitToWidth: 1, 
+              fitToHeight: 0, 
+              margins: { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 } 
+            }
+          });
+          
+          ws.columns = [
+            { width: 4 }, { width: 12 }, { width: 12.43 }, { width: 12.43 }, { width: 12.43 },
+            { width: 30 }, { width: 14 }, { width: 6.43 }, { width: 6.43 }, { width: 6.43 },
+            { width: 12 }, { width: 12 }, { width: 12 }, { width: 20 }
+          ];
 
           for (let page = 0; page < totalPages; page++) {
             const pageInvoices = invoices.slice(page * pageSize, (page + 1) * pageSize);
+            const rStart = ws.rowCount;
+            
+            const bBot = { bottom: { style: 'thin' } as any };
+            const bAll = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } } as any;
+            const hCenter = { horizontal: 'center', vertical: 'middle', wrapText: true } as any;
 
-            // Header rows
-            sheetData.push([ddrms.companyName || globalConfig.companyName || 'Company Name']);
-            sheetData.push([ddrms.divisionTitle || globalConfig.divisionTitle || 'Division']);
-            sheetData.push(['DAILY DELIVERY REMITTANCE MONITORING SHEET']);
-            sheetData.push([]);
-            sheetData.push([
-              `DDRMS No: ${ddrms.ddrmsNumber}`,
-              '', '',
-              `Delivery Date: ${ddrms.deliveryDate}`,
-              '', '',
-              `Salesman: ${ddrms.salesmanCode} - ${ddrms.salesmanName}`,
-            ]);
-            sheetData.push([
-              `Plate No: ${ddrms.plateNumber}`,
-              '', '',
-              `Driver: ${ddrms.driverName}`,
-              '', '',
-              `Route/City: ${ddrms.routeCity}`,
-            ]);
-            sheetData.push([]);
+            const r1 = ws.addRow([ddrms.companyName || globalConfig.companyName || 'Company Name']);
+            r1.font = { bold: true, size: 12 };
+            ws.mergeCells(rStart + 1, 1, rStart + 1, 7);
 
-            // Column headers
-            sheetData.push([
-              '#', 'Invoice Date', 'Picklist No', 'System Invoice No', 'Invoice No (Series)',
-              'Customer Code', 'Customer Name', 'Barangay', 'City', 'Province',
-              'Gross Amount', 'CS', 'PC', 'SC', 'Status',
+            const r2 = ws.addRow([ddrms.divisionTitle || globalConfig.divisionTitle || 'Division']);
+            r2.font = { bold: true, size: 11 };
+            ws.mergeCells(rStart + 2, 1, rStart + 2, 7);
+
+            const r3 = ws.addRow(['DAILY DELIVERY REMITTANCE MONITORING SHEET', '', '', '', '', '', '', '', '', '', '', 'DDR No. :', ddrms.ddrmsNumber]);
+            r3.getCell(1).font = { bold: true, size: 11 };
+            r3.getCell(12).font = { bold: true };
+            r3.getCell(12).alignment = { horizontal: 'right' };
+            r3.getCell(13).border = bBot;
+            r3.getCell(14).border = bBot;
+            ws.mergeCells(rStart + 3, 1, rStart + 3, 7);
+            ws.mergeCells(rStart + 3, 13, rStart + 3, 14);
+
+            const r4 = ws.addRow([
+              'Driver/Helpers:', '', `${ddrms.driverName || ''} / ${ddrms.noOfHelpers || 0}`, '', '', '', '',
+              'No. of Pushcart:', '', ddrms.noOfPushcart || '', '',
+              'Plate No.:', ddrms.plateNumber || '', ''
+            ]);
+            r4.getCell(1).font = { bold: true };
+            ws.mergeCells(rStart + 4, 1, rStart + 4, 2);
+            ws.mergeCells(rStart + 4, 3, rStart + 4, 6);
+            for(let i=3; i<=6; i++) r4.getCell(i).border = bBot;
+            r4.getCell(8).font = { bold: true };
+            r4.getCell(8).alignment = { horizontal: 'right' };
+            ws.mergeCells(rStart + 4, 8, rStart + 4, 9);
+            r4.getCell(10).border = bBot;
+            r4.getCell(10).alignment = { horizontal: 'center' };
+            ws.mergeCells(rStart + 4, 10, rStart + 4, 11);
+            r4.getCell(12).font = { bold: true };
+            r4.getCell(12).alignment = { horizontal: 'right' };
+            ws.mergeCells(rStart + 4, 13, rStart + 4, 14);
+            r4.getCell(13).border = bBot;
+            r4.getCell(14).border = bBot;
+
+            const r5 = ws.addRow([
+              'Delivery Route:', '', ddrms.routeCity || '', '', '', '', '',
+              '', '', '', '',
+              'Delivery Date:', ddrms.deliveryDate || '', ''
+            ]);
+            r5.getCell(1).font = { bold: true };
+            ws.mergeCells(rStart + 5, 1, rStart + 5, 2);
+            ws.mergeCells(rStart + 5, 3, rStart + 5, 6);
+            for(let i=3; i<=6; i++) r5.getCell(i).border = bBot;
+            r5.getCell(12).font = { bold: true };
+            r5.getCell(12).alignment = { horizontal: 'right' };
+            ws.mergeCells(rStart + 5, 13, rStart + 5, 14);
+            r5.getCell(13).border = bBot;
+            r5.getCell(14).border = bBot;
+
+            ws.addRow([]);
+
+            const h1 = ws.addRow([
+              '', 'Invoice Date', 'Picklist Number', 'System Invoice Number', 'Invoice Number',
+              'Customer Name', 'Gross Amount', 'QTY', 'QTY', 'QTY',
+              'REMITTANCE', '', '', 'Remarks'
+            ]);
+            const h2 = ws.addRow([
+              '', '', '', '', '', '', '', 'CS', 'PC', 'SC',
+              'Cash', 'DR', 'Checks', ''
             ]);
 
-            // Data rows
+            [h1, h2].forEach(row => {
+              row.eachCell((c: any) => {
+                c.font = { bold: true, size: 10 };
+                c.alignment = hCenter;
+                c.border = bAll;
+              });
+            });
+
+            ws.mergeCells(rStart + 7, 1, rStart + 8, 1);
+            ws.mergeCells(rStart + 7, 2, rStart + 8, 2);
+            ws.mergeCells(rStart + 7, 3, rStart + 8, 3);
+            ws.mergeCells(rStart + 7, 4, rStart + 8, 4);
+            ws.mergeCells(rStart + 7, 5, rStart + 8, 5);
+            ws.mergeCells(rStart + 7, 6, rStart + 8, 6);
+            ws.mergeCells(rStart + 7, 7, rStart + 8, 7);
+            ws.mergeCells(rStart + 7, 11, rStart + 7, 13);
+            ws.mergeCells(rStart + 7, 14, rStart + 8, 14);
+
             pageInvoices.forEach((inv, idx) => {
-              sheetData.push([
+              const grossAmt = Number(inv.grossAmount) || 0;
+              const csQty = Number(inv.cs) || 0;
+              const pcQty = Number(inv.pc) || 0;
+              const scQty = Number(inv.sc) || 0;
+
+              const dr = ws.addRow([
                 page * pageSize + idx + 1,
                 inv.invoiceDate,
                 inv.picklistNumber,
                 inv.systemInvoiceNumber,
                 inv.invoiceNumberSeries,
-                inv.customerCode,
                 inv.customerName,
-                inv.barangay,
-                inv.city,
-                inv.province,
-                inv.grossAmount,
-                inv.cs,
-                inv.pc,
-                inv.sc,
-                inv.deliveryStatus,
+                grossAmt,
+                csQty > 0 ? csQty : '',
+                pcQty > 0 ? pcQty : '',
+                scQty > 0 ? scQty : '',
+                '', '', '',
+                inv.remarks || ''
               ]);
+
+              dr.eachCell((c: any) => {
+                c.border = bAll;
+                c.font = { size: 10 };
+              });
+              [1, 2, 3, 8, 9, 10].forEach(i => dr.getCell(i).alignment = hCenter);
+              dr.getCell(7).alignment = { horizontal: 'right' };
+              dr.getCell(7).numFmt = '#,##0.00';
+              [8, 9, 10].forEach(i => dr.getCell(i).numFmt = '#,##0');
             });
 
-            // Fill empty rows to 25
-            for (let i = pageInvoices.length; i < 25; i++) {
-              sheetData.push([page * pageSize + i + 1, '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
-            }
+            const pageTotalGross = pageInvoices.reduce((s, inv) => s + (Number(inv.grossAmount) || 0), 0);
+            const pageTotalCS = pageInvoices.reduce((s, inv) => s + (Number(inv.cs) || 0), 0);
+            const pageTotalPC = pageInvoices.reduce((s, inv) => s + (Number(inv.pc) || 0), 0);
+            const pageTotalSC = pageInvoices.reduce((s, inv) => s + (Number(inv.sc) || 0), 0);
 
-            // Subtotal row
-            const pageTotal = pageInvoices.reduce((s, inv) => s + inv.grossAmount, 0);
-            sheetData.push(['', '', '', '', '', '', '', '', '', 'SUBTOTAL:', pageTotal, '', '', '', '']);
+            const rStartNum = rStart + 9;
+            const rEndNum = Math.max(rStartNum, rStart + 8 + pageInvoices.length);
 
-            // Page indicator
+            const tr = ws.addRow([
+              '', '', '', '', '', 'TOTAL',
+              { formula: `SUBTOTAL(9, G${rStartNum}:G${rEndNum})`, result: pageTotalGross },
+              { formula: `SUBTOTAL(9, H${rStartNum}:H${rEndNum})`, result: pageTotalCS > 0 ? pageTotalCS : '' },
+              { formula: `SUBTOTAL(9, I${rStartNum}:I${rEndNum})`, result: pageTotalPC > 0 ? pageTotalPC : '' },
+              { formula: `SUBTOTAL(9, J${rStartNum}:J${rEndNum})`, result: pageTotalSC > 0 ? pageTotalSC : '' },
+              '', '', '', ''
+            ]);
+            tr.eachCell((c: any) => { c.border = bAll; });
+            tr.getCell(6).font = { bold: true };
+            tr.getCell(7).font = { bold: true };
+            tr.getCell(7).alignment = { horizontal: 'right' };
+            tr.getCell(7).numFmt = '#,##0.00';
+            [8, 9, 10].forEach(i => {
+              tr.getCell(i).font = { bold: true };
+              tr.getCell(i).alignment = hCenter;
+              tr.getCell(i).numFmt = '#,##0';
+            });
+
+            ws.addRow([]);
+
+            const sigL = ws.addRow(['Released by:', '', '', '', '', '', 'Submitted by:', '', '', '', '', 'Checked By:', '', '']);
+            [1, 7, 12].forEach(i => sigL.getCell(i).font = { bold: true });
+            const sRow = ws.rowCount;
+            ws.mergeCells(sRow, 1, sRow, 2);
+            ws.mergeCells(sRow, 7, sRow, 8);
+            ws.mergeCells(sRow, 12, sRow, 14);
+
+            ws.addRow([]);
+
+            const sigN = ws.addRow([
+              ddrms.encoderName || '', '', '', '', '', '',
+              ddrms.driverName || '', '', '', '', '',
+              ddrms.officerInChargeCashierName || globalConfig.officerInChargeCashierName || '', '', ''
+            ]);
+            const snRow = ws.rowCount;
+            [1, 7, 12].forEach(i => sigN.getCell(i).alignment = { horizontal: 'center' });
+            ws.mergeCells(snRow, 1, snRow, 4);
+            ws.mergeCells(snRow, 7, snRow, 10);
+            ws.mergeCells(snRow, 12, snRow, 14);
+
+            const sigT = ws.addRow([
+              'Office Staff Name & Signature', '', '', '', '', '',
+              'Delivery Driver Name & Signature', '', '', '', '',
+              'Officer In-charge / Cashier', '', ''
+            ]);
+            const stRow = ws.rowCount;
+            const sLab = { font: { bold: true }, alignment: { horizontal: 'center' }, border: { top: { style: 'thin' } } } as any;
+            
+            sigT.getCell(1).style = sLab;
+            sigT.getCell(2).border = { top: { style: 'thin' } };
+            sigT.getCell(3).border = { top: { style: 'thin' } };
+            sigT.getCell(4).border = { top: { style: 'thin' } };
+            
+            sigT.getCell(7).style = sLab;
+            sigT.getCell(8).border = { top: { style: 'thin' } };
+            sigT.getCell(9).border = { top: { style: 'thin' } };
+            sigT.getCell(10).border = { top: { style: 'thin' } };
+
+            sigT.getCell(12).style = sLab;
+            sigT.getCell(13).border = { top: { style: 'thin' } };
+            sigT.getCell(14).border = { top: { style: 'thin' } };
+
+            ws.mergeCells(stRow, 1, stRow, 4);
+            ws.mergeCells(stRow, 7, stRow, 10);
+            ws.mergeCells(stRow, 12, stRow, 14);
+
             if (totalPages > 1) {
-              sheetData.push([`Page ${page + 1} of ${totalPages}`]);
+              ws.addRow([]);
+              ws.addRow([`Page ${page + 1} of ${totalPages}`]);
             }
-
-            // Spacing between pages
-            sheetData.push([]);
+            ws.addRow([]);
           }
-
-          // Grand total row
-          const grandTotal = invoices.reduce((s, inv) => s + inv.grossAmount, 0);
-          sheetData.push(['', '', '', '', '', '', '', '', '', 'GRAND TOTAL:', grandTotal, '', '', '', '']);
-
-          // Signature block
-          sheetData.push([]);
-          sheetData.push(['', '', 'Prepared by:', '', '', '', '', 'Checked by:', '', '', '', '', 'Approved by:']);
-          sheetData.push([]);
-          sheetData.push(['', '', `${ddrms.encoderName || ''}`, '', '', '', '', `${ddrms.officerInChargeCashierName || globalConfig.officerInChargeCashierName || ''}`, '', '', '', '', '_______________']);
-
-          const ws = XlsxStyle.utils.aoa_to_sheet(sheetData);
-
-          // Set column widths
-          ws['!cols'] = [
-            { wch: 4 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 20 },
-            { wch: 14 }, { wch: 24 }, { wch: 16 }, { wch: 14 }, { wch: 14 },
-            { wch: 14 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 14 },
-          ];
-
-          // Page setup for Folio (8.5x13in) landscape
-          ws['!pageSetup'] = { paperSize: 14, orientation: 'landscape', fitToWidth: 1 };
-
-          const sheetName = ddrms.ddrmsNumber.substring(0, 31); // Excel max sheet name length
-          XlsxStyle.utils.book_append_sheet(wb, ws, sheetName);
         });
 
-        XlsxStyle.writeFile(wb, `DDRMS_Formatted_${exportDateFrom || 'all'}_to_${exportDateTo || 'all'}.xlsx`);
+        const buffer = await wb.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `DDRMS_Formatted_${exportDateFrom || 'all'}_to_${exportDateTo || 'all'}.xlsx`);
       }
       setShowExportModal(false);
     } catch (err: any) {
       console.error('Export error:', err);
       alert('Export failed: ' + err.message);
     }
+  };
+
+  // ─── Browser Print directly ───────────────────────────────────────────────
+  const handlePrintDDRMS = async (ddrms: DDRMSHeader) => {
+    const invoices = ddrms.invoices || [];
+    const pageSize = 25;
+    const totalPages = Math.ceil(invoices.length / pageSize) || 1;
+
+    let qrDataUrl = '';
+    try {
+      qrDataUrl = await QRCode.toDataURL(ddrms.id, { margin: 0, width: 100 });
+    } catch (err) {
+      console.error('Failed to generate QR code', err);
+    }
+
+    let pagesHtml = '';
+
+    for (let page = 0; page < totalPages; page++) {
+      const pageInvoices = invoices.slice(page * pageSize, (page + 1) * pageSize);
+      
+      const pageTotalGross = pageInvoices.reduce((s, inv) => s + (Number(inv.grossAmount) || 0), 0);
+      const pageTotalCS = pageInvoices.reduce((s, inv) => s + (Number(inv.cs) || 0), 0);
+      const pageTotalPC = pageInvoices.reduce((s, inv) => s + (Number(inv.pc) || 0), 0);
+      const pageTotalSC = pageInvoices.reduce((s, inv) => s + (Number(inv.sc) || 0), 0);
+
+      const rowsHtml = pageInvoices.map((inv, idx) => {
+        const grossAmt = Number(inv.grossAmount) || 0;
+        const csQty = Number(inv.cs) || 0;
+        const pcQty = Number(inv.pc) || 0;
+        const scQty = Number(inv.sc) || 0;
+        return `
+          <tr>
+            <td class="bAll center">${page * pageSize + idx + 1}</td>
+            <td class="bAll center">${inv.invoiceDate}</td>
+            <td class="bAll center">${inv.picklistNumber}</td>
+            <td class="bAll">${inv.systemInvoiceNumber}</td>
+            <td class="bAll">${inv.invoiceNumberSeries}</td>
+            <td class="bAll">${inv.customerName}</td>
+            <td class="bAll right">${grossAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td class="bAll center">${csQty > 0 ? csQty : ''}</td>
+            <td class="bAll center">${pcQty > 0 ? pcQty : ''}</td>
+            <td class="bAll center">${scQty > 0 ? scQty : ''}</td>
+            <td class="bAll"></td>
+            <td class="bAll"></td>
+            <td class="bAll"></td>
+            <td class="bAll">${inv.remarks || ''}</td>
+          </tr>
+        `;
+      }).join('');
+
+      pagesHtml += `
+        <div class="page">
+          <div style="font-weight: bold; font-size: 14pt;">${ddrms.companyName || globalConfig.companyName || 'Company Name'}</div>
+          <div style="font-weight: bold; font-size: 11pt;">${ddrms.divisionTitle || globalConfig.divisionTitle || 'Division'}</div>
+          
+          <table style="width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 9pt; text-align: left; margin-top: 10px; table-layout: fixed;">
+            <colgroup>
+              <col style="width: 2.3%;"> <!-- Seq -->
+              <col style="width: 7.0%;"> <!-- Inv Date -->
+              <col style="width: 7.2%;"> <!-- Picklist Number -->
+              <col style="width: 7.2%;"> <!-- System Invoice Number -->
+              <col style="width: 7.2%;"> <!-- Invoice Number -->
+              <col style="width: 17.4%;"> <!-- Customer Name -->
+              <col style="width: 8.1%;"> <!-- Gross Amount -->
+              <col style="width: 3.7%;"> <!-- CS -->
+              <col style="width: 3.7%;"> <!-- PC -->
+              <col style="width: 3.7%;"> <!-- SC -->
+              <col style="width: 7.0%;"> <!-- Cash -->
+              <col style="width: 7.0%;"> <!-- DR -->
+              <col style="width: 7.0%;"> <!-- Checks -->
+              <col style="width: 11.6%;"> <!-- Remarks -->
+            </colgroup>
+            
+            <tr>
+              <td colspan="7" style="font-weight: bold; font-size: 12pt;">DAILY DELIVERY REMITTANCE MONITORING SHEET</td>
+              <td colspan="4"></td>
+              <td style="font-weight: bold; text-align: right; white-space: nowrap;">DDR No. :</td>
+              <td colspan="2" class="bBot">${ddrms.ddrmsNumber}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="font-weight: bold;">Driver/Helpers:</td>
+              <td colspan="4" class="bBot">${ddrms.driverName || ''} / ${ddrms.noOfHelpers || 0}</td>
+              <td></td>
+              <td colspan="2" style="font-weight: bold; text-align: right; white-space: nowrap;">No. of Pushcart:</td>
+              <td colspan="2" class="bBot center">${ddrms.noOfPushcart || ''}</td>
+              <td style="font-weight: bold; text-align: right; white-space: nowrap;">Plate No.:</td>
+              <td colspan="2" class="bBot">${ddrms.plateNumber || ''}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="font-weight: bold;">Delivery Route:</td>
+              <td colspan="4" class="bBot">${ddrms.routeCity || ''}</td>
+              <td colspan="5"></td>
+              <td style="font-weight: bold; text-align: right; white-space: nowrap;">Delivery Date:</td>
+              <td colspan="2" class="bBot">${ddrms.deliveryDate || ''}</td>
+            </tr>
+            <tr><td colspan="14" style="height: 10px;"></td></tr>
+
+            <tr>
+              <th rowspan="2" class="bAll"></th>
+              <th rowspan="2" class="bAll">Invoice Date</th>
+              <th rowspan="2" class="bAll">Picklist Number</th>
+              <th rowspan="2" class="bAll">System Invoice Number</th>
+              <th rowspan="2" class="bAll">Invoice Number</th>
+              <th rowspan="2" class="bAll">Customer Name</th>
+              <th rowspan="2" class="bAll">Gross Amount</th>
+              <th colspan="3" class="bAll center">QTY</th>
+              <th colspan="3" class="bAll center">REMITTANCE</th>
+              <th rowspan="2" class="bAll">Remarks</th>
+            </tr>
+            <tr>
+              <th class="bAll">CS</th>
+              <th class="bAll">PC</th>
+              <th class="bAll">SC</th>
+              <th class="bAll">Cash</th>
+              <th class="bAll">DR</th>
+              <th class="bAll">Checks</th>
+            </tr>
+
+            ${rowsHtml}
+
+            <tr>
+              <td colspan="5"></td>
+              <td class="bAll" style="font-weight: bold;">TOTAL</td>
+              <td class="bAll right" style="font-weight: bold;">${pageTotalGross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td class="bAll center" style="font-weight: bold;">${pageTotalCS > 0 ? pageTotalCS : ''}</td>
+              <td class="bAll center" style="font-weight: bold;">${pageTotalPC > 0 ? pageTotalPC : ''}</td>
+              <td class="bAll center" style="font-weight: bold;">${pageTotalSC > 0 ? pageTotalSC : ''}</td>
+              <td class="bAll"></td>
+              <td class="bAll"></td>
+              <td class="bAll"></td>
+              <td class="bAll"></td>
+            </tr>
+          </table>
+
+          <table style="width: 100%; font-size: 9pt; text-align: center; font-family: sans-serif; table-layout: fixed; margin-top: 20px;">
+            <tr>
+              <td colspan="2" style="font-weight: bold; text-align: left;">Released by:</td>
+              <td colspan="4"></td>
+              <td colspan="2" style="font-weight: bold; text-align: left;">Submitted by:</td>
+              <td colspan="3"></td>
+              <td colspan="2" style="font-weight: bold; text-align: left;">Checked By:</td>
+              <td></td>
+            </tr>
+            <tr><td colspan="14" style="height: 25px;"></td></tr>
+            <tr>
+              <td colspan="4">${ddrms.encoderName || ''}</td>
+              <td colspan="2"></td>
+              <td colspan="4">${ddrms.driverName || ''}</td>
+              <td></td>
+              <td colspan="3">${ddrms.officerInChargeCashierName || globalConfig.officerInChargeCashierName || ''}</td>
+            </tr>
+            <tr>
+              <td colspan="4" style="border-top: 1px solid black; font-weight: bold;">Office Staff Name & Signature</td>
+              <td colspan="2"></td>
+              <td colspan="4" style="border-top: 1px solid black; font-weight: bold;">Delivery Driver Name & Signature</td>
+              <td></td>
+              <td colspan="3" style="border-top: 1px solid black; font-weight: bold;">Officer In-charge / Cashier</td>
+            </tr>
+          </table>
+
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px;">
+            <div style="text-align: center;">
+              ${qrDataUrl ? `<img src="${qrDataUrl}" style="width: 70px; height: 70px; margin-bottom: 4px;" alt="QR Code" />` : ''}
+              <div style="font-size: 8pt; font-family: monospace; color: #555;">SCAN FOR DISPATCH</div>
+            </div>
+            ${totalPages > 1 ? `<div style="font-size: 9pt; font-family: sans-serif;">Page ${page + 1} of ${totalPages}</div>` : '<div></div>'}
+          </div>
+        </div>
+      `;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print DDRMS - ${ddrms.ddrmsNumber}</title>
+          <style>
+            @page {
+              size: 8.5in 13in landscape; /* Folio */
+              margin: 0.5in 0.25in 0.5in 0.25in;
+            }
+            body { font-family: sans-serif; font-size: 9pt; margin: 0; padding: 0; }
+            .page { page-break-after: always; padding: 0.25in; box-sizing: border-box; }
+            .bAll { border: 1px solid black; padding: 3px 4px; }
+            .bBot { border-bottom: 1px solid black; padding-bottom: 2px; }
+            .center { text-align: center; }
+            .right { text-align: right; }
+            th { font-weight: bold; background-color: #fcfcfc; }
+          </style>
+        </head>
+        <body>
+          ${pagesHtml}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   };
 
   // ─── Status Styling ───────────────────────────────────────────────────────
@@ -576,17 +1083,42 @@ const DDRMSPage: React.FC = () => {
       </div>
 
       {viewMode === 'edit' ? (
-        /* EDIT VIEW 80/20 Layout */
-        <div style={{ display: 'grid', gridTemplateColumns: '8fr 2fr', gap: '24px', flex: 1, minHeight: 0 }}>
-          {/* LEFT 80% Form */}
+        /* EDIT VIEW 60/40 Layout */
+        <div style={{ display: 'grid', gridTemplateColumns: '6fr 4fr', gap: '24px', flex: 1, minHeight: 0 }}>
+          {/* LEFT 60% Form */}
           <div className="glass-panel" style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', borderRadius: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
               <h3 style={{ margin: 0 }}>{editingDDRMS ? 'Edit DDRMS' : 'Create New DDRMS'}</h3>
-              {editingDDRMS && (
-                <button onClick={handleOpenCreate} className="btn" style={{ fontSize: '13px' }}>
-                  <Plus size={14} /> New Entry
-                </button>
-              )}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {editingDDRMS && (
+                  <button 
+                    onClick={() => {
+                      const tempDDRMS = {
+                        ...editingDDRMS,
+                        ddrmsNumber: formNumber,
+                        deliveryDate: formDate,
+                        salesmanCode: formSalesmanCode,
+                        salesmanName: formSalesmanName,
+                        driverName: formDriver,
+                        noOfHelpers: formHelpers,
+                        plateNumber: formPlate,
+                        routeCity: formCity,
+                        invoices: formInvoices
+                      };
+                      handlePrintDDRMS(tempDDRMS as any);
+                    }}
+                    className="btn" 
+                    style={{ fontSize: '13px', background: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.3)' }}
+                  >
+                    <Printer size={14} /> Print
+                  </button>
+                )}
+                {editingDDRMS && (
+                  <button onClick={handleOpenCreate} className="btn" style={{ fontSize: '13px' }}>
+                    <Plus size={14} /> New Entry
+                  </button>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -601,33 +1133,107 @@ const DDRMSPage: React.FC = () => {
                   <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} style={{ width: '100%' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Salesman Code *</label>
-                  <input type="text" value={formSalesmanCode} onChange={(e) => setFormSalesmanCode(e.target.value)} placeholder="SM001" style={{ width: '100%' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Salesman Name</label>
-                  <input type="text" value={formSalesmanName} onChange={(e) => setFormSalesmanName(e.target.value)} style={{ width: '100%' }} />
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Salesman Selection *</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsSalesmanModalOpen(true)}
+                    className="btn"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                      background: 'rgba(59, 130, 246, 0.1)',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      color: formSalesmanCode ? 'var(--text-primary)' : 'var(--text-muted)',
+                    }}
+                  >
+                    {formSalesmanCode ? `${formSalesmanCode} - ${formSalesmanName}` : 'Select Salesman...'}
+                  </button>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Plate Number</label>
-                  <input type="text" value={formPlate} onChange={(e) => setFormPlate(e.target.value)} style={{ width: '100%' }} />
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Plate Number *</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsPlateModalOpen(true)}
+                    className="btn"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                      background: 'rgba(59, 130, 246, 0.1)',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      color: formPlate ? 'var(--text-primary)' : 'var(--text-muted)',
+                    }}
+                  >
+                    {formPlate || 'Select Plate...'}
+                  </button>
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Driver Name</label>
-                  <input type="text" value={formDriver} onChange={(e) => setFormDriver(e.target.value)} style={{ width: '100%' }} />
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>Driver Name <span style={{ fontSize: '10px', color: 'var(--accent-primary)' }}>(Auto)</span></label>
+                  <input type="text" value={formDriver} readOnly style={{ width: '100%', background: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>No. of Helpers</label>
-                  <input type="number" min={0} value={formHelpers} onChange={(e) => setFormHelpers(parseInt(e.target.value) || 0)} style={{ width: '100%' }} />
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>No. of Helpers <span style={{ fontSize: '10px', color: 'var(--accent-primary)' }}>(Auto)</span></label>
+                  <input type="number" value={formHelpers} readOnly style={{ width: '100%', background: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Route / City</label>
-                  <input type="text" value={formCity} onChange={(e) => setFormCity(e.target.value)} style={{ width: '100%' }} />
+                  <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>Route / City <span style={{ fontSize: '10px', color: 'var(--accent-primary)' }}>(Auto)</span></label>
+                  <input type="text" value={formCity} readOnly style={{ width: '100%', background: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)' }} />
                 </div>
               </div>
+
+              {/* Scheduled Picklists */}
+              {scheduledPicklists.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  <h4 style={{ fontSize: '13px', margin: '0 0 8px 0', color: 'var(--text-muted)' }}>Scheduled Picklists for {formSalesmanName}</h4>
+                  <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+                    {scheduledPicklists.map(pl => (
+                      <div
+                        key={pl.id}
+                        onClick={() => {
+                          setFormInvoices(prev => [
+                            ...prev,
+                            {
+                              id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                              invoiceDate: formDate || '',
+                              picklistNumber: pl.picklistNumber,
+                              systemInvoiceNumber: '',
+                              invoiceNumberSeries: '',
+                              customerCode: '',
+                              customerName: '',
+                              barangay: '',
+                              city: pl.city || '',
+                              province: '',
+                              grossAmount: 0,
+                              cs: 0,
+                              pc: 0,
+                              sc: 0,
+                              deliveryStatus: 'Pending',
+                              updatedAt: new Date().toISOString(),
+                            }
+                          ]);
+                        }}
+                        style={{
+                          minWidth: '200px',
+                          padding: '12px',
+                          background: 'rgba(59, 130, 246, 0.1)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '14px', marginBottom: '4px' }}>📋 {pl.picklistNumber}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>City: {pl.city || 'N/A'}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>CS: {pl.cs || 0} | Acc: {pl.numberOfAccounts || 0}</div>
+                        <div style={{ marginTop: '8px', fontSize: '11px', color: '#3b82f6', fontWeight: 600 }}>+ Add Invoice Row</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Invoice Entry Section */}
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
@@ -673,7 +1279,7 @@ const DDRMSPage: React.FC = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                       <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-dark)', zIndex: 2 }}>
                         <tr>
-                          {['#', 'Date', 'PL#', 'Sys Inv#', 'Booklet Series', 'Cust Code', 'Cust Name', 'Amount', ''].map((h) => (
+                          {['#', 'Date', 'PL#', 'Sys Inv#', 'Booklet Series', 'Cust Code', 'Cust Name', 'Amount', 'CS', 'PC', 'SC', ''].map((h) => (
                             <th key={h} style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border)' }}>{h}</th>
                           ))}
                         </tr>
@@ -683,25 +1289,34 @@ const DDRMSPage: React.FC = () => {
                           <tr key={inv.id} style={{ borderBottom: '1px solid var(--border)' }}>
                             <td style={{ padding: '4px', color: 'var(--text-muted)', width: '30px' }}>{i + 1}</td>
                             <td style={{ padding: '4px' }}>
-                              <input type="text" value={inv.invoiceDate} onChange={(e) => handleUpdateInvoice(i, 'invoiceDate', e.target.value)} style={{ padding: '4px 6px', fontSize: '12px', width: '90px' }} />
+                              <input type="text" value={inv.invoiceDate} onChange={(e) => handleUpdateInvoice(i, 'invoiceDate', e.target.value)} onPaste={(e) => handleGridPaste(e, i, 'invoiceDate')} style={{ padding: '4px 6px', fontSize: '12px', width: '90px' }} />
                             </td>
                             <td style={{ padding: '4px' }}>
-                              <input type="text" value={inv.picklistNumber} onChange={(e) => handleUpdateInvoice(i, 'picklistNumber', e.target.value)} style={{ padding: '4px 6px', fontSize: '12px', width: '70px' }} />
+                              <input type="text" value={inv.picklistNumber} onChange={(e) => handleUpdateInvoice(i, 'picklistNumber', e.target.value)} onPaste={(e) => handleGridPaste(e, i, 'picklistNumber')} style={{ padding: '4px 6px', fontSize: '12px', width: '70px' }} />
                             </td>
                             <td style={{ padding: '4px' }}>
-                              <input type="text" value={inv.systemInvoiceNumber} onChange={(e) => handleUpdateInvoice(i, 'systemInvoiceNumber', e.target.value)} style={{ padding: '4px 6px', fontSize: '12px', width: '100px' }} />
+                              <input type="text" value={inv.systemInvoiceNumber} onChange={(e) => handleUpdateInvoice(i, 'systemInvoiceNumber', e.target.value)} onPaste={(e) => handleGridPaste(e, i, 'systemInvoiceNumber')} style={{ padding: '4px 6px', fontSize: '12px', width: '100px' }} />
                             </td>
                             <td style={{ padding: '4px' }}>
-                              <input type="text" value={inv.invoiceNumberSeries} onChange={(e) => handleUpdateInvoice(i, 'invoiceNumberSeries', e.target.value)} style={{ padding: '4px 6px', fontSize: '12px', width: '120px' }} />
+                              <input type="text" value={inv.invoiceNumberSeries} onChange={(e) => handleUpdateInvoice(i, 'invoiceNumberSeries', e.target.value)} onPaste={(e) => handleGridPaste(e, i, 'invoiceNumberSeries')} style={{ padding: '4px 6px', fontSize: '12px', width: '120px' }} />
                             </td>
                             <td style={{ padding: '4px' }}>
-                              <input type="text" value={inv.customerCode} onChange={(e) => handleUpdateInvoice(i, 'customerCode', e.target.value)} style={{ padding: '4px 6px', fontSize: '12px', width: '80px' }} />
+                              <input type="text" value={inv.customerCode} onChange={(e) => handleUpdateInvoice(i, 'customerCode', e.target.value)} onPaste={(e) => handleGridPaste(e, i, 'customerCode')} style={{ padding: '4px 6px', fontSize: '12px', width: '80px' }} />
                             </td>
                             <td style={{ padding: '4px' }}>
-                              <input type="text" value={inv.customerName} onChange={(e) => handleUpdateInvoice(i, 'customerName', e.target.value)} style={{ padding: '4px 6px', fontSize: '12px', width: '140px' }} />
+                              <input type="text" value={inv.customerName} onChange={(e) => handleUpdateInvoice(i, 'customerName', e.target.value)} onPaste={(e) => handleGridPaste(e, i, 'customerName')} style={{ padding: '4px 6px', fontSize: '12px', width: '140px' }} />
                             </td>
                             <td style={{ padding: '4px' }}>
-                              <input type="number" value={inv.grossAmount} onChange={(e) => handleUpdateInvoice(i, 'grossAmount', parseFloat(e.target.value) || 0)} style={{ padding: '4px 6px', fontSize: '12px', width: '90px' }} />
+                              <input type="number" value={inv.grossAmount} onChange={(e) => handleUpdateInvoice(i, 'grossAmount', parseFloat(e.target.value) || 0)} onPaste={(e) => handleGridPaste(e, i, 'grossAmount')} style={{ padding: '4px 6px', fontSize: '12px', width: '90px' }} />
+                            </td>
+                            <td style={{ padding: '4px' }}>
+                              <input type="number" value={inv.cs || ''} onChange={(e) => handleUpdateInvoice(i, 'cs', parseFloat(e.target.value) || 0)} onPaste={(e) => handleGridPaste(e, i, 'cs')} style={{ padding: '4px 6px', fontSize: '12px', width: '50px', textAlign: 'center' }} />
+                            </td>
+                            <td style={{ padding: '4px' }}>
+                              <input type="number" value={inv.pc || ''} onChange={(e) => handleUpdateInvoice(i, 'pc', parseFloat(e.target.value) || 0)} onPaste={(e) => handleGridPaste(e, i, 'pc')} style={{ padding: '4px 6px', fontSize: '12px', width: '50px', textAlign: 'center' }} />
+                            </td>
+                            <td style={{ padding: '4px' }}>
+                              <input type="number" value={inv.sc || ''} onChange={(e) => handleUpdateInvoice(i, 'sc', parseFloat(e.target.value) || 0)} onPaste={(e) => handleGridPaste(e, i, 'sc')} style={{ padding: '4px 6px', fontSize: '12px', width: '50px', textAlign: 'center' }} />
                             </td>
                             <td style={{ padding: '4px' }}>
                               <button onClick={() => handleRemoveInvoice(i)} className="btn-icon" style={{ width: '24px', height: '24px' }}>
@@ -717,9 +1332,14 @@ const DDRMSPage: React.FC = () => {
 
                 {/* Invoice Totals */}
                 {formInvoices.length > 0 && (
-                  <div style={{ marginTop: '8px', padding: '8px 12px', background: 'rgba(16,185,129,0.08)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <div style={{ marginTop: '8px', padding: '8px 12px', background: 'rgba(16,185,129,0.08)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '13px', alignItems: 'center' }}>
                     <span>Total Invoices: <strong>{formInvoices.length}</strong></span>
-                    <span>Total Amount: <strong style={{ color: 'var(--accent-success)' }}>₱{formInvoices.reduce((s, i) => s + i.grossAmount, 0).toLocaleString()}</strong></span>
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                      <span>CS: <strong>{formInvoices.reduce((s, i) => s + (i.cs || 0), 0)}</strong></span>
+                      <span>PC: <strong>{formInvoices.reduce((s, i) => s + (i.pc || 0), 0)}</strong></span>
+                      <span>SC: <strong>{formInvoices.reduce((s, i) => s + (i.sc || 0), 0)}</strong></span>
+                      <span>Amount: <strong style={{ color: 'var(--accent-success)' }}>₱{formInvoices.reduce((s, i) => s + i.grossAmount, 0).toLocaleString()}</strong></span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -786,18 +1406,35 @@ const DDRMSPage: React.FC = () => {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div style={{ fontWeight: 700, fontSize: '14px' }}>#{ddrms.ddrmsNumber}</div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setDeleteConfirm(ddrms.id); }}
-                          className="btn-icon"
-                          style={{ width: '24px', height: '24px' }}
-                        >
-                          <Trash2 size={12} color="var(--accent-danger)" />
-                        </button>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handlePrintDDRMS(ddrms); }}
+                            className="btn-icon"
+                            style={{ width: '24px', height: '24px', color: 'var(--text-muted)' }}
+                            title="Print DDRMS directly"
+                          >
+                            <Printer size={12} />
+                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirm(ddrms.id); }}
+                              className="btn-icon"
+                              style={{ width: '24px', height: '24px' }}
+                            >
+                              <Trash2 size={12} color="var(--accent-danger)" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{ddrms.deliveryDate}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        Created: {ddrms.createdAt?.split('T')[0] || ddrms.deliveryDate}
+                      </div>
                       
                       <div style={{ marginTop: '8px', fontSize: '12px' }}>
                         <span style={{ color: 'var(--text-muted)' }}>SM:</span> {ddrms.salesmanName}
+                      </div>
+                      <div style={{ fontSize: '12px' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Delivery:</span> {ddrms.deliveryDate}
                       </div>
                       <div style={{ fontSize: '12px' }}>
                         <span style={{ color: 'var(--text-muted)' }}>City:</span> {ddrms.routeCity}
@@ -911,7 +1548,10 @@ const DDRMSPage: React.FC = () => {
                     >
                       <div style={{ minWidth: '100px' }}>
                         <div style={{ fontWeight: 700, fontSize: '16px', fontFamily: 'monospace' }}>#{ddrms.ddrmsNumber}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{ddrms.deliveryDate}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Created: {ddrms.createdAt?.split('T')[0] || ddrms.deliveryDate} <br />
+                          Delivery: {ddrms.deliveryDate}
+                        </div>
                       </div>
 
                       <div style={{ flex: 1, minWidth: '130px' }}>
@@ -1158,6 +1798,136 @@ const DDRMSPage: React.FC = () => {
           </button>
         </div>
       </Modal>
+
+      {/* Plate Selection Modal */}
+      <Modal
+        isOpen={isPlateModalOpen}
+        onClose={() => setIsPlateModalOpen(false)}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <FileSpreadsheet size={20} style={{ color: 'var(--accent-primary)' }} />
+            <span>Select Scheduled Plate Number</span>
+          </div>
+        }
+        maxWidth="500px"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              placeholder="Search by Plate Number..."
+              value={plateSearchQuery}
+              onChange={(e) => setPlateSearchQuery(e.target.value)}
+              style={{ width: '100%', paddingLeft: '36px', background: 'var(--bg-panel)' }}
+              autoFocus
+            />
+          </div>
+
+          <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {availablePlates.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                No active schedules found for {formDate}.
+              </div>
+            ) : (
+              availablePlates.map((plate) => (
+                <div
+                  key={plate}
+                  onClick={() => handlePlateSelect(plate)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    background: formPlate === plate ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-panel)',
+                    border: `1px solid ${formPlate === plate ? 'var(--accent-primary)' : 'var(--border)'}`,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: formPlate === plate ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    {plate}
+                  </span>
+                  {formPlate === plate && <Check size={16} color="var(--accent-primary)" />}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Salesman Selection Modal */}
+      <Modal
+        isOpen={isSalesmanModalOpen}
+        onClose={() => setIsSalesmanModalOpen(false)}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <FileSpreadsheet size={20} style={{ color: 'var(--accent-primary)' }} />
+            <span>Select Scheduled Salesman</span>
+          </div>
+        }
+        maxWidth="500px"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {!formPlate ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--accent-warning)', fontSize: '13px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '8px' }}>
+              Please select a Plate Number first to see its scheduled salesmen.
+            </div>
+          ) : (
+            <>
+              <div style={{ position: 'relative' }}>
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Search by Code or Name..."
+                  value={salesmanSearchQuery}
+                  onChange={(e) => setSalesmanSearchQuery(e.target.value)}
+                  style={{ width: '100%', paddingLeft: '36px', background: 'var(--bg-panel)' }}
+                  autoFocus
+                />
+              </div>
+
+              <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {availableSalesmen.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    No salesmen scheduled for plate {formPlate}.
+                  </div>
+                ) : (
+                  availableSalesmen.map((salesman) => (
+                    <div
+                      key={salesman.code}
+                      onClick={() => handleSalesmanSelect(salesman.code, salesman.name)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 16px',
+                        background: formSalesmanCode === salesman.code ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-panel)',
+                        border: `1px solid ${formSalesmanCode === salesman.code ? 'var(--accent-primary)' : 'var(--border)'}`,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontWeight: 600, color: formSalesmanCode === salesman.code ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                          {salesman.name || 'Unknown Name'}
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Code: {salesman.code}
+                        </span>
+                      </div>
+                      {formSalesmanCode === salesman.code && <Check size={16} color="var(--accent-primary)" />}
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
+
     </div>
   );
 };

@@ -12,6 +12,7 @@ interface AuthContextType {
   name: string | null;
   photoURL: string | null;
   salesmanId: string | null;
+  salesmanType: string | null;
   branch: string | null;
   team: string | null;
   loading: boolean;
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   name: null,
   photoURL: null,
   salesmanId: null,
+  salesmanType: null,
   branch: null,
   team: null,
   loading: true,
@@ -42,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [name, setName] = useState<string | null>(null);
   const [photoURL, setPhotoURL] = useState<string | null>(null);
   const [salesmanId, setSalesmanId] = useState<string | null>(null);
+  const [salesmanType, setSalesmanType] = useState<string | null>(null);
   const [branch, setBranch] = useState<string | null>(null);
   const [team, setTeam] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setName(user.displayName || email.split('@')[0]);
             setPhotoURL(user.photoURL || null);
             setSalesmanId(demoRole === 'salesman' ? 'S-DEMO-001' : null);
+            setSalesmanType(demoRole === 'salesman' ? 'Ex-Truck' : null);
             setBranch('Demo Branch');
             setTeam(demoRole === 'salesman' || demoRole === 'supervisor' ? 'Team Alpha' : null);
             setLoading(false);
@@ -84,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setName(data.name || user.displayName || null);
             setPhotoURL(data.photoURL || user.photoURL || null);
             setSalesmanId(data.salesmanId || null);
+            setSalesmanType(data.salesmanType || null);
             setBranch(data.branch || null);
             setTeam(data.team || null);
           } else {
@@ -94,6 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setName(user.displayName || null);
             setPhotoURL(user.photoURL || null);
             setSalesmanId(null);
+            setSalesmanType(null);
             setBranch(null);
             setTeam(null);
           }
@@ -104,6 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setName(null);
           setPhotoURL(null);
           setSalesmanId(null);
+          setSalesmanType(null);
           setBranch(null);
           setTeam(null);
         }
@@ -113,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setName(null);
         setPhotoURL(null);
         setSalesmanId(null);
+        setSalesmanType(null);
         setBranch(null);
         setTeam(null);
       }
@@ -123,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, role, companyCode, name, photoURL, salesmanId, branch, team, loading, selectedMonth, setSelectedMonth }}>
+    <AuthContext.Provider value={{ currentUser, role, companyCode, name, photoURL, salesmanId, salesmanType, branch, team, loading, selectedMonth, setSelectedMonth }}>
       {!loading && children}
     </AuthContext.Provider>
   );

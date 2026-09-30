@@ -5,8 +5,9 @@ import { collection, writeBatch, doc, getDocs, getDoc, setDoc, query, where } fr
 import { db } from '../../firebase/config';
 import { Modal } from '../../components/ui/Modal';
 import IncentiveProgramMaker from './IncentiveProgramMaker';
+import { UISettingsTab } from './UISettingsTab';
 
-const TABS = ['Transactional Data', 'Inventory Related', 'Targets', 'References', 'Incentives Program', 'System Settings'];
+const TABS = ['Transactional Data', 'Inventory Related', 'Targets', 'References', 'Incentives Program', 'System Settings', 'UI Settings'];
 
 const uploadGroups: Record<string, string[]> = {
   'Transactional Data': ['Net Invoiced', 'CML (Customer Master List)'],
@@ -1783,7 +1784,7 @@ const DataManagement: React.FC = () => {
 
   const handleTabClick = (tab: string) => {
     setActiveTab(tab);
-    if (tab !== 'System Settings' && tab !== 'Incentives Program') {
+    if (tab !== 'System Settings' && tab !== 'Incentives Program' && tab !== 'UI Settings') {
       setActiveCategory(uploadGroups[tab][0]);
       setSuccess(false);
       setError('');
@@ -1831,6 +1832,8 @@ const DataManagement: React.FC = () => {
 
       {activeTab === 'Incentives Program' ? (
         <IncentiveProgramMaker />
+      ) : activeTab === 'UI Settings' ? (
+        <UISettingsTab />
       ) : activeTab === 'System Settings' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* System Announcement Settings */}

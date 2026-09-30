@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useUI } from '../../contexts/UIContext';
 import { LayoutDashboard, ShoppingCart, Target, Users, Database, Settings, LogOut, Menu, BarChart2, Package, Clock, AlertTriangle, Medal, Gift, X, Map, Truck, Calendar, ClipboardList, FileSpreadsheet } from 'lucide-react';
 import { logout } from '../../firebase/auth';
 import { doc, onSnapshot, collection, getDocs } from 'firebase/firestore';
@@ -10,7 +11,8 @@ import { MonthPicker } from '../ui/MonthPicker';
 import { PendingSyncManager } from '../logistics/PendingSyncManager';
 
 const Layout: React.FC = () => {
-  const { role, currentUser, name, photoURL, selectedMonth, setSelectedMonth } = useAuth();
+  const { role, currentUser, name, photoURL, selectedMonth, setSelectedMonth, salesmanType } = useAuth();
+  const { canAccess } = useUI();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isPerformancePanelOpen, setIsPerformancePanelOpen] = useState(false);
   const [cobDate, setCobDate] = useState<string>('');
@@ -54,97 +56,109 @@ const Layout: React.FC = () => {
   const navLinks = (
     <nav style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', paddingRight: '4px', paddingBottom: '8px' }}>
-        {role !== 'warehouse_supervisor' && (
-          <>
-            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-              <LayoutDashboard size={18} /> Home
-            </NavLink>
-            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/sales" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-              <ShoppingCart size={18} /> Sales
-            </NavLink>
-            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/vd30" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-              <Target size={18} /> VD30
-            </NavLink>
-            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/customers" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-              <Users size={18} /> Customers
-            </NavLink>
-            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/mcp" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-              <Map size={18} /> MCP
-            </NavLink>
-            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/npd" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-              <Package size={18} /> NPD & Promo
-            </NavLink>
-          </>
+        {canAccess('home', role!, true) && (
+          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+            <LayoutDashboard size={18} /> Home
+          </NavLink>
         )}
-        {role !== 'salesman' && (
+        {canAccess('sales', role!, true) && (
+          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/sales" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+            <ShoppingCart size={18} /> Sales
+          </NavLink>
+        )}
+        {canAccess('vd30', role!, true) && (
+          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/vd30" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+            <Target size={18} /> VD30
+          </NavLink>
+        )}
+        {canAccess('customers', role!, true) && (
+          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/customers" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+            <Users size={18} /> Customers
+          </NavLink>
+        )}
+        {canAccess('mcp', role!, true) && (
+          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/mcp" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+            <Map size={18} /> MCP
+          </NavLink>
+        )}
+        {canAccess('npd', role!, true) && (
+          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/npd" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+            <Package size={18} /> NPD & Promo
+          </NavLink>
+        )}
+        {canAccess('ageing', role!, true) && (
           <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/ageing" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
             <Clock size={18} /> Ageing
           </NavLink>
         )}
-          <>
-            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/bo" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-              <AlertTriangle size={18} /> B.O.
-            </NavLink>
-            {role !== 'warehouse_supervisor' && (
-              <>
-                <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/performance" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-                  <Medal size={18} /> Gamification
-                </NavLink>
-                <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/incentives" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-                  <Gift size={18} /> Incentives
-                </NavLink>
-              </>
-            )}
-          </>
-        {/* ─── Logistics & Delivery Group (Under Development) ─── */}
-        {(role === 'admin' || role === 'manager' || role === 'supervisor' || role === 'warehouse_supervisor' || role === 'delivery_team' || role === 'encoder' || role === 'salesman') && (
+        {canAccess('bo', role!, true) && (
+          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/bo" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+            <AlertTriangle size={18} /> B.O.
+          </NavLink>
+        )}
+        {canAccess('performance', role!, true) && (
+          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/performance" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+            <Medal size={18} /> Gamification
+          </NavLink>
+        )}
+        {canAccess('incentives', role!, true) && (
+          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/incentives" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+            <Gift size={18} /> Incentives
+          </NavLink>
+        )}
+        
+        {/* ─── Logistics & Delivery Group ─── */}
+        {!(role === 'salesman' && salesmanType === 'Ex-Truck') && (canAccess('logistics_manning', role!, true) || canAccess('logistics_schedule', role!, true) || canAccess('logistics_deliveries', role!, true) || canAccess('logistics_picklist', role!, true) || canAccess('logistics_ddrms', role!, true)) && (
           <>
             <div style={{ margin: '8px 0', height: '1px', background: 'var(--border)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: '12px', paddingRight: '8px', marginBottom: '4px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>LOGISTICS & DELIVERY</div>
-              <span style={{ fontSize: '9px', background: 'rgba(234, 179, 8, 0.15)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 600 }}>Under Dev</span>
+            <div style={{ paddingLeft: '12px', marginBottom: '4px', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>
+              LOGISTICS & DELIVERY
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none', userSelect: 'none' }} title="Logistics & Delivery is currently under development">
-              {(role === 'admin' || role === 'warehouse_supervisor' || role === 'manager' || role === 'supervisor') && (
-                <div className="btn" style={{ justifyContent: 'flex-start', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'not-allowed' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {canAccess('logistics_manning', role!, true) && (
+                <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/logistics/manning" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
                   <Truck size={18} /> Manning
-                </div>
+                </NavLink>
               )}
-              {(role === 'admin' || role === 'warehouse_supervisor' || role === 'manager' || role === 'supervisor' || role === 'encoder') && (
-                <div className="btn" style={{ justifyContent: 'flex-start', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'not-allowed' }}>
+              {canAccess('logistics_schedule', role!, true) && (
+                <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/logistics/schedule" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
                   <Calendar size={18} /> Schedule
-                </div>
+                </NavLink>
               )}
-              {(role === 'admin' || role === 'warehouse_supervisor' || role === 'manager' || role === 'supervisor' || role === 'delivery_team' || role === 'salesman') && (
-                <div className="btn" style={{ justifyContent: 'flex-start', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'not-allowed' }}>
+              {canAccess('logistics_deliveries', role!, true) && (
+                <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/logistics/deliveries" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
                   <Package size={18} /> Deliveries
-                </div>
+                </NavLink>
               )}
-              {(role === 'admin' || role === 'warehouse_supervisor' || role === 'manager' || role === 'supervisor' || role === 'encoder') && (
-                <div className="btn" style={{ justifyContent: 'flex-start', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'not-allowed' }}>
+              {canAccess('logistics_picklist', role!, true) && (
+                <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/logistics/picklist" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
                   <ClipboardList size={18} /> Picklist
-                </div>
+                </NavLink>
               )}
-              {(role === 'admin' || role === 'warehouse_supervisor' || role === 'manager' || role === 'supervisor' || role === 'encoder' || role === 'salesman') && (
-                <div className="btn" style={{ justifyContent: 'flex-start', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'not-allowed' }}>
+              {canAccess('logistics_ddrms', role!, true) && (
+                <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/logistics/ddrms" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
                   <FileSpreadsheet size={18} /> DDRMS
-                </div>
+                </NavLink>
               )}
             </div>
           </>
         )}
       </div>
 
-      {role === 'admin' && (
+      {(canAccess('data_management', role!, true) || canAccess('users', role!, true)) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
           <div style={{ margin: '8px 0', height: '1px', background: 'var(--border)' }} />
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', paddingLeft: '12px' }}>ADMIN</div>
-          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/data" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-            <Database size={18} /> Data Management
-          </NavLink>
-          <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/users" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
-            <Settings size={18} /> Users
-          </NavLink>
+          {canAccess('data_management', role!, true) && (
+            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/data" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+              <Database size={18} /> Data Management
+            </NavLink>
+          )}
+          {canAccess('users', role!, true) && (
+            <NavLink onClick={() => setIsMobileMenuOpen(false)} to="/users" className="btn" style={({ isActive }) => ({ justifyContent: 'flex-start', backgroundColor: isActive ? 'var(--bg-panel-hover)' : 'transparent', color: isActive ? 'var(--accent-primary)' : 'var(--text-main)' })}>
+              <Settings size={18} /> Users
+            </NavLink>
+          )}
         </div>
       )}
     </nav>

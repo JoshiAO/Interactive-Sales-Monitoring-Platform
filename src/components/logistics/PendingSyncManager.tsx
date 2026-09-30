@@ -43,7 +43,7 @@ export const PendingSyncManager: React.FC = () => {
         switch (draft.type) {
           case 'manning': collectionName = 'logistics_manning'; break;
           case 'picklist': collectionName = 'logistics_picklists'; break;
-          case 'schedule': collectionName = 'delivery_schedules'; break;
+          case 'schedule': collectionName = 'logistics_schedules'; break;
           case 'ddrms': collectionName = 'logistics_ddrms'; break;
           case 'deliveries': collectionName = 'logistics_deliveries_status'; break; // pseudo table for updates
           case 'collection': collectionName = 'logistics_collections'; break;
@@ -59,7 +59,11 @@ export const PendingSyncManager: React.FC = () => {
               invoices: draft.data.invoices
             }, { merge: true });
           } else {
-            batch.set(ref, draft.data, { merge: true });
+            const dataToSync = { ...draft.data };
+            if (dataToSync.status === 'Draft') {
+              dataToSync.status = 'Submitted';
+            }
+            batch.set(ref, dataToSync, { merge: true });
           }
         }
       });

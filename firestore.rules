@@ -30,15 +30,16 @@ service cloud.firestore {
       return isAuthenticated() && (request.auth.token.role == 'supervisor' || getDbUser().role == 'supervisor');
     }
 
-    function isOwner(salesmanId) {
-      return isAuthenticated() && (request.auth.token.salesmanId == salesmanId || getDbUser().salesmanId == salesmanId);
+    function isEncoder() {
+      return isAuthenticated() && (request.auth.token.role == 'encoder' || getDbUser().role == 'encoder');
     }
 
-    function isSupervisorOf(teamName) {
-      return isSupervisor() && teamName != null && (
-        (request.auth.token.team != null && request.auth.token.team.matches('.*' + teamName + '.*')) ||
-        (getDbUser().team != null && getDbUser().team.matches('.*' + teamName + '.*'))
-      );
+    function isDeliveryTeam() {
+      return isAuthenticated() && (request.auth.token.role == 'delivery_team' || getDbUser().role == 'delivery_team');
+    }
+
+    function isOwner(salesmanId) {
+      return isAuthenticated() && (request.auth.token.salesmanId == salesmanId || getDbUser().salesmanId == salesmanId);
     }
 
     // Role-Based Row-Level Security (RLS)
@@ -107,24 +108,66 @@ service cloud.firestore {
       allow write: if isAdmin() || isWarehouseSupervisor();
     }
 
+    match /logistics_drivers/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isWarehouseSupervisor();
+    }
+
+    match /logistics_helpers/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isWarehouseSupervisor();
+    }
+
+    match /logistics_schedules/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isWarehouseSupervisor();
+    }
+
     match /delivery_schedules/{document=**} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isWarehouseSupervisor();
     }
 
+    match /logistics_picklists/{document=**} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() || isWarehouseSupervisor() || isEncoder();
+      allow delete: if isAdmin();
+    }
+
     match /picklists/{document=**} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isWarehouseSupervisor() || isAuthenticated(); // Encoders & Warehouse Sup
+      allow create, update: if isAdmin() || isWarehouseSupervisor() || isEncoder();
+      allow delete: if isAdmin();
+    }
+
+    match /logistics_ddrms/{document=**} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() || isWarehouseSupervisor() || isEncoder() || isDeliveryTeam();
+      allow delete: if isAdmin();
     }
 
     match /ddrms/{document=**} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated(); // Admin, Encoder, Warehouse Sup, Delivery Team status updates
+      allow create, update: if isAdmin() || isWarehouseSupervisor() || isEncoder() || isDeliveryTeam();
+      allow delete: if isAdmin();
+    }
+
+    match /logistics_collections/{document=**} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() || isWarehouseSupervisor() || isEncoder() || isDeliveryTeam();
+      allow delete: if isAdmin();
     }
 
     match /collections/{document=**} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isWarehouseSupervisor() || isAuthenticated();
+      allow create, update: if isAdmin() || isWarehouseSupervisor() || isEncoder() || isDeliveryTeam();
+      allow delete: if isAdmin();
+    }
+
+    match /logistics_deliveries_status/{document=**} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() || isWarehouseSupervisor() || isEncoder() || isDeliveryTeam();
+      allow delete: if isAdmin();
     }
 
     // Default deny for any other collections
