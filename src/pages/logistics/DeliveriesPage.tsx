@@ -275,13 +275,25 @@ const DeliveriesPage: React.FC = () => {
 
       const updatedInvoices = ddrms.invoices.map((inv) => {
         if (inv.id === selectedInvoice.invoice.id) {
-          return {
+          const newInv = {
             ...inv,
             deliveryStatus: confirmStatus,
-            notDeliveredReason: confirmStatus === 'Not Delivered' ? confirmReason : undefined,
-            remarks: confirmRemarks.trim() || undefined,
             updatedAt: new Date().toISOString(),
           };
+
+          if (confirmStatus === 'Not Delivered') {
+            newInv.notDeliveredReason = confirmReason;
+          } else {
+            delete newInv.notDeliveredReason;
+          }
+
+          if (confirmRemarks.trim()) {
+            newInv.remarks = confirmRemarks.trim();
+          } else {
+            delete newInv.remarks;
+          }
+
+          return newInv;
         }
         return inv;
       });
