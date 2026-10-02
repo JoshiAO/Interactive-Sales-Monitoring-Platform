@@ -718,13 +718,38 @@ const DeliveriesPage: React.FC = () => {
         isOpen={showScanner}
         onClose={() => setShowScanner(false)}
         title="Scan DDRMS QR Code"
-        maxWidth="400px"
+        maxWidth="440px"
       >
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '16px' }}>
-            Point your camera at the QR code on the printed DDRMS sheet to begin delivery dispatch.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="tactical-hud-container">
+            <div className="tactical-hud-header">
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="tactical-pulse-dot" /> TACTICAL SCANNER ACTIVE
+              </span>
+              <span>LOGISTICS DISPATCH</span>
+            </div>
+
+            <div className="tactical-viewport">
+              {/* Tactical Viewfinder HUD Overlay */}
+              <div className="tactical-overlay">
+                <div className="tactical-scan-box">
+                  <div className="tactical-corner tactical-corner-tl" />
+                  <div className="tactical-corner tactical-corner-tr" />
+                  <div className="tactical-corner tactical-corner-bl" />
+                  <div className="tactical-corner tactical-corner-br" />
+                  <div className="tactical-laser-line" />
+                  <div className="tactical-crosshair-center" />
+                </div>
+              </div>
+
+              {/* Video Reader Element */}
+              <div id="qr-reader"></div>
+            </div>
+          </div>
+
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', margin: 0 }}>
+            Position the printed DDRMS QR code inside the green tactical frame to scan.
           </p>
-          <div id="qr-reader" style={{ width: '100%', background: 'var(--bg-panel)', borderRadius: '12px', overflow: 'hidden' }}></div>
         </div>
       </Modal>
     </div>
