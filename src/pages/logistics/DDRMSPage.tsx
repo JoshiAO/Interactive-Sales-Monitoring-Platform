@@ -5,7 +5,7 @@ import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../../components/ui/Modal';
 import { saveDraft } from '../../utils/indexedDB';
-import type { DDRMSHeader, DDRMSInvoice, DDRMSGlobalConfig, DDRMSCollection, RemittanceCheck, DeliverySchedule, LogisticsManning, Picklist } from '../../types/logistics';
+import type { DDRMSHeader, DDRMSInvoice, DDRMSGlobalConfig, DDRMSCollection, RemittanceCheck, DeliverySchedule, LogisticsManning, Picklist, DeliveryStatus } from '../../types/logistics';
 import { DELIVERY_STATUS_PRIORITY } from '../../types/logistics';
 import QRCode from 'qrcode';
 
@@ -567,7 +567,7 @@ const DDRMSPage: React.FC = () => {
       totalSC: failedInvoices.reduce((s, i) => s + (i.sc || 0), 0),
       remittanceCash: 0,
       remittanceDR: 0,
-      remittanceChecks: [],
+      remittanceChecks: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

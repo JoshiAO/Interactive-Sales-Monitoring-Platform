@@ -838,7 +838,7 @@ const DeliverySchedulePage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   const allFiltered = Array.from(new Set([...formPicklists, ...filteredAvailablePicklists.map((p) => p.picklistNumber)]));
-                  updatePicklistsAndRecalculate(allFiltered);
+                  updateDataAndRecalculate(allFiltered, formDdrmsNumbers);
                 }}
                 className="btn"
                 style={{ padding: '2px 8px', fontSize: '11px', background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}
@@ -847,7 +847,7 @@ const DeliverySchedulePage: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => updatePicklistsAndRecalculate([])}
+                onClick={() => updateDataAndRecalculate([], formDdrmsNumbers)}
                 className="btn"
                 style={{ padding: '2px 8px', fontSize: '11px', background: 'transparent', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer' }}
               >
