@@ -68,7 +68,12 @@ const DeliveriesPage: React.FC = () => {
 
   useEffect(() => {
     if (showScanner) {
-      const scanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+      const scanner = new Html5QrcodeScanner('qr-reader', { 
+        fps: 10, 
+        qrbox: { width: 230, height: 230 },
+        videoConstraints: { facingMode: { ideal: "environment" } }
+      }, false);
+
       scanner.render((decodedText) => {
         handleScanDDRMS(decodedText);
         scanner.clear();
@@ -77,7 +82,35 @@ const DeliveriesPage: React.FC = () => {
         // ignore errors to prevent console spam
       });
 
+      // Inject tactical overlay directly into scan region
+      const observer = new MutationObserver(() => {
+        const scanRegion = document.getElementById('qr-reader__scan_region');
+        if (scanRegion && !document.getElementById('tactical-overlay-injected')) {
+          scanRegion.style.position = 'relative';
+          const overlay = document.createElement('div');
+          overlay.id = 'tactical-overlay-injected';
+          overlay.className = 'tactical-overlay';
+          overlay.innerHTML = `
+            <div class="tactical-scan-box">
+              <div class="tactical-corner tactical-corner-tl"></div>
+              <div class="tactical-corner tactical-corner-tr"></div>
+              <div class="tactical-corner tactical-corner-bl"></div>
+              <div class="tactical-corner tactical-corner-br"></div>
+              <div class="tactical-laser-line"></div>
+              <div class="tactical-crosshair-center"></div>
+            </div>
+          `;
+          scanRegion.appendChild(overlay);
+        }
+      });
+      
+      const qrReaderElement = document.getElementById('qr-reader');
+      if (qrReaderElement) {
+        observer.observe(qrReaderElement, { childList: true, subtree: true });
+      }
+
       return () => {
+        observer.disconnect();
         scanner.clear().catch(console.error);
       };
     }
@@ -742,18 +775,6 @@ const DeliveriesPage: React.FC = () => {
             </div>
 
             <div className="tactical-viewport">
-              {/* Tactical Viewfinder HUD Overlay */}
-              <div className="tactical-overlay">
-                <div className="tactical-scan-box">
-                  <div className="tactical-corner tactical-corner-tl" />
-                  <div className="tactical-corner tactical-corner-tr" />
-                  <div className="tactical-corner tactical-corner-bl" />
-                  <div className="tactical-corner tactical-corner-br" />
-                  <div className="tactical-laser-line" />
-                  <div className="tactical-crosshair-center" />
-                </div>
-              </div>
-
               {/* Video Reader Element */}
               <div id="qr-reader"></div>
             </div>
