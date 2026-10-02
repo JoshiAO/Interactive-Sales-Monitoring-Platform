@@ -355,6 +355,8 @@ const DeliveriesPage: React.FC = () => {
         return { icon: <CheckCircle size={14} />, bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: 'rgba(16, 185, 129, 0.3)', label: 'Delivered' };
       case 'Not Delivered':
         return { icon: <XCircle size={14} />, bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.3)', label: '🚨 NOT DELIVERED' };
+      case 'Rescheduled':
+        return { icon: <Clock size={14} />, bg: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8', border: 'rgba(148, 163, 184, 0.3)', label: 'Rescheduled' };
       default:
         return { icon: <Clock size={14} />, bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)', label: 'Pending' };
     }
@@ -631,7 +633,7 @@ const DeliveriesPage: React.FC = () => {
                           Confirm
                         </button>
                       )}
-                      {canConfirm && item.invoice.deliveryStatus !== 'Pending' && (
+                      {role === 'admin' && item.invoice.deliveryStatus !== 'Pending' && (
                         <button
                           onClick={() => handleOpenConfirm(item.ddrmsId, item.invoice)}
                           className="btn"

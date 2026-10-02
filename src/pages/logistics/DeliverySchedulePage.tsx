@@ -4,7 +4,7 @@ import { collection, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
-import type { DeliverySchedule, LogisticsManning, Picklist } from '../../types/logistics';
+import type { DeliverySchedule, LogisticsManning, Picklist, DDRMSHeader } from '../../types/logistics';
 import { saveDraft } from '../../utils/indexedDB';
 import { Modal } from '../../components/ui/Modal';
 import * as XLSX from 'xlsx-js-style';
@@ -15,6 +15,7 @@ const DeliverySchedulePage: React.FC = () => {
   const [schedules, setSchedules] = useState<DeliverySchedule[]>([]);
   const [manningRecords, setManningRecords] = useState<LogisticsManning[]>([]);
   const [availablePicklists, setAvailablePicklists] = useState<Picklist[]>([]);
+  const [availableDdrms, setAvailableDdrms] = useState<DDRMSHeader[]>([]);
   const [loading, setLoading] = useState(true);
   
   const canEdit = canEditPage('logistics_schedule', role!);
@@ -23,9 +24,12 @@ const DeliverySchedulePage: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<DeliverySchedule | null>(null);
   const [saving, setSaving] = useState(false);
   
-  // Picklist Modal State
+  // Picklist/DDRMS Modal State
   const [isPicklistModalOpen, setIsPicklistModalOpen] = useState(false);
   const [picklistSearchQuery, setPicklistSearchQuery] = useState('');
+  
+  const [isDdrmsModalOpen, setIsDdrmsModalOpen] = useState(false);
+  const [ddrmsSearchQuery, setDdrmsSearchQuery] = useState('');
   
   // Right side filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,6 +40,7 @@ const DeliverySchedulePage: React.FC = () => {
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formPlate, setFormPlate] = useState('');
   const [formPicklists, setFormPicklists] = useState<string[]>([]);
+  const [formDdrmsNumbers, setFormDdrmsNumbers] = useState<string[]>([]);
   const [formRoute, setFormRoute] = useState('');
   const [formAccounts, setFormAccounts] = useState(0);
   const [formQtyCS, setFormQtyCS] = useState(0);
@@ -64,6 +69,11 @@ const DeliverySchedulePage: React.FC = () => {
         const data: Picklist[] = [];
         snap.forEach((d) => data.push({ id: d.id, ...d.data() } as Picklist));
         setAvailablePicklists(data);
+      }),
+      onSnapshot(collection(db, 'logistics_ddrms'), (snap) => {
+        const data: DDRMSHeader[] = [];
+        snap.forEach((d) => data.push({ id: d.id, ...d.data() } as DDRMSHeader));
+        setAvailableDdrms(data);
       }),
     ];
     return () => unsubs.forEach((u) => u());
@@ -98,25 +108,36 @@ const DeliverySchedulePage: React.FC = () => {
     );
   }, [availablePicklists, picklistSearchQuery]);
 
-  const updatePicklistsAndRecalculate = (selectedNumbers: string[]) => {
-    setFormPicklists(selectedNumbers);
+  const updateDataAndRecalculate = (selectedPLs: string[], selectedDdrms: string[]) => {
+    setFormPicklists(selectedPLs);
+    setFormDdrmsNumbers(selectedDdrms);
 
-    const selectedItems = availablePicklists.filter((p) => selectedNumbers.includes(p.picklistNumber));
-    if (selectedItems.length > 0) {
-      const cities = Array.from(new Set(selectedItems.map((p) => p.city).filter(Boolean))).join(', ');
+    const selectedItems = availablePicklists.filter((p) => selectedPLs.includes(p.picklistNumber));
+    const selectedDdrmsItems = availableDdrms.filter((d) => selectedDdrms.includes(d.ddrmsNumber));
+    
+    if (selectedItems.length > 0 || selectedDdrmsItems.length > 0) {
+      const cities = Array.from(new Set([
+        ...selectedItems.map((p) => p.city),
+        ...selectedDdrmsItems.map((d) => d.routeCity)
+      ].filter(Boolean))).join(', ');
       setFormRoute(cities);
 
-      const totalAccounts = selectedItems.reduce((sum, p) => sum + (p.numberOfAccounts || 0), 0);
+      const totalAccounts = selectedItems.reduce((sum, p) => sum + (p.numberOfAccounts || 0), 0)
+        + selectedDdrmsItems.reduce((sum, d) => sum + (d.invoices?.length || 0), 0);
       setFormAccounts(totalAccounts);
 
-      const totalCS = selectedItems.reduce((sum, p) => sum + (p.cs || 0), 0);
+      const totalCS = selectedItems.reduce((sum, p) => sum + (p.cs || 0), 0)
+        + selectedDdrmsItems.reduce((sum, d) => sum + (d.totalCS || 0), 0);
       setFormQtyCS(totalCS);
 
       const salesmen = Array.from(
-        new Set(selectedItems.map((p) => p.salesmanName || p.salesmanCode).filter(Boolean))
+        new Set([
+          ...selectedItems.map((p) => p.salesmanName || p.salesmanCode),
+          ...selectedDdrmsItems.map((d) => d.salesmanName || d.salesmanCode)
+        ].filter(Boolean))
       ).join(', ');
       setFormSalesmen(salesmen);
-    } else if (selectedNumbers.length === 0) {
+    } else {
       setFormRoute('');
       setFormAccounts(0);
       setFormQtyCS(0);
@@ -129,7 +150,15 @@ const DeliverySchedulePage: React.FC = () => {
     const updated = current.includes(plNumber)
       ? current.filter((x) => x !== plNumber)
       : [...current, plNumber];
-    updatePicklistsAndRecalculate(updated);
+    updateDataAndRecalculate(updated, formDdrmsNumbers);
+  };
+
+  const toggleDdrmsSelection = (ddrmsNumber: string) => {
+    const current = formDdrmsNumbers.filter(Boolean);
+    const updated = current.includes(ddrmsNumber)
+      ? current.filter((x) => x !== ddrmsNumber)
+      : [...current, ddrmsNumber];
+    updateDataAndRecalculate(formPicklists, updated);
   };
 
   const handleCreateNew = () => {
@@ -137,6 +166,7 @@ const DeliverySchedulePage: React.FC = () => {
     setFormDate(new Date().toISOString().split('T')[0]);
     setFormPlate('');
     setFormPicklists([]);
+    setFormDdrmsNumbers([]);
     setFormRoute('');
     setFormAccounts(0);
     setFormQtyCS(0);
@@ -152,6 +182,7 @@ const DeliverySchedulePage: React.FC = () => {
     setFormDate(record.date);
     setFormPlate(record.plateNumber);
     setFormPicklists(record.picklistNumbers.length > 0 ? [...record.picklistNumbers] : []);
+    setFormDdrmsNumbers(record.ddrmsNumbers?.length ? [...record.ddrmsNumbers] : []);
     setFormRoute(record.route);
     setFormAccounts(record.noOfAccounts);
     setFormQtyCS(record.qtyCS);
@@ -167,6 +198,7 @@ const DeliverySchedulePage: React.FC = () => {
     setSaving(true);
     try {
       const cleanPicklists = formPicklists.filter((p) => p.trim() !== '');
+      const cleanDdrms = formDdrmsNumbers.filter((p) => p.trim() !== '');
       const docId = editingRecord?.id || `${formDate}_${formPlate}`.replace(/[^a-zA-Z0-9_-]/g, '_');
       
       const payload: DeliverySchedule = {
@@ -174,6 +206,8 @@ const DeliverySchedulePage: React.FC = () => {
         date: formDate,
         plateNumber: formPlate,
         picklistNumbers: cleanPicklists,
+        ddrmsNumbers: cleanDdrms,
+        rescheduledDdrmsIds: availableDdrms.filter(d => cleanDdrms.includes(d.ddrmsNumber)).map(d => d.id),
         route: formRoute.trim(),
         noOfAccounts: formAccounts,
         qtyCS: formQtyCS,
@@ -475,6 +509,68 @@ const DeliverySchedulePage: React.FC = () => {
                   }}
                 >
                   <ListChecks size={18} /> {formPicklists.length > 0 ? 'Modify Picklist Selection...' : 'Click to Select Picklists...'}
+                </button>
+              </div>
+
+              {/* Editable Field #3: DDRMS Selector */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    Rescheduled DDRMS * (Editable Selector)
+                  </label>
+                  {formDdrmsNumbers.length > 0 && (
+                    <span className="badge" style={{ fontSize: '11px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                      {formDdrmsNumbers.length} Selected
+                    </span>
+                  )}
+                </div>
+
+                {formDdrmsNumbers.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+                    {formDdrmsNumbers.map((ddrmsNum) => (
+                      <span
+                        key={ddrmsNum}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          background: 'rgba(245, 158, 11, 0.15)',
+                          color: '#f59e0b',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        🚚 {ddrmsNum}
+                        <X
+                          size={14}
+                          style={{ cursor: 'pointer', opacity: 0.8 }}
+                          onClick={() => toggleDdrmsSelection(ddrmsNum)}
+                        />
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsDdrmsModalOpen(true)}
+                  className="btn"
+                  style={{
+                    width: '100%',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '10px 14px',
+                    background: 'rgba(30, 41, 59, 0.6)',
+                    border: '1px dashed #f59e0b',
+                    color: '#f59e0b',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                  }}
+                >
+                  <FileSpreadsheet size={18} /> {formDdrmsNumbers.length > 0 ? 'Modify Rescheduled DDRMS...' : 'Click to Select Rescheduled DDRMS...'}
                 </button>
               </div>
 
@@ -841,6 +937,108 @@ const DeliverySchedulePage: React.FC = () => {
               style={{ padding: '8px 24px', fontSize: '13px' }}
             >
               Done ({formPicklists.length} Selected)
+            </button>
+          </div>
+        </div>
+      </Modal>
+      {/* DDRMS Selection Modal */}
+      <Modal
+        isOpen={isDdrmsModalOpen}
+        onClose={() => setIsDdrmsModalOpen(false)}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <FileSpreadsheet size={20} style={{ color: '#f59e0b' }} />
+            <span>Select Rescheduled DDRMS</span>
+          </div>
+        }
+        maxWidth="650px"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              placeholder="Search DDRMS #, city, or salesman..."
+              value={ddrmsSearchQuery}
+              onChange={(e) => setDdrmsSearchQuery(e.target.value)}
+              style={{ paddingLeft: '36px', width: '100%', fontSize: '14px' }}
+            />
+          </div>
+
+          <div style={{ maxHeight: '380px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+            {availableDdrms
+              .filter(d => d.status === 'Draft' && !d.plateNumber && d.ddrmsNumber.includes('_'))
+              .filter(d => !ddrmsSearchQuery.trim() || d.ddrmsNumber.toLowerCase().includes(ddrmsSearchQuery.toLowerCase()) || d.salesmanName.toLowerCase().includes(ddrmsSearchQuery.toLowerCase()) || d.routeCity.toLowerCase().includes(ddrmsSearchQuery.toLowerCase()))
+              .length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                No eligible draft DDRMS available for scheduling.
+              </div>
+            ) : (
+              availableDdrms
+                .filter(d => d.status === 'Draft' && !d.plateNumber && d.ddrmsNumber.includes('_'))
+                .filter(d => !ddrmsSearchQuery.trim() || d.ddrmsNumber.toLowerCase().includes(ddrmsSearchQuery.toLowerCase()) || d.salesmanName.toLowerCase().includes(ddrmsSearchQuery.toLowerCase()) || d.routeCity.toLowerCase().includes(ddrmsSearchQuery.toLowerCase()))
+                .map((ddrms) => {
+                  const isSelected = formDdrmsNumbers.includes(ddrms.ddrmsNumber);
+                  return (
+                    <div
+                      key={ddrms.id}
+                      onClick={() => toggleDdrmsSelection(ddrms.ddrmsNumber)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 16px',
+                        borderRadius: '10px',
+                        border: isSelected ? '1px solid #f59e0b' : '1px solid var(--border)',
+                        background: isSelected ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-panel)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '4px',
+                            border: isSelected ? 'none' : '1px solid var(--border)',
+                            background: isSelected ? '#f59e0b' : 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                          }}
+                        >
+                          {isSelected && <Check size={14} />}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            🚚 {ddrms.ddrmsNumber}
+                            {ddrms.routeCity && (
+                              <span className="badge" style={{ fontSize: '11px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: 'none', padding: '2px 6px' }}>
+                                {ddrms.routeCity}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            Salesman: {ddrms.salesmanName || ddrms.salesmanCode || 'N/A'} • Inv: {ddrms.invoices?.length || 0}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+            )}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+            <button
+              type="button"
+              onClick={() => setIsDdrmsModalOpen(false)}
+              className="btn btn-primary"
+              style={{ padding: '8px 24px', fontSize: '13px' }}
+            >
+              Done ({formDdrmsNumbers.length} Selected)
             </button>
           </div>
         </div>

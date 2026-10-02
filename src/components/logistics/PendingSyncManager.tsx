@@ -64,6 +64,20 @@ export const PendingSyncManager: React.FC = () => {
               dataToSync.status = 'Submitted';
             }
             batch.set(ref, dataToSync, { merge: true });
+
+            // Automatically assign child DDRMS when a schedule is synced
+            if (draft.type === 'schedule' && draft.data.rescheduledDdrmsIds?.length > 0) {
+              draft.data.rescheduledDdrmsIds.forEach((ddrmsId: string) => {
+                batch.update(doc(db, 'logistics_ddrms', ddrmsId), {
+                  plateNumber: draft.data.plateNumber,
+                  driverName: draft.data.driverName || '',
+                  noOfHelpers: draft.data.helpers?.length || 0,
+                  deliveryDate: draft.data.date,
+                  routeCity: draft.data.route,
+                  status: 'Submitted'
+                });
+              });
+            }
           }
         }
       });

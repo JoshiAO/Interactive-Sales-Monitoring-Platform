@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { FileSpreadsheet, Plus, Search, Download, Printer, Save, Trash2, ChevronDown, ChevronUp, DollarSign, AlertTriangle, ClipboardPaste, Settings, Eye, Edit3, Check } from 'lucide-react';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../../components/ui/Modal';
@@ -527,6 +527,83 @@ const DDRMSPage: React.FC = () => {
       alert('Failed to save collection: ' + err.message);
     } finally {
       setSavingCollection(false);
+    }
+  };
+
+  // ─── Reschedule Not Delivered ─────────────────────────────────────────────
+  const handleReschedule = async (ddrms: DDRMSHeader) => {
+    if (!confirm('Are you sure you want to extract Not Delivered invoices into a new Draft DDRMS?')) return;
+    
+    // Calculate new ddrmsNumber
+    const baseNumber = ddrms.ddrmsNumber.split('_')[0];
+    const existingWithBase = ddrmsRecords.filter(d => d.ddrmsNumber.startsWith(baseNumber) && d.ddrmsNumber.includes('_'));
+    const newNumber = `${baseNumber}_${String(existingWithBase.length + 1).padStart(3, '0')}`;
+
+    const failedInvoices = (ddrms.invoices || []).filter(i => i.deliveryStatus === 'Not Delivered').map(i => {
+      const cloned = { ...i };
+      cloned.deliveryStatus = 'Pending';
+      delete cloned.notDeliveredReason;
+      return cloned;
+    });
+
+    if (failedInvoices.length === 0) {
+      alert('No Not Delivered invoices found.');
+      return;
+    }
+
+    const newDDRMS: DDRMSHeader = {
+      ...ddrms,
+      id: newNumber.replace(/[^a-zA-Z0-9_-]/g, '_'),
+      ddrmsNumber: newNumber,
+      status: 'Draft',
+      invoices: failedInvoices,
+      plateNumber: '',
+      deliveryDate: '',
+      driverName: '',
+      noOfHelpers: 0,
+      totalGrossAmount: failedInvoices.reduce((s, i) => s + i.grossAmount, 0),
+      totalCS: failedInvoices.reduce((s, i) => s + (i.cs || 0), 0),
+      totalPC: failedInvoices.reduce((s, i) => s + (i.pc || 0), 0),
+      totalSC: failedInvoices.reduce((s, i) => s + (i.sc || 0), 0),
+      remittanceCash: 0,
+      remittanceDR: 0,
+      remittanceChecks: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Explicitly remove fields that should not be inherited from the parent
+    delete newDDRMS.qrScanTime;
+    delete newDDRMS.rescheduledTo;
+
+    // Sanitize to remove all undefined values for Firestore
+    const sanitizedDDRMS = { ...newDDRMS };
+    Object.keys(sanitizedDDRMS).forEach(key => {
+      if (sanitizedDDRMS[key as keyof DDRMSHeader] === undefined) {
+        delete sanitizedDDRMS[key as keyof DDRMSHeader];
+      }
+    });
+
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'logistics_ddrms', sanitizedDDRMS.id), sanitizedDDRMS);
+
+      // Update parent DDRMS to point to child, and mark its Not Delivered invoices as Rescheduled
+      const updatedParentInvoices = (ddrms.invoices || []).map(i => {
+        if (i.deliveryStatus === 'Not Delivered') {
+          return { ...i, deliveryStatus: 'Rescheduled' as DeliveryStatus };
+        }
+        return i;
+      });
+
+      batch.update(doc(db, 'logistics_ddrms', ddrms.id), { 
+        rescheduledTo: newNumber,
+        invoices: updatedParentInvoices
+      });
+      await batch.commit();
+      alert(`Successfully rescheduled to ${newNumber}`);
+    } catch (err: any) {
+      alert('Failed to reschedule: ' + err.message);
     }
   };
 
@@ -1600,6 +1677,15 @@ const DDRMSPage: React.FC = () => {
                             <DollarSign size={12} /> Collect
                           </button>
                         )}
+                        {(ddrms.status === 'Remitted' || ddrms.status === 'Delivered') && notDeliveredCount > 0 && !ddrms.rescheduledTo && canCreate && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleReschedule(ddrms); }}
+                            className="btn"
+                            style={{ fontSize: '11px', padding: '5px 10px', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
+                          >
+                            Reschedule
+                          </button>
+                        )}
                         {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </div>
                     </div>
@@ -1623,12 +1709,13 @@ const DDRMSPage: React.FC = () => {
                                 .sort((a, b) => (DELIVERY_STATUS_PRIORITY[a.deliveryStatus] ?? 99) - (DELIVERY_STATUS_PRIORITY[b.deliveryStatus] ?? 99))
                                 .map((inv, i) => {
                                   const isND = inv.deliveryStatus === 'Not Delivered';
+                                  const isRescheduled = inv.deliveryStatus === 'Rescheduled';
                                   return (
                                     <tr
                                       key={inv.id || i}
                                       style={{
                                         borderBottom: '1px solid var(--border)',
-                                        background: isND ? 'rgba(239, 68, 68, 0.08)' : undefined,
+                                        background: isND ? 'rgba(239, 68, 68, 0.08)' : isRescheduled ? 'rgba(148, 163, 184, 0.08)' : undefined,
                                       }}
                                     >
                                       <td style={{ padding: '8px 6px', color: 'var(--text-muted)' }}>{i + 1}</td>
@@ -1644,10 +1731,12 @@ const DDRMSPage: React.FC = () => {
                                         <span style={{
                                           display: 'inline-flex', alignItems: 'center', gap: '3px',
                                           padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
-                                          background: isND ? 'rgba(239,68,68,0.15)' : inv.deliveryStatus === 'Delivered' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
-                                          color: isND ? '#ef4444' : inv.deliveryStatus === 'Delivered' ? '#10b981' : '#f59e0b',
+                                          background: isND ? 'rgba(239,68,68,0.15)' : isRescheduled ? 'rgba(148,163,184,0.15)' : inv.deliveryStatus === 'Delivered' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                                          color: isND ? '#ef4444' : isRescheduled ? '#94a3b8' : inv.deliveryStatus === 'Delivered' ? '#10b981' : '#f59e0b',
                                         }}>
-                                          {isND && '🚨 '}{inv.deliveryStatus}
+                                          {isND && '🚨 '}
+                                          {inv.deliveryStatus}
+                                          {isRescheduled && ddrms.rescheduledTo && ` to ${ddrms.rescheduledTo}`}
                                         </span>
                                         {isND && inv.notDeliveredReason && (
                                           <div style={{ fontSize: '10px', color: '#fca5a5', marginTop: '2px' }}>{inv.notDeliveredReason}</div>

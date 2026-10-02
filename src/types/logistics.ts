@@ -38,6 +38,8 @@ export interface DeliverySchedule {
   date: string;
   plateNumber: string;
   picklistNumbers: string[];
+  ddrmsNumbers?: string[]; // Child DDRMS rescheduled from Not Delivered invoices
+  rescheduledDdrmsIds?: string[];
   route: string;
   noOfAccounts: number;
   qtyCS: number;
@@ -75,7 +77,7 @@ export interface Picklist {
 }
 
 // ─── 4. DDRMS Invoice Line Item ─────────────────────────────────────────────
-export type DeliveryStatus = 'Pending' | 'Delivered' | 'Not Delivered';
+export type DeliveryStatus = 'Pending' | 'Delivered' | 'Not Delivered' | 'Rescheduled';
 export type NotDeliveredReason = 'Store Closed' | 'Customer Refused' | 'Payment Issue' | 'Damaged/Missing Goods' | 'Out of Time';
 
 export interface DDRMSInvoice {
@@ -130,6 +132,7 @@ export interface DDRMSHeader {
   createdAt: string;
   updatedAt: string;
   qrScanTime?: string;
+  rescheduledTo?: string; // Tracks if Not Delivered invoices were spawned to a child DDRMS
 }
 
 // ─── 6. Collection / Remittance ─────────────────────────────────────────────
@@ -163,8 +166,9 @@ export interface DDRMSGlobalConfig {
 // ─── Delivery Status Sort Priority ──────────────────────────────────────────
 export const DELIVERY_STATUS_PRIORITY: Record<DeliveryStatus, number> = {
   'Not Delivered': 0,  // Pinned at very top
-  'Pending': 1,
-  'Delivered': 2,
+  'Rescheduled': 1,
+  'Pending': 2,
+  'Delivered': 3,
 };
 
 // ─── Vehicle Types ──────────────────────────────────────────────────────────
