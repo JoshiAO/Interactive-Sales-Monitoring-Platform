@@ -282,7 +282,7 @@ const DeliveriesPage: React.FC = () => {
           };
 
           if (confirmStatus === 'Not Delivered') {
-            newInv.notDeliveredReason = confirmReason;
+            newInv.notDeliveredReason = confirmReason as NotDeliveredReason;
           } else {
             delete newInv.notDeliveredReason;
           }
