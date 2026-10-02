@@ -656,6 +656,11 @@ button:disabled,
   width: 100% !important;
 }
 
+/* Hide default html5-qrcode SVG scanner box overlay */
+#qr-reader__scan_region > svg {
+  display: none !important;
+}
+
 #qr-reader img[alt="Info icon"], #qr-reader img[alt="Camera implementation"] {
   display: none !important;
 }
