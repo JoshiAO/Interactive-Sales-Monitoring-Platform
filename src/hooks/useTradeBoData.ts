@@ -169,9 +169,9 @@ export const useTradeBoCustomers = (salesmanCode: string | null) => {
         let customersStr = null;
 
         if (selectedMonth && selectedMonth !== 'current') {
-          const custSnapSnap = await getDoc(doc(db, 'snapshots', `${selectedMonth}_customers`));
+          const custSnapSnap = await getDoc(doc(db, 'snapshots', selectedMonth, 'customers', safeId));
           if (custSnapSnap.exists()) {
-            customersStr = custSnapSnap.data()[safeId];
+            customersStr = custSnapSnap.data().customers;
           }
         } else {
           const custDoc = await getDoc(doc(db, 'customer_data', safeId));

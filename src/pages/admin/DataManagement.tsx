@@ -142,11 +142,13 @@ const DataManagement: React.FC = () => {
       batch.set(doc(db, 'snapshots', snapshotMonth), metricsDocData);
       await batch.commit();
 
-      // Chunk write customer subcollection
+      // Chunk write customer subcollection in small batches (15 salesmen per batch ~1.5-2MB) to prevent exceeding Firebase 10MB payload size limit
       const cKeys = Object.keys(customersDocData);
-      for (let i = 0; i < cKeys.length; i += 450) {
+      const cBatchSize = 15;
+      for (let i = 0; i < cKeys.length; i += cBatchSize) {
+        setProgress({ step: `Writing snapshot customers (${Math.min(i + cBatchSize, cKeys.length)} / ${cKeys.length})...`, current: 80 + Math.floor((i / cKeys.length) * 15), total: 100 });
         const cBatch = writeBatch(db);
-        cKeys.slice(i, i + 450).forEach(salesmanId => {
+        cKeys.slice(i, i + cBatchSize).forEach(salesmanId => {
           const safeId = String(salesmanId).replace(/[^a-zA-Z0-9_]/g, '');
           cBatch.set(doc(db, 'snapshots', snapshotMonth, 'customers', safeId), { customers: customersDocData[salesmanId] });
         });
@@ -158,9 +160,10 @@ const DataManagement: React.FC = () => {
       npdSnap.forEach(d => {
         npdDocs.push({ id: d.id, data: d.data() });
       });
-      for (let i = 0; i < npdDocs.length; i += 450) {
+      const npdBatchSize = 25;
+      for (let i = 0; i < npdDocs.length; i += npdBatchSize) {
         const nBatch = writeBatch(db);
-        npdDocs.slice(i, i + 450).forEach(dItem => {
+        npdDocs.slice(i, i + npdBatchSize).forEach(dItem => {
           nBatch.set(doc(db, 'snapshots', snapshotMonth, 'npd_promopack_metrics', dItem.id), dItem.data);
         });
         await nBatch.commit();
